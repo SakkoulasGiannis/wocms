@@ -108,7 +108,7 @@
                         </svg>
                     </button>
                 </form>
-                <p class="text-xs text-gray-400 mt-2">Try: "Γράψε μου ένα άρθρο για AI" or "Create a products template"</p>
+                <p class="text-xs text-gray-400 mt-2">Try: “Generate an article about Artificial Intelligence or create a product template.”</p>
             </div>
         </div>
     @endif

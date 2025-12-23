@@ -1,4 +1,8 @@
 <p align="center">
+  <img src=".github/assets/logo.png" alt="WOCMS Logo" width="400">
+</p>
+
+<p align="center">
   <h1 align="center">WOCMS</h1>
   <p align="center">WebOrange Content Management System</p>
   <p align="center">
@@ -12,6 +16,10 @@
   <a href="https://livewire.laravel.com"><img src="https://img.shields.io/badge/Livewire-3-4E56A6?logo=livewire" alt="Livewire 3"></a>
   <a href="https://tailwindcss.com"><img src="https://img.shields.io/badge/Tailwind-3-38B2AC?logo=tailwind-css" alt="Tailwind CSS"></a>
   <img src="https://img.shields.io/badge/status-beta-orange.svg" alt="Beta">
+</p>
+
+<p align="center">
+  <a href="https://www.buymeacoffee.com/sakkoulas"><img src="https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-FFDD00?logo=buy-me-a-coffee&logoColor=black" alt="Buy Me A Coffee"></a>
 </p>
 
 <p align="center">
@@ -304,6 +312,18 @@ If you discover a security vulnerability, please email security@weborange.gr. Al
 - [ ] E-commerce module
 - [ ] Analytics dashboard
 - [ ] Import/Export tools for content migration
+
+## Support the Project
+
+WOCMS is free and open source. If you find it useful and want to support its development, consider buying me a coffee!
+
+<p align="center">
+  <a href="https://www.buymeacoffee.com/sakkoulas" target="_blank">
+    <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;">
+  </a>
+</p>
+
+Your support helps maintain and improve WOCMS, add new features, and keep the documentation up to date. Thank you!
 
 ## Credits
 
