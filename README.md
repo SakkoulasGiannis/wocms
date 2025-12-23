@@ -53,6 +53,7 @@ Unlike traditional CMSs, WOCMS offers a unique **dynamic template system** that 
 - **GrapeJS Page Builder** - Drag-and-drop visual page editor
 - **Advanced Media Library** - Automatic image size generation with Spatie Media Library
 - **SEO Tools** - Comprehensive SEO fields for every content type
+- **AI-Powered Content Generation** - Generate content using Claude, ChatGPT, or Ollama
 - **Module System** - Extendable architecture with custom modules
 - **Multi-Language Ready** - Built-in support for multi-language content
 - **Role-Based Access Control** - Granular permissions using Spatie Permissions
@@ -83,6 +84,23 @@ Unlike traditional CMSs, WOCMS offers a unique **dynamic template system** that 
   - Full Page GrapeJS - Complete visual page builder
   - Page Sections - Multiple flexible sections
   - Simple Content - Basic WYSIWYG editor
+
+### AI Features
+
+- **AI Chat Assistant** - Admin panel chat widget for content management
+- **Multiple AI Providers**:
+  - Claude (Anthropic)
+  - ChatGPT (OpenAI)
+  - Ollama (Self-hosted)
+- **Smart Content Generation**:
+  - Automatic content creation for any template
+  - Batch generation (create multiple entries at once)
+  - Intent detection (understands natural language requests)
+  - Context-aware suggestions
+- **Use Cases**:
+  - "Create 10 blog posts about Laravel"
+  - "Generate a new product page for iPhone 15"
+  - "Add 5 team members to our About page"
 
 ### Built With
 
@@ -250,6 +268,16 @@ DB_DATABASE=wocms
 # Mail
 MAIL_MAILER=smtp
 MAIL_FROM_ADDRESS=noreply@your-domain.com
+
+# AI Providers (Optional - configure in Admin > Settings)
+# Claude (Anthropic)
+ANTHROPIC_API_KEY=your_claude_api_key
+
+# ChatGPT (OpenAI)
+OPENAI_API_KEY=your_openai_api_key
+
+# Ollama (Self-hosted)
+OLLAMA_API_URL=http://localhost:11434
 
 # Media Library
 MEDIA_DISK=public
