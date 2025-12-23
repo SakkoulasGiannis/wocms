@@ -41,4 +41,16 @@ class Page extends Model implements HasMedia
     {
         return !empty($this->featured_image);
     }
+    /**
+     * Scope a query to only include active (published) entries
+     */
+    public function scopeActive($query)
+    {
+        return $query->whereNotNull('published_at')
+                     ->where('published_at', '<=', now())
+                     ->where(function ($q) {
+                         $q->where('status', 'published')
+                           ->orWhereNull('status');
+                     });
+    }
 }
