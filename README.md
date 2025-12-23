@@ -11,6 +11,7 @@
   <a href="https://laravel.com"><img src="https://img.shields.io/badge/Laravel-11-FF2D20?logo=laravel" alt="Laravel 11"></a>
   <a href="https://livewire.laravel.com"><img src="https://img.shields.io/badge/Livewire-3-4E56A6?logo=livewire" alt="Livewire 3"></a>
   <a href="https://tailwindcss.com"><img src="https://img.shields.io/badge/Tailwind-3-38B2AC?logo=tailwind-css" alt="Tailwind CSS"></a>
+  <img src="https://img.shields.io/badge/status-beta-orange.svg" alt="Beta">
 </p>
 
 <p align="center">
@@ -20,6 +21,13 @@
   <a href="#documentation">Documentation</a> •
   <a href="#contributing">Contributing</a>
 </p>
+
+---
+
+> **⚠️ BETA SOFTWARE**
+> WOCMS is currently in **beta** and under active development. While the core features are stable and functional, you may encounter bugs or incomplete features. We welcome feedback and contributions!
+> - Report issues: [GitHub Issues](https://github.com/SakkoulasGiannis/wocms/issues)
+> - Production use: Recommended for testing environments only at this stage
 
 ---
 
