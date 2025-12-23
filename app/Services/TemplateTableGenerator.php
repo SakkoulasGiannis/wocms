@@ -370,6 +370,24 @@ class TemplateTableGenerator
         $methodsGenerator = new ModelMethodsGenerator();
         $generatedMethods = $methodsGenerator->generateMethods($template);
 
+        // Add active() scope for published content filtering
+        $activeScope = <<<'PHP'
+
+    /**
+     * Scope a query to only include active (published) entries
+     */
+    public function scopeActive($query)
+    {
+        return $query->whereNotNull('published_at')
+                     ->where('published_at', '<=', now())
+                     ->where(function ($q) {
+                         $q->where('status', 'published')
+                           ->orWhereNull('status');
+                     });
+    }
+PHP;
+        $generatedMethods .= $activeScope;
+
         // Check if template has image fields for Spatie Media Library
         $hasImageFields = $template->fields->whereIn('type', ['image', 'gallery'])->count() > 0;
 
