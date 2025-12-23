@@ -1,0 +1,16 @@
+{
+    "name": "ExampleBlog",
+    "alias": "exampleblog",
+    "description": "Example Blog Module - demonstrates menu integration",
+    "keywords": [
+        "blog",
+        "posts",
+        "example"
+    ],
+    "priority": 10,
+    "providers": [
+        "Modules\\ExampleBlog\\Providers\\ExampleBlogServiceProvider"
+    ],
+    "files": [],
+    "active": 0
+}

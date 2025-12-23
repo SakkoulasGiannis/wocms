@@ -1,0 +1,54 @@
+*.log
+.DS_Store
+.env
+.env.backup
+.env.production
+.phpactor.json
+.phpunit.result.cache
+/.fleet
+/.idea
+/.nova
+/.phpunit.cache
+/.vscode
+/.zed
+/auth.json
+/node_modules
+/public/build
+/public/hot
+/public/storage
+/storage/*.key
+/storage/pail
+/vendor
+Homestead.json
+Homestead.yaml
+Thumbs.db
+
+# Development
+/.claude
+/.ddev
+
+# Database
+database/database.sqlite
+database/*.sqlite
+*.db
+
+# Personal data files
+modules_statuses.json
+my-templates.json
+*-templates.json
+exported-*.json
+contact-form.json
+
+# Development documentation (will be replaced with proper docs)
+FORM_BUILDER_USAGE.md
+FORM_IMPORT_EXPORT.md
+ICON_PICKER_USAGE.md
+ICONS_REFERENCE.md
+MIGRATION_GUIDE.md
+MODULES_QUICKSTART.md
+TEMPLATE_IMPORT_EXPORT.md
+TEMPLATE_SYSTEM.md
+TEMPLATE_VARIABLES.md
+
+# Build files
+vite-module-loader.js

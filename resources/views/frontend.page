@@ -1,0 +1,18 @@
+@extends('frontend.layout')
+
+@section('content')
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-4xl font-bold mb-6">{{ $content->title ?? $title }}</h1>
+
+    {{-- All template fields are available as properties on $content --}}
+    {{-- Example: $content->field_name --}}
+
+    @if($content)
+        <div class="prose max-w-none">
+            {{-- Add your template fields here --}}
+            {{-- For example: --}}
+            {{-- <p>{{ $content->description }}</p> --}}
+        </div>
+    @endif
+</div>
+@endsection

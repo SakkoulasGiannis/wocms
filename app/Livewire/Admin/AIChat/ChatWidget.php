@@ -1,0 +1,387 @@
+<?php
+
+namespace App\Livewire\Admin\AIChat;
+
+use App\Models\AIChatMessage;
+use App\Services\AI\AIManager;
+use App\Services\AI\AIContentHandler;
+use Livewire\Component;
+use Illuminate\Support\Facades\Auth;
+
+class ChatWidget extends Component
+{
+    public $isOpen = false;
+    public $message = '';
+    public $messages = [];
+    public $isLoading = false;
+
+    public function mount()
+    {
+        $this->loadMessages();
+    }
+
+    public function loadMessages()
+    {
+        $this->messages = AIChatMessage::where('user_id', Auth::id())
+            ->orderBy('created_at', 'asc')
+            ->take(50) // Last 50 messages
+            ->get()
+            ->map(fn($msg) => [
+                'id' => $msg->id,
+                'role' => $msg->role,
+                'message' => $msg->message,
+                'intent' => $msg->intent,
+                'created_at' => $msg->created_at->diffForHumans(),
+            ])
+            ->toArray();
+    }
+
+    public function toggleChat()
+    {
+        $this->isOpen = !$this->isOpen;
+    }
+
+    public function sendMessage()
+    {
+        if (empty(trim($this->message))) {
+            return;
+        }
+
+        $userMessage = trim($this->message);
+        $this->message = '';
+        $this->isLoading = true;
+
+        // Save user message
+        $userMsg = AIChatMessage::create([
+            'user_id' => Auth::id(),
+            'role' => 'user',
+            'message' => $userMessage,
+        ]);
+
+        $this->messages[] = [
+            'id' => $userMsg->id,
+            'role' => 'user',
+            'message' => $userMessage,
+            'created_at' => 'Just now',
+        ];
+
+        try {
+            // Get AI response
+            $aiManager = new AIManager();
+
+            // Detect intent
+            $intent = $aiManager->detectIntent($userMessage);
+
+            // Handle based on intent
+            if ($intent === 'create_content') {
+                // Use content handler for content generation
+                $contentHandler = new AIContentHandler();
+                $result = $contentHandler->handleContentGeneration($userMessage);
+
+                if ($result['success']) {
+                    // Check if this is a batch creation (multiple entries)
+                    if (isset($result['entries']) && count($result['entries']) > 1) {
+                        // Batch response - message is already formatted
+                        $message = $result['message'];
+                        $message .= "\nΘέλεις να κάνω αλλαγές ή να δημιουργήσω κάτι άλλο;";
+                    } else {
+                        // Single entry response
+                        $message = $result['message'] . "\n\n";
+                        $message .= "📝 **Τίτλος**: " . ($result['data']['title'] ?? 'N/A') . "\n";
+                        $message .= "🔗 [Επεξεργασία του entry](" . $result['preview_url'] . ")\n";
+
+                        if (!empty($result['frontend_url'])) {
+                            $message .= "🌐 [Προβολή στο frontend](" . $result['frontend_url'] . ")\n";
+                        }
+
+                        $message .= "\nΘέλεις να κάνω αλλαγές ή να δημιουργήσω κάτι άλλο;";
+                    }
+
+                    $aiMsg = AIChatMessage::create([
+                        'user_id' => Auth::id(),
+                        'role' => 'assistant',
+                        'message' => $message,
+                        'intent' => $intent,
+                        'metadata' => $result,
+                    ]);
+
+                    $this->messages[] = [
+                        'id' => $aiMsg->id,
+                        'role' => 'assistant',
+                        'message' => $message,
+                        'intent' => $intent,
+                        'created_at' => 'Just now',
+                        'preview_url' => $result['preview_url'] ?? null,
+                    ];
+                } else {
+                    // Error in content generation
+                    $this->messages[] = [
+                        'id' => null,
+                        'role' => 'assistant',
+                        'message' => $result['message'],
+                        'created_at' => 'Just now',
+                    ];
+                }
+            } elseif ($intent === 'update_content') {
+                // Use content handler for content updates
+                $contentHandler = new AIContentHandler();
+                $context = $this->buildContext();
+                $result = $contentHandler->handleContentUpdate($userMessage, $context);
+
+                if ($result['success']) {
+                    // Update response
+                    $message = $result['message'] . "\n\n";
+                    $message .= "🔗 [Επεξεργασία του entry](" . $result['preview_url'] . ")\n";
+                    $message .= "\nΘέλεις να κάνω άλλες αλλαγές;";
+
+                    $aiMsg = AIChatMessage::create([
+                        'user_id' => Auth::id(),
+                        'role' => 'assistant',
+                        'message' => $message,
+                        'intent' => $intent,
+                        'metadata' => $result,
+                    ]);
+
+                    $this->messages[] = [
+                        'id' => $aiMsg->id,
+                        'role' => 'assistant',
+                        'message' => $message,
+                        'intent' => $intent,
+                        'created_at' => 'Just now',
+                    ];
+                } else {
+                    // Error in update
+                    $this->messages[] = [
+                        'id' => null,
+                        'role' => 'assistant',
+                        'message' => $result['message'],
+                        'created_at' => 'Just now',
+                    ];
+                }
+            } elseif ($intent === 'create_template') {
+                // Use content handler for template creation
+                $contentHandler = new AIContentHandler();
+                $result = $contentHandler->handleTemplateCreation($userMessage);
+
+                $message = $result['message'];
+                if (!$result['success']) {
+                    $message .= "\n\nΘέλεις να δοκιμάσω ξανά με διαφορετική προσέγγιση;";
+                } else {
+                    $message .= "\n\nΜπορώ να σου δημιουργήσω και περιεχόμενο για αυτό το template;";
+                }
+
+                $aiMsg = AIChatMessage::create([
+                    'user_id' => Auth::id(),
+                    'role' => 'assistant',
+                    'message' => $message,
+                    'intent' => $intent,
+                    'metadata' => $result,
+                ]);
+
+                $this->messages[] = [
+                    'id' => $aiMsg->id,
+                    'role' => 'assistant',
+                    'message' => $message,
+                    'intent' => $intent,
+                    'created_at' => 'Just now',
+                ];
+            } elseif ($intent === 'modify_template') {
+                // Use content handler for template modification
+                $contentHandler = new AIContentHandler();
+                $context = $this->buildContext();
+                $result = $contentHandler->handleTemplateModification($userMessage, $context);
+
+                $message = $result['message'];
+                if (!$result['success']) {
+                    $message .= "\n\nΘέλεις να δοκιμάσω με διαφορετικό τρόπο;";
+                } else {
+                    $message .= "\n\nΘέλεις να κάνω και άλλες αλλαγές;";
+                }
+
+                $aiMsg = AIChatMessage::create([
+                    'user_id' => Auth::id(),
+                    'role' => 'assistant',
+                    'message' => $message,
+                    'intent' => $intent,
+                    'metadata' => $result,
+                ]);
+
+                $this->messages[] = [
+                    'id' => $aiMsg->id,
+                    'role' => 'assistant',
+                    'message' => $message,
+                    'intent' => $intent,
+                    'created_at' => 'Just now',
+                ];
+            } elseif ($intent === 'modify_frontend') {
+                // Use content handler for frontend modification
+                $contentHandler = new AIContentHandler();
+                $result = $contentHandler->handleFrontendModification($userMessage);
+
+                $message = $result['message'];
+                if (!$result['success']) {
+                    $message .= "\n\nΘέλεις να δοκιμάσω με διαφορετικό τρόπο;";
+                } else {
+                    $message .= "\n\nΘέλεις να κάνω και άλλες αλλαγές;";
+                }
+
+                $aiMsg = AIChatMessage::create([
+                    'user_id' => Auth::id(),
+                    'role' => 'assistant',
+                    'message' => $message,
+                    'intent' => $intent,
+                    'metadata' => $result,
+                ]);
+
+                $this->messages[] = [
+                    'id' => $aiMsg->id,
+                    'role' => 'assistant',
+                    'message' => $message,
+                    'intent' => $intent,
+                    'created_at' => 'Just now',
+                ];
+            } elseif ($intent === 'create_page_section') {
+                // Use content handler for page section creation
+                $contentHandler = new AIContentHandler();
+                $result = $contentHandler->handlePageSectionCreation($userMessage);
+
+                $message = $result['message'];
+                if ($result['success']) {
+                    $message .= "\n\n🔗 [Δες όλα τα sections](/admin/page-sections/{$result['page_type']})";
+                    $message .= "\n\nΘέλεις να κάνω αλλαγές ή να προσθέσω κάτι άλλο;";
+                }
+
+                $aiMsg = AIChatMessage::create([
+                    'user_id' => Auth::id(),
+                    'role' => 'assistant',
+                    'message' => $message,
+                    'intent' => $intent,
+                    'metadata' => $result,
+                ]);
+
+                $this->messages[] = [
+                    'id' => $aiMsg->id,
+                    'role' => 'assistant',
+                    'message' => $message,
+                    'intent' => $intent,
+                    'created_at' => 'Just now',
+                ];
+            } elseif ($intent === 'modify_page_section') {
+                // Use content handler for page section modification
+                $contentHandler = new AIContentHandler();
+                $context = $this->buildContext();
+                $result = $contentHandler->handlePageSectionModification($userMessage, $context);
+
+                $message = $result['message'];
+                if ($result['success']) {
+                    $message .= "\n\nΘέλεις να κάνω και άλλες αλλαγές;";
+                }
+
+                $aiMsg = AIChatMessage::create([
+                    'user_id' => Auth::id(),
+                    'role' => 'assistant',
+                    'message' => $message,
+                    'intent' => $intent,
+                    'metadata' => $result,
+                ]);
+
+                $this->messages[] = [
+                    'id' => $aiMsg->id,
+                    'role' => 'assistant',
+                    'message' => $message,
+                    'intent' => $intent,
+                    'created_at' => 'Just now',
+                ];
+            } elseif ($intent === 'reorder_page_section') {
+                // Use content handler for page section reordering
+                $contentHandler = new AIContentHandler();
+                $result = $contentHandler->handlePageSectionReordering($userMessage);
+
+                $message = $result['message'];
+                if ($result['success']) {
+                    $message .= "\n\n🔗 [Δες τη νέα σειρά](/admin/page-sections/home)";
+                    $message .= "\n\nΘέλεις να κάνω και άλλες αλλαγές;";
+                }
+
+                $aiMsg = AIChatMessage::create([
+                    'user_id' => Auth::id(),
+                    'role' => 'assistant',
+                    'message' => $message,
+                    'intent' => $intent,
+                    'metadata' => $result,
+                ]);
+
+                $this->messages[] = [
+                    'id' => $aiMsg->id,
+                    'role' => 'assistant',
+                    'message' => $message,
+                    'intent' => $intent,
+                    'created_at' => 'Just now',
+                ];
+            } else {
+                // Regular chat response
+                $context = $this->buildContext();
+                $response = $aiManager->chat($userMessage, $context);
+
+                if ($response->success) {
+                    $aiMsg = AIChatMessage::create([
+                        'user_id' => Auth::id(),
+                        'role' => 'assistant',
+                        'message' => $response->content,
+                        'intent' => $intent,
+                        'metadata' => $response->data,
+                    ]);
+
+                    $this->messages[] = [
+                        'id' => $aiMsg->id,
+                        'role' => 'assistant',
+                        'message' => $response->content,
+                        'intent' => $intent,
+                        'created_at' => 'Just now',
+                    ];
+                } else {
+                    $this->messages[] = [
+                        'id' => null,
+                        'role' => 'assistant',
+                        'message' => '❌ Error: ' . $response->error,
+                        'created_at' => 'Just now',
+                    ];
+                }
+            }
+
+        } catch (\Exception $e) {
+            $this->messages[] = [
+                'id' => null,
+                'role' => 'assistant',
+                'message' => '❌ Error: ' . $e->getMessage(),
+                'created_at' => 'Just now',
+            ];
+        }
+
+        $this->isLoading = false;
+    }
+
+    public function clearHistory()
+    {
+        AIChatMessage::where('user_id', Auth::id())->delete();
+        $this->messages = [];
+    }
+
+    protected function buildContext(): array
+    {
+        // Get last 5 messages for context
+        $recentMessages = array_slice($this->messages, -5);
+
+        return [
+            'conversation_history' => array_map(fn($msg) => [
+                'role' => $msg['role'],
+                'message' => $msg['message']
+            ], $recentMessages)
+        ];
+    }
+
+    public function render()
+    {
+        return view('livewire.admin.a-i-chat.chat-widget');
+    }
+}

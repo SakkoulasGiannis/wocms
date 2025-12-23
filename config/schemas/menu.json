@@ -1,0 +1,49 @@
+{
+  "admin_menu": [
+    {
+      "section": "Dashboard",
+      "items": [
+        {
+          "label": "Dashboard",
+          "icon": "home",
+          "route": "admin.dashboard"
+        }
+      ]
+    },
+    {
+      "section": "Content",
+      "items": [
+        {
+          "label": "Content Tree",
+          "icon": "folder-tree",
+          "route": "admin.content-tree"
+        },
+        {
+          "label": "Templates",
+          "icon": "code",
+          "route": "admin.templates.index"
+        }
+      ]
+    },
+    {
+      "section": "Forms",
+      "items": [
+        {
+          "label": "Forms",
+          "icon": "file-text",
+          "route": "admin.forms.index"
+        }
+      ]
+    },
+    {
+      "section": "System",
+      "items": [
+        {
+          "label": "Modules",
+          "icon": "cubes",
+          "route": "admin.modules.index"
+        }
+      ]
+    }
+  ]
+}

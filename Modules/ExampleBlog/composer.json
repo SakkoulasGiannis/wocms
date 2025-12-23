@@ -1,0 +1,17 @@
+{
+    "name": "nwidart/exampleblog",
+    "description": "Example Blog Module",
+    "type": "laravel-module",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Your Name",
+            "email": "your@email.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Modules\\ExampleBlog\\": ""
+        }
+    }
+}

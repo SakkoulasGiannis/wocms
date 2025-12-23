@@ -1,0 +1,120 @@
+{
+  "entity": "pages",
+  "label": "Pages",
+  "icon": "document-text",
+  "menu": {
+    "section": "Content",
+    "order": 10
+  },
+  "table": {
+    "columns": [
+      {
+        "field": "title",
+        "label": "Title",
+        "sortable": true,
+        "searchable": true
+      },
+      {
+        "field": "slug",
+        "label": "Slug",
+        "sortable": true
+      },
+      {
+        "field": "status",
+        "label": "Status",
+        "type": "badge",
+        "sortable": true,
+        "colors": {
+          "draft": "gray",
+          "published": "green",
+          "archived": "red"
+        }
+      },
+      {
+        "field": "updated_at",
+        "label": "Last Updated",
+        "type": "date",
+        "sortable": true
+      }
+    ],
+    "filters": [
+      {
+        "field": "status",
+        "label": "Status",
+        "type": "select",
+        "options": [
+          {"value": "", "label": "All"},
+          {"value": "draft", "label": "Draft"},
+          {"value": "published", "label": "Published"},
+          {"value": "archived", "label": "Archived"}
+        ]
+      }
+    ],
+    "actions": [
+      {"label": "Edit", "route": "admin.pages.edit", "icon": "pencil"},
+      {"label": "Delete", "action": "delete", "icon": "trash", "confirm": true}
+    ]
+  },
+  "form": {
+    "sections": [
+      {
+        "title": "Basic Information",
+        "fields": [
+          {
+            "name": "title",
+            "label": "Title",
+            "type": "text",
+            "required": true,
+            "placeholder": "Enter page title"
+          },
+          {
+            "name": "slug",
+            "label": "Slug",
+            "type": "text",
+            "required": true,
+            "placeholder": "page-slug"
+          },
+          {
+            "name": "status",
+            "label": "Status",
+            "type": "select",
+            "required": true,
+            "options": [
+              {"value": "draft", "label": "Draft"},
+              {"value": "published", "label": "Published"},
+              {"value": "archived", "label": "Archived"}
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Content",
+        "fields": [
+          {
+            "name": "content",
+            "label": "Page Content (JSON)",
+            "type": "json",
+            "rows": 10
+          }
+        ]
+      },
+      {
+        "title": "SEO",
+        "collapsible": true,
+        "fields": [
+          {
+            "name": "meta.description",
+            "label": "Meta Description",
+            "type": "textarea",
+            "rows": 3
+          },
+          {
+            "name": "meta.keywords",
+            "label": "Keywords",
+            "type": "text"
+          }
+        ]
+      }
+    ]
+  }
+}

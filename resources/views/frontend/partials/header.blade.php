@@ -1,0 +1,29 @@
+<!-- Header -->
+<header class="bg-white shadow-sm sticky top-0 z-50">
+    <div class="container mx-auto px-4">
+        <div class="flex items-center justify-between h-16">
+            <div class="flex items-center">
+                @php
+                    $siteName = \App\Models\Setting::get('site_name', 'CMS');
+                    $siteLogo = \App\Models\Setting::get('site_logo', '');
+                @endphp
+
+                <a href="/" class="flex items-center space-x-3">
+                    @if($siteLogo)
+                        <img src="{{ $siteLogo }}" alt="{{ $siteName }}" class="h-8 w-auto">
+                    @endif
+                    <span class="text-2xl font-bold text-blue-600">{{ $siteName }}</span>
+                </a>
+            </div>
+            <nav class="hidden md:flex space-x-8">
+                <a href="/" class="text-gray-700 hover:text-blue-600">Home</a>
+                <a href="/blog" class="text-gray-700 hover:text-blue-600">Blog</a>
+                @auth
+                    <a href="/admin" class="text-gray-700 hover:text-blue-600">Admin</a>
+                @else
+                    <a href="/login" class="text-gray-700 hover:text-blue-600">Login</a>
+                @endauth
+            </nav>
+        </div>
+    </div>
+</header>
