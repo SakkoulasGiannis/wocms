@@ -218,17 +218,6 @@ Modules are self-contained packages with their own:
 - Routes
 - Migrations
 
-### API
-
-WOCMS includes a RESTful API for headless CMS usage:
-
-```bash
-# Enable API in config
-API_ENABLED=true
-```
-
-API endpoints automatically generated for all templates.
-
 ## Configuration
 
 ### Environment Variables
@@ -297,6 +286,7 @@ If you discover a security vulnerability, please email security@weborange.gr. Al
 
 ## Roadmap
 
+- [ ] RESTful API (auto-generated endpoints for templates)
 - [ ] Multi-language support (in progress)
 - [ ] GraphQL API
 - [ ] Advanced caching system
@@ -305,6 +295,7 @@ If you discover a security vulnerability, please email security@weborange.gr. Al
 - [ ] Advanced form builder
 - [ ] E-commerce module
 - [ ] Analytics dashboard
+- [ ] Import/Export tools for content migration
 
 ## Credits
 
