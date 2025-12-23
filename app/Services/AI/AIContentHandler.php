@@ -441,10 +441,9 @@ class AIContentHandler
         // Map template slugs to model classes
         // You can extend this based on your needs
         $modelMap = [
-            'blog-post' => \App\Models\BlogPost::class,
-            'product' => \App\Models\Product::class,
-            'service' => \App\Models\Service::class,
+            'blog' => \App\Models\Blog::class,
             'page' => \App\Models\Page::class,
+            'home' => \App\Models\Home::class,
         ];
 
         return $modelMap[$template->slug] ?? null;
