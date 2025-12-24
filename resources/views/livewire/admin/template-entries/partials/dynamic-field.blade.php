@@ -102,7 +102,7 @@
                              style="height: 600px;"></div>
                     </div>
                     <textarea id="gjs-data-{{ $field->name }}"
-                              style="display:none;">{{ $fieldValues[$field->name] ?? '' }}</textarea>
+                              style="display:none;">{{ is_array($fieldValues[$field->name] ?? '') ? json_encode($fieldValues[$field->name]) : ($fieldValues[$field->name] ?? '') }}</textarea>
                 </div>
                 <script>
                     // Initialize GrapeJS for this field once everything is ready
