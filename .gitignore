@@ -18,6 +18,8 @@
 /public/storage
 /storage/*.key
 /storage/pail
+/storage/app/livewire-tmp/*
+!/storage/app/livewire-tmp/.gitkeep
 /vendor
 Homestead.json
 Homestead.yaml
