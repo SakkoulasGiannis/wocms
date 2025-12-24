@@ -54,3 +54,7 @@ TEMPLATE_VARIABLES.md
 
 # Build files
 vite-module-loader.js
+
+# Dynamically generated templates (created by CMS)
+resources/views/frontend/templates/
+resources/views/templates/
