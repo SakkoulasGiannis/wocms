@@ -23,6 +23,9 @@
     {{-- Tailwind Plus Elements --}}
     <script src="https://cdn.jsdelivr.net/npm/@tailwindplus/elements@1" type="module"></script>
 
+    {{-- Livewire Styles --}}
+    @livewireStyles
+
     @stack('styles')
 </head>
 <body class="bg-gray-50">
@@ -34,6 +37,9 @@
     </main>
 
     @include('frontend.partials.footer')
+
+    {{-- Livewire Scripts --}}
+    @livewireScripts
 
     @stack('scripts')
 </body>
