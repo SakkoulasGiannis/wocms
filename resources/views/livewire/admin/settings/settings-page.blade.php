@@ -128,6 +128,47 @@
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Favicon
+                        </label>
+
+                        <!-- Current Favicon Preview -->
+                        @if($site_favicon && !$site_favicon_upload)
+                            <div class="mb-3">
+                                <p class="text-xs text-gray-500 mb-2">Current Favicon:</p>
+                                <img src="{{ $site_favicon }}" alt="Favicon" class="w-8 h-8 rounded shadow-sm border border-gray-200">
+                            </div>
+                        @endif
+
+                        <!-- File Upload Input -->
+                        <input type="file"
+                               wire:model="site_favicon_upload"
+                               accept="image/png,image/x-icon,image/jpeg,image/jpg"
+                               class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+
+                        <!-- Loading Indicator -->
+                        <div wire:loading wire:target="site_favicon_upload" class="mt-2 text-sm text-blue-600">
+                            Uploading...
+                        </div>
+
+                        <!-- New Upload Preview -->
+                        @if($site_favicon_upload)
+                            <div class="mt-3">
+                                <p class="text-xs text-gray-500 mb-2">New Favicon Preview:</p>
+                                <img src="{{ $site_favicon_upload->temporaryUrl() }}" class="w-8 h-8 rounded shadow-sm border border-gray-200">
+                            </div>
+                        @endif
+
+                        @error('site_favicon_upload')
+                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                        @enderror
+
+                        <p class="mt-1 text-xs text-gray-500">
+                            Upload a favicon image (PNG, ICO, JPG recommended 32x32 or 16x16). Max size: 1MB.
+                        </p>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
                             Site Description
                         </label>
                         <textarea wire:model="site_description"

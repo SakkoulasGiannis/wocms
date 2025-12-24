@@ -17,6 +17,8 @@ class SettingsPage extends Component
     public $site_name = '';
     public $site_logo = '';
     public $site_logo_upload = null; // For file upload
+    public $site_favicon = '';
+    public $site_favicon_upload = null; // For favicon upload
     public $site_description = '';
     public $under_construction = false;
 
@@ -57,6 +59,7 @@ class SettingsPage extends Component
         // General settings
         $this->site_name = Setting::get('site_name', 'My CMS');
         $this->site_logo = Setting::get('site_logo', '');
+        $this->site_favicon = Setting::get('site_favicon', '');
         $this->site_description = Setting::get('site_description', '');
         $this->under_construction = Setting::get('under_construction', false);
 
@@ -97,6 +100,7 @@ class SettingsPage extends Component
         $this->validate([
             'site_name' => 'required|string|max:255',
             'site_logo_upload' => 'nullable|image|max:2048', // 2MB max
+            'site_favicon_upload' => 'nullable|image|mimes:png,ico,jpg,jpeg|max:1024', // 1MB max
             'site_description' => 'nullable|string|max:1000',
         ]);
 
@@ -112,6 +116,18 @@ class SettingsPage extends Component
         } elseif ($this->site_logo) {
             // Keep existing logo if no new upload
             Setting::set('site_logo', $this->site_logo, 'general');
+        }
+
+        // Handle favicon upload
+        if ($this->site_favicon_upload) {
+            // Store in public/storage/settings
+            $path = $this->site_favicon_upload->store('settings', 'public');
+            $this->site_favicon = '/storage/' . $path;
+            Setting::set('site_favicon', $this->site_favicon, 'general');
+            $this->site_favicon_upload = null; // Reset upload field
+        } elseif ($this->site_favicon) {
+            // Keep existing favicon if no new upload
+            Setting::set('site_favicon', $this->site_favicon, 'general');
         }
 
         Setting::set('site_description', $this->site_description, 'general');

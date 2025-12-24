@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'Admin') - CMS</title>
+
+    <!-- Favicon -->
+    @if(\App\Models\Setting::get('site_favicon'))
+        <link rel="icon" type="image/x-icon" href="{{ \App\Models\Setting::get('site_favicon') }}">
+    @endif
+
     <script src="https://cdn.tailwindcss.com"></script>
 
     <!-- Alpine.js - Load only once -->
