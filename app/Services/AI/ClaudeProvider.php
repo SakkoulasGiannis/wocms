@@ -697,6 +697,28 @@ SYSTEM;
     /**
      * Clean HTML content and extract plain text
      */
+    protected function ensureValidUtf8($value)
+    {
+        if (is_array($value)) {
+            // Recursively clean arrays
+            return array_map([$this, 'ensureValidUtf8'], $value);
+        }
+
+        if (!is_string($value)) {
+            return $value;
+        }
+
+        // Remove invalid UTF-8 characters
+        $value = mb_convert_encoding($value, 'UTF-8', 'UTF-8');
+
+        // Alternative method: use iconv as fallback
+        if (!mb_check_encoding($value, 'UTF-8')) {
+            $value = iconv('UTF-8', 'UTF-8//IGNORE', $value);
+        }
+
+        return $value;
+    }
+
     protected function cleanHtmlContent(string $html): string
     {
         // Decode HTML entities first
@@ -724,6 +746,17 @@ SYSTEM;
     public function improveContent(array $contextData, string $userPrompt): array
     {
         try {
+            // Clean UTF-8 encoding in all field values
+            foreach ($contextData['fields_metadata'] as $fieldName => &$fieldMeta) {
+                if (isset($fieldMeta['current_value'])) {
+                    $fieldMeta['current_value'] = $this->ensureValidUtf8($fieldMeta['current_value']);
+                }
+            }
+            unset($fieldMeta);
+
+            // Clean user prompt
+            $userPrompt = $this->ensureValidUtf8($userPrompt);
+
             // Build field descriptions with types
             $fieldsDescription = "";
             foreach ($contextData['fields_metadata'] as $fieldName => $fieldMeta) {
