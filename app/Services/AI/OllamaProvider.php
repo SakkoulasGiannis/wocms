@@ -34,10 +34,32 @@ class OllamaProvider implements AIProviderInterface
         throw new \Exception('Ollama provider not yet implemented');
     }
 
+    public function updateContent(string $templateName, array $fields, array $currentData, string $prompt): array
+    {
+        // TODO: Implement Ollama content update
+        throw new \Exception('Ollama provider not yet implemented');
+    }
+
     public function generateTemplate(string $prompt): array
     {
         // TODO: Implement Ollama template generation
         throw new \Exception('Ollama provider not yet implemented');
+    }
+
+    public function modifyTemplate($template, string $prompt): array
+    {
+        // TODO: Implement Ollama template modification
+        throw new \Exception('Ollama provider not yet implemented');
+    }
+
+    public function generateSEO(array $contentData, string $additionalContext = ''): array
+    {
+        // TODO: Implement Ollama SEO generation
+        return [
+            'success' => false,
+            'error' => 'Ollama provider not yet implemented',
+            'message' => 'Ollama provider not yet implemented'
+        ];
     }
 
     public function testConnection(): bool

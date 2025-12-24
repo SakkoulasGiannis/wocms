@@ -296,6 +296,115 @@ class ChatGPTProvider implements AIProviderInterface
         }
     }
 
+    public function generateSEO(array $contentData, string $additionalContext = ''): array
+    {
+        try {
+            // Extract text content from the data
+            $contentText = $this->extractTextFromContent($contentData);
+
+            $systemPrompt = "You are an SEO expert. Generate SEO metadata based on the content provided. Return ONLY valid JSON with these exact keys: meta_title (50-60 chars), meta_description (150-160 chars), meta_keywords (5-10 keywords, comma-separated), og_title, og_description. Use the same language as the content.";
+
+            $userPrompt = "CONTENT TO ANALYZE:\n{$contentText}\n\n{$additionalContext}\n\nGenerate SEO metadata in JSON format.";
+
+            $response = Http::timeout(120)
+                ->withHeaders([
+                    'Authorization' => 'Bearer ' . $this->apiKey,
+                    'Content-Type' => 'application/json',
+                ])->post($this->apiUrl, [
+                    'model' => $this->model,
+                    'messages' => [
+                        ['role' => 'system', 'content' => $systemPrompt],
+                        ['role' => 'user', 'content' => $userPrompt]
+                    ],
+                    'response_format' => ['type' => 'json_object'],
+                    'max_tokens' => 1024,
+                    'temperature' => 0.7,
+                ]);
+
+            if ($response->failed()) {
+                throw new \Exception('ChatGPT API Error: ' . $response->body());
+            }
+
+            $data = $response->json();
+            $content = $data['choices'][0]['message']['content'] ?? '';
+
+            $seoData = json_decode($content, true);
+
+            if (!$seoData || !isset($seoData['meta_title'])) {
+                throw new \Exception('Invalid SEO data returned');
+            }
+
+            return [
+                'success' => true,
+                'data' => $seoData,
+                'message' => 'SEO metadata generated successfully'
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('ChatGPT SEO Generation Error', ['error' => $e->getMessage()]);
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'message' => 'Failed to generate SEO metadata'
+            ];
+        }
+    }
+
+    /**
+     * Extract text content from entry data for SEO analysis
+     */
+    protected function extractTextFromContent(array $contentData): string
+    {
+        $textParts = [];
+
+        foreach ($contentData as $key => $value) {
+            // Skip SEO fields, IDs, timestamps, and other meta fields
+            if (in_array($key, ['id', 'created_at', 'updated_at', 'meta_title', 'meta_description', 'meta_keywords', 'og_title', 'og_description', 'slug', 'status'])) {
+                continue;
+            }
+
+            if (is_string($value) && !empty(trim($value))) {
+                // Clean HTML content thoroughly
+                $cleanValue = $this->cleanHtmlContent($value);
+
+                if (strlen($cleanValue) > 10) { // Only include meaningful content
+                    // Limit to 1000 characters per field to avoid token overflow
+                    $cleanValue = mb_substr($cleanValue, 0, 1000);
+                    $textParts[] = "{$key}: {$cleanValue}";
+                }
+            }
+        }
+
+        return implode("\n\n", $textParts);
+    }
+
+    /**
+     * Clean HTML content and extract plain text
+     */
+    protected function cleanHtmlContent(string $html): string
+    {
+        // Decode HTML entities first
+        $text = html_entity_decode($html, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        // Add spaces before block-level tags to preserve word boundaries
+        $text = preg_replace('/<(div|p|br|h[1-6]|li|tr|td)[^>]*>/i', ' $0', $text);
+
+        // Remove script and style tags with their content
+        $text = preg_replace('/<script\b[^>]*>.*?<\/script>/is', '', $text);
+        $text = preg_replace('/<style\b[^>]*>.*?<\/style>/is', '', $text);
+
+        // Remove all HTML tags
+        $text = strip_tags($text);
+
+        // Remove multiple spaces, tabs, and newlines
+        $text = preg_replace('/\s+/', ' ', $text);
+
+        // Trim whitespace
+        $text = trim($text);
+
+        return $text;
+    }
+
     public function testConnection(): bool
     {
         try {

@@ -14,6 +14,8 @@ class ChatWidget extends Component
     public $message = '';
     public $messages = [];
     public $isLoading = false;
+    public $currentUrl = '';
+    public $currentContext = [];
 
     public function mount()
     {
@@ -39,6 +41,67 @@ class ChatWidget extends Component
     public function toggleChat()
     {
         $this->isOpen = !$this->isOpen;
+
+        if ($this->isOpen) {
+            $this->dispatch('chat-opened');
+        }
+    }
+
+    public function updateContext($url)
+    {
+        $this->currentUrl = $url;
+        $this->currentContext = $this->parseUrlContext($url);
+    }
+
+    protected function parseUrlContext($url): array
+    {
+        $context = [
+            'url' => $url,
+            'type' => 'unknown',
+        ];
+
+        // Parse admin URLs to detect template/entry editing
+        // Pattern: /admin/{template}/{id}/edit
+        if (preg_match('#/admin/([^/]+)/(\d+)/edit#', $url, $matches)) {
+            $templateSlug = $matches[1];
+            $entryId = $matches[2];
+
+            $context['type'] = 'entry_edit';
+            $context['template_slug'] = $templateSlug;
+            $context['entry_id'] = $entryId;
+
+            // Try to load the entry
+            try {
+                $template = \App\Models\Template::where('slug', $templateSlug)->first();
+                if ($template) {
+                    $context['template_name'] = $template->name;
+
+                    // Get the dynamic model
+                    $modelClass = "App\\Models\\" . str_replace(' ', '', ucwords(str_replace('-', ' ', $templateSlug)));
+                    if (class_exists($modelClass)) {
+                        $entry = $modelClass::find($entryId);
+                        if ($entry) {
+                            $context['entry_title'] = $entry->title ?? $entry->name ?? 'Entry #' . $entryId;
+                            $context['entry_data'] = $entry->toArray();
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                \Log::error('AI Context Parse Error', ['error' => $e->getMessage()]);
+            }
+        }
+        // Pattern: /admin/{template}/create
+        elseif (preg_match('#/admin/([^/]+)/create#', $url, $matches)) {
+            $context['type'] = 'entry_create';
+            $context['template_slug'] = $matches[1];
+        }
+        // Pattern: /admin/{template}
+        elseif (preg_match('#/admin/([^/]+)$#', $url, $matches)) {
+            $context['type'] = 'template_list';
+            $context['template_slug'] = $matches[1];
+        }
+
+        return $context;
     }
 
     public function sendMessage()
@@ -372,12 +435,19 @@ class ChatWidget extends Component
         // Get last 5 messages for context
         $recentMessages = array_slice($this->messages, -5);
 
-        return [
+        $context = [
             'conversation_history' => array_map(fn($msg) => [
                 'role' => $msg['role'],
                 'message' => $msg['message']
             ], $recentMessages)
         ];
+
+        // Add page context if available
+        if (!empty($this->currentContext)) {
+            $context['page'] = $this->currentContext;
+        }
+
+        return $context;
     }
 
     public function render()

@@ -115,6 +115,19 @@
 
     <!-- Auto-scroll to bottom script -->
     <script>
+        // Update context with current URL
+        function updateChatContext() {
+            const currentUrl = window.location.pathname;
+            @this.call('updateContext', currentUrl);
+        }
+
+        // Update context when chat opens
+        document.addEventListener('livewire:init', () => {
+            Livewire.on('chat-opened', () => {
+                updateChatContext();
+            });
+        });
+
         // Function to scroll chat to bottom
         function scrollChatToBottom() {
             const chatMessages = document.getElementById('chat-messages');

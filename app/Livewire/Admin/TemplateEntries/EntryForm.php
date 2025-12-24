@@ -983,6 +983,72 @@ class EntryForm extends Component
         return null;
     }
 
+    /**
+     * Generate SEO metadata using AI based on entry content
+     */
+    public function generateSEOWithAI()
+    {
+        \Log::info('generateSEOWithAI called');
+
+        if (!$this->template->has_seo) {
+            session()->flash('error', 'This template does not have SEO enabled.');
+            \Log::warning('Template does not have SEO enabled', ['template' => $this->template->slug]);
+            return;
+        }
+
+        try {
+            \Log::info('Collecting content data...', ['fieldValues' => array_keys($this->fieldValues)]);
+
+            // Collect content data from fieldValues
+            $contentData = array_merge(
+                ['id' => $this->entryId ?? 'new'],
+                $this->fieldValues
+            );
+
+            \Log::info('Calling AI to generate SEO...');
+
+            // Use AI to generate SEO metadata
+            $aiManager = new \App\Services\AI\AIManager();
+            $result = $aiManager->getProvider()->generateSEO($contentData, "Template: {$this->template->name}");
+
+            \Log::info('AI response received', ['success' => $result['success'] ?? false]);
+
+            if ($result['success']) {
+                $seoData = $result['data'];
+
+                \Log::info('SEO data generated', ['data' => $seoData]);
+
+                // Map AI response to SEO fields
+                $this->seoFields['seo_title'] = $seoData['meta_title'] ?? '';
+                $this->seoFields['seo_description'] = $seoData['meta_description'] ?? '';
+                $this->seoFields['seo_keywords'] = $seoData['meta_keywords'] ?? '';
+                $this->seoFields['seo_og_title'] = $seoData['og_title'] ?? $seoData['meta_title'] ?? '';
+                $this->seoFields['seo_og_description'] = $seoData['og_description'] ?? $seoData['meta_description'] ?? '';
+
+                // Also set Twitter fields to match OG
+                $this->seoFields['seo_twitter_title'] = $this->seoFields['seo_og_title'];
+                $this->seoFields['seo_twitter_description'] = $this->seoFields['seo_og_description'];
+
+                \Log::info('SEO fields updated', ['seoFields' => array_keys($this->seoFields)]);
+
+                session()->flash('message', '✅ SEO metadata generated successfully! Review and save when ready.');
+
+                // Force component refresh
+                $this->dispatch('seo-fields-updated');
+            } else {
+                $errorMsg = $result['message'] ?? 'Failed to generate SEO metadata';
+                \Log::error('AI SEO generation failed', ['error' => $errorMsg]);
+                session()->flash('error', '❌ ' . $errorMsg);
+            }
+        } catch (\Exception $e) {
+            \Log::error('SEO Generation Error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            session()->flash('error', '❌ Error: ' . $e->getMessage());
+        }
+    }
+
     public function render()
     {
         // Reload template with fresh fields data

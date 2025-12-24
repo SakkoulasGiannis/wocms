@@ -36,6 +36,12 @@ interface AIProviderInterface
     public function modifyTemplate(Template $template, string $prompt): array;
 
     /**
+     * Generate SEO metadata based on content
+     * Returns array with: meta_title, meta_description, meta_keywords, og_title, og_description
+     */
+    public function generateSEO(array $contentData, string $additionalContext = ''): array;
+
+    /**
      * Test the API connection
      */
     public function testConnection(): bool;

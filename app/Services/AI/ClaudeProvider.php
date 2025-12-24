@@ -589,6 +589,138 @@ SYSTEM;
         }
     }
 
+    public function generateSEO(array $contentData, string $additionalContext = ''): array
+    {
+        // Extract text content from the data
+        $contentText = $this->extractTextFromContent($contentData);
+
+        $systemPrompt = <<<SYSTEM
+You are an SEO expert. Generate SEO metadata based on the content provided.
+
+IMPORTANT RULES:
+1. meta_title: 50-60 characters, compelling and descriptive
+2. meta_description: 150-160 characters, engaging call-to-action
+3. meta_keywords: 5-10 relevant keywords (comma-separated)
+4. og_title: Similar to meta_title, optimized for social sharing
+5. og_description: Similar to meta_description, engaging for social media
+6. Use the same language as the content (Greek or English)
+7. Return ONLY valid JSON with these exact keys
+
+CONTENT TO ANALYZE:
+{$contentText}
+
+{$additionalContext}
+
+Return a JSON object with: meta_title, meta_description, meta_keywords, og_title, og_description
+SYSTEM;
+
+        try {
+            $response = Http::timeout(120)
+                ->withHeaders([
+                    'x-api-key' => $this->apiKey,
+                    'anthropic-version' => '2023-06-01',
+                    'content-type' => 'application/json',
+                ])->post($this->apiUrl, [
+                    'model' => $this->model,
+                    'max_tokens' => 1024,
+                    'messages' => [
+                        [
+                            'role' => 'user',
+                            'content' => $systemPrompt
+                        ]
+                    ]
+                ]);
+
+            if ($response->failed()) {
+                throw new \Exception('Claude API failed: ' . $response->body());
+            }
+
+            $data = $response->json();
+            $content = $data['content'][0]['text'] ?? '';
+
+            // Extract JSON from response
+            $content = trim($content);
+            if (str_starts_with($content, '```json')) {
+                $content = preg_replace('/^```json\s*|\s*```$/m', '', $content);
+            }
+
+            $seoData = json_decode($content, true);
+
+            if (!$seoData || !isset($seoData['meta_title'])) {
+                throw new \Exception('Invalid SEO data returned');
+            }
+
+            return [
+                'success' => true,
+                'data' => $seoData,
+                'message' => 'SEO metadata generated successfully'
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Claude SEO Generation Error', ['error' => $e->getMessage()]);
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'message' => 'Failed to generate SEO metadata'
+            ];
+        }
+    }
+
+    /**
+     * Extract text content from entry data for SEO analysis
+     */
+    protected function extractTextFromContent(array $contentData): string
+    {
+        $textParts = [];
+
+        foreach ($contentData as $key => $value) {
+            // Skip SEO fields, IDs, timestamps, and other meta fields
+            if (in_array($key, ['id', 'created_at', 'updated_at', 'meta_title', 'meta_description', 'meta_keywords', 'og_title', 'og_description', 'slug', 'status'])) {
+                continue;
+            }
+
+            if (is_string($value) && !empty(trim($value))) {
+                // Clean HTML content thoroughly
+                $cleanValue = $this->cleanHtmlContent($value);
+
+                if (strlen($cleanValue) > 10) { // Only include meaningful content
+                    // Limit to 1000 characters per field to avoid token overflow
+                    $cleanValue = mb_substr($cleanValue, 0, 1000);
+                    $textParts[] = "{$key}: {$cleanValue}";
+                }
+            }
+        }
+
+        return implode("\n\n", $textParts);
+    }
+
+    /**
+     * Clean HTML content and extract plain text
+     */
+    protected function cleanHtmlContent(string $html): string
+    {
+        // Decode HTML entities first
+        $text = html_entity_decode($html, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        // Add spaces before block-level tags to preserve word boundaries
+        $text = preg_replace('/<(div|p|br|h[1-6]|li|tr|td)[^>]*>/i', ' $0', $text);
+
+        // Remove script and style tags with their content
+        $text = preg_replace('/<script\b[^>]*>.*?<\/script>/is', '', $text);
+        $text = preg_replace('/<style\b[^>]*>.*?<\/style>/is', '', $text);
+
+        // Remove all HTML tags
+        $text = strip_tags($text);
+
+        // Remove multiple spaces, tabs, and newlines
+        $text = preg_replace('/\s+/', ' ', $text);
+
+        // Trim whitespace
+        $text = trim($text);
+
+        return $text;
+    }
+
     public function testConnection(): bool
     {
         try {

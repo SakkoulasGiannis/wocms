@@ -73,6 +73,52 @@
                     }
                 }
 
+                // Generate SEO with AI
+                async function generateSEO() {
+                    console.log('=== generateSEO() called ===');
+
+                    // Get button and icon elements
+                    const btn = document.getElementById('seo-generate-btn');
+                    const iconDefault = document.getElementById('seo-icon-default');
+                    const iconLoading = document.getElementById('seo-icon-loading');
+                    const btnText = document.getElementById('seo-btn-text');
+
+                    // Set loading state
+                    btn.disabled = true;
+                    iconDefault.classList.add('hidden');
+                    iconLoading.classList.remove('hidden');
+                    btnText.textContent = '⏳ Generating...';
+
+                    try {
+                        await @this.call('generateSEOWithAI');
+                        console.log('SEO generated successfully');
+
+                        // Update input fields manually
+                        const seoFields = @this.seoFields;
+                        console.log('SEO Fields:', seoFields);
+
+                        // Update all SEO input fields
+                        if (seoFields.seo_title) document.getElementById('seo_title').value = seoFields.seo_title;
+                        if (seoFields.seo_description) document.getElementById('seo_description').value = seoFields.seo_description;
+                        if (seoFields.seo_keywords) document.getElementById('seo_keywords').value = seoFields.seo_keywords;
+                        if (seoFields.seo_og_title) document.getElementById('seo_og_title').value = seoFields.seo_og_title;
+                        if (seoFields.seo_og_description) document.getElementById('seo_og_description').value = seoFields.seo_og_description;
+                        if (seoFields.seo_twitter_title) document.getElementById('seo_twitter_title').value = seoFields.seo_twitter_title;
+                        if (seoFields.seo_twitter_description) document.getElementById('seo_twitter_description').value = seoFields.seo_twitter_description;
+
+                        alert('✅ SEO metadata generated successfully! Review and save when ready.');
+                    } catch (error) {
+                        console.error('SEO generation failed:', error);
+                        alert('❌ Σφάλμα: ' + error.message);
+                    } finally {
+                        // Reset to default state
+                        btn.disabled = false;
+                        iconDefault.classList.remove('hidden');
+                        iconLoading.classList.add('hidden');
+                        btnText.textContent = '🤖 Generate SEO with AI';
+                    }
+                }
+
                 // Simple Save function with Livewire
                 async function saveEntry(returnToList = false) {
                     console.log('=== saveEntry() called ===');
