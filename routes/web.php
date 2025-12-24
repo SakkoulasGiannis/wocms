@@ -73,11 +73,11 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
 require __DIR__.'/auth.php';
 
 // Template index routes (e.g., /services, /blog)
-Route::get('/{templateSlug}', [FrontendController::class, 'handleTemplateIndex'])
+Route::match(['get', 'post'], '/{templateSlug}', [FrontendController::class, 'handleTemplateIndex'])
     ->where('templateSlug', '[a-z0-9\-]+')
     ->name('template.index');
 
 // Catch-all route for dynamic content (must be last)
-Route::get('/{path}', [FrontendController::class, 'handleDynamicRoute'])
+Route::match(['get', 'post'], '/{path}', [FrontendController::class, 'handleDynamicRoute'])
     ->where('path', '.*')
     ->name('dynamic');
