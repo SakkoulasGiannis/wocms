@@ -139,6 +139,25 @@
                         @enderror
                     </div>
 
+                    <div class="border-t pt-6">
+                        <div class="flex items-start">
+                            <div class="flex items-center h-5">
+                                <input type="checkbox"
+                                       wire:model="under_construction"
+                                       id="under_construction"
+                                       class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2">
+                            </div>
+                            <div class="ml-3">
+                                <label for="under_construction" class="font-medium text-gray-700 cursor-pointer">
+                                    🚧 Enable Under Construction Mode
+                                </label>
+                                <p class="text-sm text-gray-500 mt-1">
+                                    When enabled, the frontend will display a "Coming Soon" page to visitors. Admin users will still have access to the admin panel.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="flex justify-end">
                         <button type="submit"
                                 class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">

@@ -18,6 +18,7 @@ class SettingsPage extends Component
     public $site_logo = '';
     public $site_logo_upload = null; // For file upload
     public $site_description = '';
+    public $under_construction = false;
 
     // AI Settings
     public $ai_provider = 'claude'; // claude, chatgpt, ollama
@@ -57,6 +58,7 @@ class SettingsPage extends Component
         $this->site_name = Setting::get('site_name', 'My CMS');
         $this->site_logo = Setting::get('site_logo', '');
         $this->site_description = Setting::get('site_description', '');
+        $this->under_construction = Setting::get('under_construction', false);
 
         // AI settings
         $this->ai_provider = Setting::get('ai_provider', 'claude');
@@ -113,6 +115,7 @@ class SettingsPage extends Component
         }
 
         Setting::set('site_description', $this->site_description, 'general');
+        Setting::set('under_construction', $this->under_construction, 'general');
 
         session()->flash('success', 'General settings saved successfully!');
     }
