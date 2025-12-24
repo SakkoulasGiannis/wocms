@@ -828,6 +828,10 @@ USERMSG;
                 'prompt_length' => strlen($userPrompt)
             ]);
 
+            // Sanitize final constructed messages to ensure valid UTF-8
+            $systemPrompt = $this->ensureValidUtf8($systemPrompt);
+            $userMessage = $this->ensureValidUtf8($userMessage);
+
             $response = Http::timeout(120)
                 ->withHeaders([
                     'x-api-key' => $this->apiKey,
