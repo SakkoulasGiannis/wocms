@@ -311,6 +311,51 @@ Configure automatic image sizes in **Admin > Settings > Media**:
 - Large: 1200x800 (resize)
 - Custom sizes as needed
 
+## Production Deployment
+
+### Updating an Existing Installation
+
+When pulling updates from the repository:
+
+```bash
+# Simply pull - generated models are handled automatically
+git pull origin main
+
+# Clear caches
+php artisan config:clear
+php artisan cache:clear
+
+# Run any new migrations
+php artisan migrate
+```
+
+**Note:** The repository uses `.gitattributes` to automatically handle conflicts in generated model files (Blog, Page, Home). Your local versions will always be preserved during updates.
+
+### First Time Deployment
+
+```bash
+# Clone repository
+git clone https://github.com/SakkoulasGiannis/wocms.git
+cd wocms
+
+# Install dependencies
+composer install --no-dev
+npm install
+npm run build
+
+# Setup environment
+cp .env.example .env
+php artisan key:generate
+
+# Configure database in .env, then:
+php artisan migrate --seed
+php artisan storage:link
+
+# Set permissions (adjust user/group as needed)
+chmod -R 775 storage bootstrap/cache
+chown -R www-data:www-data storage bootstrap/cache
+```
+
 ## Contributing
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
