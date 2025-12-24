@@ -405,6 +405,148 @@ class ChatGPTProvider implements AIProviderInterface
         return $text;
     }
 
+    public function improveContent(array $contextData, string $userPrompt): array
+    {
+        try {
+            // Build field descriptions with types
+            $fieldsDescription = "";
+            foreach ($contextData['fields_metadata'] as $fieldName => $fieldMeta) {
+                $currentValue = $fieldMeta['current_value'] ?? '';
+
+                // Clean HTML content for display
+                if (in_array($fieldMeta['type'], ['wysiwyg', 'textarea', 'grapejs'])) {
+                    $displayValue = $this->cleanHtmlContent($currentValue);
+                    if (strlen($displayValue) > 500) {
+                        $displayValue = substr($displayValue, 0, 500) . '...';
+                    }
+                } else {
+                    $displayValue = $currentValue;
+                }
+
+                $fieldsDescription .= "\n- {$fieldName} ({$fieldMeta['label']})";
+                $fieldsDescription .= "\n  Type: {$fieldMeta['type']}";
+                $fieldsDescription .= "\n  Current: " . ($displayValue ?: '(empty)');
+            }
+
+            $systemPrompt = <<<SYSTEM
+You are a content improvement assistant. Your task is to improve content based on user requests.
+
+IMPORTANT RULES:
+1. **Return ONLY the fields that need to be changed** based on the user's request
+2. **Preserve field types and formats:**
+   - For 'text' fields: Return plain text
+   - For 'textarea' fields: Return plain text (can be multi-line)
+   - For 'wysiwyg' fields: Return HTML (preserve HTML formatting and structure)
+   - For 'grapejs' fields: Return valid JSON with {html: "", css: ""} structure
+   - For 'email' fields: Return valid email addresses
+   - For 'url' fields: Return valid URLs
+   - For 'image' fields: Do not modify (return suggestions in plain text if asked)
+
+3. **GrapeJS Fields:** If the field type is 'grapejs', the current value is JSON like:
+   {"html": "<div>...</div>", "css": ".class {...}"}
+   You MUST return the same structure. Improve the HTML content but keep the JSON structure intact.
+
+4. **WYSIWYG Fields:** Preserve HTML tags and structure. Only improve the text content.
+
+5. **Understand the request:** If user says "improve title", only return the title field.
+   If user says "fix grammar in all fields", return all text fields with corrections.
+
+6. **Response Format:** Return ONLY valid JSON object like:
+   {
+     "field_name": "improved value",
+     "another_field": "improved value"
+   }
+
+7. Use the same language as the original content (Greek, English, etc.)
+
+SYSTEM;
+
+            $userMessage = <<<USERMSG
+TEMPLATE: {$contextData['template_name']} ({$contextData['template_slug']})
+ENTRY ID: {$contextData['entry_id']}
+
+AVAILABLE FIELDS:
+{$fieldsDescription}
+
+USER REQUEST:
+{$userPrompt}
+
+Please improve the content according to the user's request. Return ONLY the fields that need to be changed in valid JSON format.
+USERMSG;
+
+            \Log::info('Calling ChatGPT API for content improvement...', [
+                'fields_count' => count($contextData['fields_metadata']),
+                'prompt_length' => strlen($userPrompt)
+            ]);
+
+            $response = Http::timeout(120)
+                ->withHeaders([
+                    'Authorization' => 'Bearer ' . $this->apiKey,
+                    'Content-Type' => 'application/json',
+                ])->post($this->apiUrl, [
+                    'model' => $this->model,
+                    'messages' => [
+                        ['role' => 'system', 'content' => $systemPrompt],
+                        ['role' => 'user', 'content' => $userMessage]
+                    ],
+                    'response_format' => ['type' => 'json_object'],
+                    'max_tokens' => 4096,
+                ]);
+
+            if (!$response->successful()) {
+                \Log::error('ChatGPT API request failed', [
+                    'status' => $response->status(),
+                    'body' => $response->body()
+                ]);
+                return [
+                    'success' => false,
+                    'message' => 'API request failed: ' . $response->body()
+                ];
+            }
+
+            $data = $response->json();
+            $content = $data['choices'][0]['message']['content'] ?? '';
+
+            \Log::info('ChatGPT API response received', [
+                'content_length' => strlen($content)
+            ]);
+
+            $improvedFields = json_decode($content, true);
+
+            if (json_last_error() === JSON_ERROR_NONE) {
+                \Log::info('Successfully parsed improved fields', [
+                    'improved_count' => count($improvedFields)
+                ]);
+
+                return [
+                    'success' => true,
+                    'data' => $improvedFields
+                ];
+            }
+
+            // If JSON parsing failed, log and return error
+            \Log::error('Failed to parse JSON from ChatGPT response', [
+                'content' => $content
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Failed to parse AI response as JSON'
+            ];
+
+        } catch (\Exception $e) {
+            \Log::error('ChatGPT improveContent error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return [
+                'success' => false,
+                'message' => $e->getMessage()
+            ];
+        }
+    }
+
     public function testConnection(): bool
     {
         try {

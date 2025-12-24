@@ -1049,6 +1049,71 @@ class EntryForm extends Component
         }
     }
 
+    public function improveContentWithAI(string $prompt)
+    {
+        \Log::info('improveContentWithAI called', ['prompt' => $prompt]);
+
+        try {
+            // Build field metadata with types
+            $fieldsMetadata = [];
+            foreach ($this->template->fields as $field) {
+                $fieldsMetadata[$field->name] = [
+                    'label' => $field->label,
+                    'type' => $field->type,
+                    'current_value' => $this->fieldValues[$field->name] ?? null,
+                ];
+            }
+
+            // Prepare data for AI
+            $contextData = [
+                'template_name' => $this->template->name,
+                'template_slug' => $this->template->slug,
+                'entry_id' => $this->entryId ?? 'new',
+                'fields_metadata' => $fieldsMetadata,
+                'field_values' => $this->fieldValues,
+            ];
+
+            \Log::info('Calling AI to improve content...', [
+                'fields_count' => count($fieldsMetadata),
+                'prompt' => $prompt
+            ]);
+
+            // Use AI to improve content
+            $aiManager = new \App\Services\AI\AIManager();
+            $result = $aiManager->getProvider()->improveContent($contextData, $prompt);
+
+            \Log::info('AI response received', ['success' => $result['success'] ?? false]);
+
+            if ($result['success']) {
+                $improvedFields = $result['data'] ?? [];
+
+                \Log::info('Content improvements received', [
+                    'improved_fields' => array_keys($improvedFields)
+                ]);
+
+                // Update only the fields that were improved
+                foreach ($improvedFields as $fieldName => $improvedValue) {
+                    if (isset($this->fieldValues[$fieldName])) {
+                        $this->fieldValues[$fieldName] = $improvedValue;
+                        \Log::info("Updated field: {$fieldName}");
+                    }
+                }
+
+                session()->flash('message', '✅ Content improved successfully! Review and save when ready.');
+            } else {
+                $errorMsg = $result['message'] ?? 'Failed to improve content';
+                \Log::error('AI content improvement failed', ['error' => $errorMsg]);
+                session()->flash('error', '❌ ' . $errorMsg);
+            }
+        } catch (\Exception $e) {
+            \Log::error('Content Improvement Error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            session()->flash('error', '❌ Error: ' . $e->getMessage());
+        }
+    }
+
     public function render()
     {
         // Reload template with fresh fields data

@@ -62,6 +62,16 @@ class OllamaProvider implements AIProviderInterface
         ];
     }
 
+    public function improveContent(array $contextData, string $userPrompt): array
+    {
+        // TODO: Implement Ollama content improvement
+        return [
+            'success' => false,
+            'error' => 'Ollama provider not yet implemented',
+            'message' => 'Ollama provider not yet implemented'
+        ];
+    }
+
     public function testConnection(): bool
     {
         return false;

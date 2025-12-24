@@ -119,6 +119,104 @@
                     }
                 }
 
+                // Improve Content with AI
+                async function improveContentWithAI() {
+                    console.log('=== improveContentWithAI() called ===');
+
+                    const promptInput = document.getElementById('ai-prompt-input');
+                    const btn = document.getElementById('ai-improve-btn');
+                    const iconDefault = document.getElementById('ai-improve-icon-default');
+                    const iconLoading = document.getElementById('ai-improve-icon-loading');
+                    const btnText = document.getElementById('ai-improve-btn-text');
+                    const resultDiv = document.getElementById('ai-improve-result');
+                    const messageEl = document.getElementById('ai-improve-message');
+
+                    const prompt = promptInput.value.trim();
+
+                    if (!prompt) {
+                        alert('⚠️ Please enter a prompt for the AI');
+                        return;
+                    }
+
+                    // Set loading state
+                    btn.disabled = true;
+                    iconDefault.classList.add('hidden');
+                    iconLoading.classList.remove('hidden');
+                    btnText.textContent = 'Improving...';
+                    resultDiv.classList.add('hidden');
+
+                    try {
+                        // Sync GrapeJS first to get latest content
+                        if (window.syncGrapeJS) {
+                            window.syncGrapeJS();
+                        }
+
+                        await @this.call('improveContentWithAI', prompt);
+                        console.log('Content improved successfully');
+
+                        // Get updated field values from Livewire
+                        const updatedFields = @this.fieldValues;
+                        console.log('Updated fields:', updatedFields);
+
+                        // Update all fields in the form
+                        for (const [fieldName, fieldValue] of Object.entries(updatedFields)) {
+                            const inputEl = document.getElementById(fieldName);
+
+                            if (inputEl) {
+                                // Handle different field types
+                                if (inputEl.tagName === 'TEXTAREA') {
+                                    inputEl.value = fieldValue || '';
+                                } else if (inputEl.tagName === 'INPUT') {
+                                    inputEl.value = fieldValue || '';
+                                } else if (inputEl.classList.contains('wysiwyg-editor')) {
+                                    // For WYSIWYG editors (TinyMCE/CKEditor)
+                                    if (window.tinymce && window.tinymce.get(fieldName)) {
+                                        window.tinymce.get(fieldName).setContent(fieldValue || '');
+                                    } else {
+                                        inputEl.innerHTML = fieldValue || '';
+                                    }
+                                }
+
+                                // Trigger change event to update Livewire
+                                inputEl.dispatchEvent(new Event('change'));
+                            }
+
+                            // Handle GrapeJS fields
+                            if (window.grapesjsEditors && window.grapesjsEditors[fieldName]) {
+                                try {
+                                    const grapesData = JSON.parse(fieldValue);
+                                    if (grapesData.html) {
+                                        window.grapesjsEditors[fieldName].setComponents(grapesData.html);
+                                    }
+                                    if (grapesData.css) {
+                                        window.grapesjsEditors[fieldName].setStyle(grapesData.css);
+                                    }
+                                } catch (e) {
+                                    console.warn('Failed to parse GrapeJS data for', fieldName, e);
+                                }
+                            }
+                        }
+
+                        // Show success message
+                        messageEl.textContent = '✅ Content improved! Review the changes and save when ready.';
+                        resultDiv.classList.remove('hidden');
+
+                        // Clear the prompt
+                        promptInput.value = '';
+
+                    } catch (error) {
+                        console.error('Content improvement failed:', error);
+                        messageEl.textContent = '❌ Error: ' + error.message;
+                        resultDiv.classList.remove('hidden');
+                    } finally {
+                        // Reset to default state
+                        btn.disabled = false;
+                        iconDefault.classList.remove('hidden');
+                        iconLoading.classList.add('hidden');
+                        btnText.textContent = 'Improve Content';
+                    }
+                }
+
                 // Simple Save function with Livewire
                 async function saveEntry(returnToList = false) {
                     console.log('=== saveEntry() called ===');

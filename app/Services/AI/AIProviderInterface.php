@@ -42,6 +42,13 @@ interface AIProviderInterface
     public function generateSEO(array $contentData, string $additionalContext = ''): array;
 
     /**
+     * Improve content based on user prompt
+     * Returns array with only the fields that were improved
+     * Handles different field types: text, textarea, wysiwyg, grapejs, image, email, url
+     */
+    public function improveContent(array $contextData, string $userPrompt): array;
+
+    /**
      * Test the API connection
      */
     public function testConnection(): bool;
