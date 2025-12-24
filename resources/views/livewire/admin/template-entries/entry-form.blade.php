@@ -160,39 +160,62 @@
 
                         // Update all fields in the form
                         for (const [fieldName, fieldValue] of Object.entries(updatedFields)) {
+                            console.log(`Updating field: ${fieldName}`, fieldValue);
+
                             const inputEl = document.getElementById(fieldName);
 
                             if (inputEl) {
+                                console.log(`Found element for ${fieldName}, tag: ${inputEl.tagName}`);
+
                                 // Handle different field types
                                 if (inputEl.tagName === 'TEXTAREA') {
                                     inputEl.value = fieldValue || '';
+                                    console.log(`Updated textarea ${fieldName}`);
                                 } else if (inputEl.tagName === 'INPUT') {
                                     inputEl.value = fieldValue || '';
+                                    console.log(`Updated input ${fieldName}`);
                                 } else if (inputEl.classList.contains('wysiwyg-editor')) {
                                     // For WYSIWYG editors (TinyMCE/CKEditor)
                                     if (window.tinymce && window.tinymce.get(fieldName)) {
                                         window.tinymce.get(fieldName).setContent(fieldValue || '');
+                                        console.log(`Updated TinyMCE ${fieldName}`);
                                     } else {
                                         inputEl.innerHTML = fieldValue || '';
+                                        console.log(`Updated wysiwyg innerHTML ${fieldName}`);
                                     }
                                 }
 
                                 // Trigger change event to update Livewire
                                 inputEl.dispatchEvent(new Event('change'));
+
+                                // Also trigger input event for Livewire wire:model
+                                inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+                            } else {
+                                console.warn(`Could not find element with id: ${fieldName}`);
                             }
 
                             // Handle GrapeJS fields
-                            if (window.grapesjsEditors && window.grapesjsEditors[fieldName]) {
+                            if (window.grapeEditors && window.grapeEditors[fieldName]) {
                                 try {
-                                    const grapesData = JSON.parse(fieldValue);
+                                    console.log(`Updating GrapeJS field: ${fieldName}`);
+
+                                    // If fieldValue is already an object, use it directly
+                                    let grapesData = fieldValue;
+                                    if (typeof fieldValue === 'string') {
+                                        grapesData = JSON.parse(fieldValue);
+                                    }
+
                                     if (grapesData.html) {
-                                        window.grapesjsEditors[fieldName].setComponents(grapesData.html);
+                                        window.grapeEditors[fieldName].setComponents(grapesData.html);
+                                        console.log(`Set GrapeJS components for ${fieldName}`);
                                     }
                                     if (grapesData.css) {
-                                        window.grapesjsEditors[fieldName].setStyle(grapesData.css);
+                                        window.grapeEditors[fieldName].setStyle(grapesData.css);
+                                        console.log(`Set GrapeJS styles for ${fieldName}`);
                                     }
+                                    console.log(`GrapeJS ${fieldName} updated successfully`);
                                 } catch (e) {
-                                    console.warn('Failed to parse GrapeJS data for', fieldName, e);
+                                    console.error('Failed to update GrapeJS field:', fieldName, e);
                                 }
                             }
                         }
