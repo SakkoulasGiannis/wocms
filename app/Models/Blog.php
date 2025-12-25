@@ -50,6 +50,7 @@ class Blog extends Model implements HasMedia
                      ->where('published_at', '<=', now())
                      ->where(function ($q) {
                          $q->where('status', 'published')
+                           ->orWhere('status', 'active')
                            ->orWhereNull('status');
                      });
     }
