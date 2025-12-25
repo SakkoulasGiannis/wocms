@@ -221,10 +221,62 @@
                             </svg>
                             View Site
                         </a>
+
+                        <!-- Cache Clear Button -->
+                        <button onclick="clearCache()"
+                                id="cache-clear-btn"
+                                class="inline-flex items-center px-3 py-1.5 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 active:bg-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 transition ease-in-out duration-150"
+                                title="Clear all application caches">
+                            <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                            <span id="cache-btn-text">Clear Cache</span>
+                        </button>
+
                         <span class="text-sm text-gray-600">{{ auth()->user()->name }}</span>
                     </div>
                 </div>
             </header>
+
+            <script>
+            async function clearCache() {
+                const btn = document.getElementById('cache-clear-btn');
+                const btnText = document.getElementById('cache-btn-text');
+                const originalText = btnText.textContent;
+
+                btn.disabled = true;
+                btnText.textContent = 'Clearing...';
+
+                try {
+                    const response = await fetch('{{ route('admin.cache.clear') }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        }
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        btnText.textContent = '✓ Cleared!';
+                        setTimeout(() => {
+                            btnText.textContent = originalText;
+                            btn.disabled = false;
+                        }, 2000);
+                    } else {
+                        alert(data.message);
+                        btnText.textContent = originalText;
+                        btn.disabled = false;
+                    }
+                } catch (error) {
+                    console.error('Cache clear error:', error);
+                    alert('Error clearing cache: ' + error.message);
+                    btnText.textContent = originalText;
+                    btn.disabled = false;
+                }
+            }
+            </script>
 
             <!-- Main Content -->
             <main class="flex-1 overflow-y-auto bg-gray-50 p-6">
