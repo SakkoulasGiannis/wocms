@@ -75,6 +75,11 @@ class Template extends Model
             }
         });
 
+        static::saved(function ($template) {
+            // Clear template-related caches when template is saved
+            \App\Services\CacheInvalidator::clearTemplate($template->id);
+        });
+
         static::deleting(function ($template) {
             // Delete physical file if exists
             if ($template->has_physical_file && $template->file_path) {
@@ -83,6 +88,9 @@ class Template extends Model
                     @unlink($fullPath);
                 }
             }
+
+            // Clear template-related caches
+            \App\Services\CacheInvalidator::clearTemplate($template->id);
         });
     }
 

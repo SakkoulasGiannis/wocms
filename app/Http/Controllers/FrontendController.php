@@ -85,11 +85,13 @@ class FrontendController extends Controller
         // Build the full URL path
         $urlPath = '/' . ltrim($path, '/');
 
-        // Find the content node by URL path
-        $node = ContentNode::where('url_path', $urlPath)
-            ->where('is_published', true)
-            ->with(['template', 'parent'])
-            ->first();
+        // Find the content node by URL path with caching (30 minutes)
+        $node = \Cache::remember("content_node.path.{$urlPath}", 1800, function () use ($urlPath) {
+            return ContentNode::where('url_path', $urlPath)
+                ->where('is_published', true)
+                ->with(['template', 'parent'])
+                ->first();
+        });
 
         if (!$node) {
             abort(404, "Page not found: {$urlPath}");

@@ -46,12 +46,15 @@ class EntryForm extends Component
     public function mount($templateSlug, $entryId = null)
     {
         $this->templateSlug = $templateSlug;
-        $this->template = Template::where('slug', $templateSlug)
-            ->where('is_active', true)
-            ->with(['fields' => function($query) {
-                $query->orderBy('order');
-            }])
-            ->firstOrFail();
+        // Cache template with fields for 1 hour
+        $this->template = \Cache::remember("template.{$templateSlug}.with-fields", 3600, function () use ($templateSlug) {
+            return Template::where('slug', $templateSlug)
+                ->where('is_active', true)
+                ->with(['fields' => function($query) {
+                    $query->orderBy('order');
+                }])
+                ->firstOrFail();
+        });
 
         // Check if dynamic model exists
         if (!$this->template->model_class || !class_exists("App\\Models\\{$this->template->model_class}")) {

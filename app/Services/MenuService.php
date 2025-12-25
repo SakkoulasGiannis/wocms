@@ -2,29 +2,37 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Cache;
 use Nwidart\Modules\Facades\Module;
 
 class MenuService
 {
     /**
-     * Get all menu items including static menu and active module menus
+     * Cache TTL in seconds (1 hour)
+     */
+    const CACHE_TTL = 3600;
+
+    /**
+     * Get all menu items including static menu and active module menus (with caching)
      */
     public function getAdminMenu(): array
     {
-        // Load static menu from JSON
-        $menuPath = config_path('schemas/menu.json');
-        $staticMenu = [];
+        return Cache::remember('admin.menu.full', self::CACHE_TTL, function () {
+            // Load static menu from JSON
+            $menuPath = config_path('schemas/menu.json');
+            $staticMenu = [];
 
-        if (file_exists($menuPath)) {
-            $menuData = json_decode(file_get_contents($menuPath), true);
-            $staticMenu = $menuData['admin_menu'] ?? [];
-        }
+            if (file_exists($menuPath)) {
+                $menuData = json_decode(file_get_contents($menuPath), true);
+                $staticMenu = $menuData['admin_menu'] ?? [];
+            }
 
-        // Get module menus from active modules
-        $moduleMenus = $this->getModuleMenus();
+            // Get module menus from active modules
+            $moduleMenus = $this->getModuleMenus();
 
-        // Merge static and module menus
-        return array_merge($staticMenu, $moduleMenus);
+            // Merge static and module menus
+            return array_merge($staticMenu, $moduleMenus);
+        });
     }
 
     /**

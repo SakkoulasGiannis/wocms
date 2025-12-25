@@ -63,6 +63,11 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     Route::delete('/modules/{module}', [\App\Http\Controllers\Admin\ModuleController::class, 'delete'])->name('modules.delete');
     Route::post('/modules/upload', [\App\Http\Controllers\Admin\ModuleController::class, 'upload'])->name('modules.upload');
 
+    // Cache Management Routes
+    Route::post('/cache/clear', [\App\Http\Controllers\Admin\CacheController::class, 'clearAll'])->name('cache.clear');
+    Route::post('/cache/clear/{type}', [\App\Http\Controllers\Admin\CacheController::class, 'clearType'])->name('cache.clear-type');
+    Route::get('/cache/stats', [\App\Http\Controllers\Admin\CacheController::class, 'stats'])->name('cache.stats');
+
     // Dynamic Template Entries Routes (must be last to not conflict with other routes)
     Route::get('/{templateSlug}', \App\Livewire\Admin\TemplateEntries\EntryList::class)->name('template-entries.index');
     Route::get('/{templateSlug}/create', \App\Livewire\Admin\TemplateEntries\EntryForm::class)->name('template-entries.create');
