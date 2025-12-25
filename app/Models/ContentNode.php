@@ -53,6 +53,16 @@ class ContentNode extends Model
                 $node->updateChildrenPaths();
             }
         });
+
+        static::saved(function ($node) {
+            // Clear content node-related caches when node is saved
+            \App\Services\CacheInvalidator::clearContentNode($node->id);
+        });
+
+        static::deleted(function ($node) {
+            // Clear content node-related caches when node is deleted
+            \App\Services\CacheInvalidator::clearContentNode($node->id);
+        });
     }
 
     public function template()
