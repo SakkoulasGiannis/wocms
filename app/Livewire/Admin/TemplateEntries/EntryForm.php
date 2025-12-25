@@ -1117,7 +1117,11 @@ class EntryForm extends Component
     /**
      * Improve HTML code using AI
      * Used by the code editor AI assistant
+     *
+     * IMPORTANT: This method should NOT trigger a re-render
+     * It only returns improved code without modifying component state
      */
+    #[\Livewire\Attributes\Renderless]
     public function improveCode(string $currentCode, string $prompt): string
     {
         \Log::info('improveCode called', [
@@ -1135,6 +1139,10 @@ class EntryForm extends Component
             if ($result['success']) {
                 $improvedCode = $result['data'] ?? $currentCode;
                 \Log::info('Code improved successfully', ['improved_code_length' => strlen($improvedCode)]);
+
+                // Skip render to prevent GrapeJS reinitialization loops
+                $this->skipRender();
+
                 return $improvedCode;
             } else {
                 $errorMsg = $result['message'] ?? 'Failed to improve code';

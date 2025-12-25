@@ -543,18 +543,69 @@
                     }, 100);
                 } else {
                     // Update full page HTML
+                    console.log('Updating full page with new HTML, length:', newHtml.length);
+
+                    // Store current CSS before updating
+                    const currentCss = window.currentGrapeEditor.getCss();
+                    console.log('Current CSS length:', currentCss.length);
+
+                    // Clear and rebuild components
+                    const wrapper = window.currentGrapeEditor.DomComponents.getWrapper();
+                    const oldComponents = wrapper.components();
+                    console.log('Old components count:', oldComponents.length);
+
+                    // Clear all components
+                    oldComponents.reset();
+
+                    // Add new HTML
                     window.currentGrapeEditor.setComponents(newHtml);
+
+                    // Restore CSS if it was lost
+                    const newCss = window.currentGrapeEditor.getCss();
+                    console.log('New CSS length after setComponents:', newCss.length);
+
+                    if (newCss.length === 0 && currentCss.length > 0) {
+                        console.log('CSS was lost, restoring...');
+                        window.currentGrapeEditor.setStyle(currentCss);
+                    }
+
+                    console.log('New components count:', wrapper.components().length);
                     console.log('Full page HTML updated successfully');
 
-                    // Trigger editor update to save changes
-                    // This will fire the 'update' event which saves to Livewire
+                    // Force complete canvas refresh
                     setTimeout(() => {
-                        window.currentGrapeEditor.trigger('change:changesCount');
-                    }, 50);
+                        const editor = window.currentGrapeEditor;
+
+                        // Trigger change
+                        editor.trigger('change:changesCount');
+
+                        // Force canvas refresh
+                        const canvas = editor.Canvas;
+                        if (canvas) {
+                            console.log('Refreshing canvas...');
+                            canvas.refresh();
+
+                            // Also refresh the frame
+                            const frame = canvas.getFrame();
+                            if (frame) {
+                                const frameEl = frame.getEl();
+                                if (frameEl) {
+                                    frameEl.contentWindow.location.reload = function() {};
+                                }
+                            }
+                        }
+
+                        // Force editor refresh
+                        editor.refresh();
+
+                        console.log('Canvas refresh complete');
+                    }, 100);
                 }
 
-                // Close modal
-                closeCodeEditor();
+                // Close modal with delay to allow refresh
+                setTimeout(() => {
+                    closeCodeEditor();
+                }, 300);
             } catch (e) {
                 console.error('Failed to update HTML:', e);
                 alert('Error updating HTML: ' + e.message + '\nPlease check the console for details.');
@@ -633,17 +684,70 @@
                     }, 100);
                 } else {
                     // Update full page HTML
+                    console.log('Updating full page with new HTML (without closing), length:', newHtml.length);
+
+                    // Store current CSS before updating
+                    const currentCss = window.currentGrapeEditor.getCss();
+                    console.log('Current CSS length:', currentCss.length);
+
+                    // Clear and rebuild components
+                    const wrapper = window.currentGrapeEditor.DomComponents.getWrapper();
+                    const oldComponents = wrapper.components();
+                    console.log('Old components count:', oldComponents.length);
+
+                    // Clear all components
+                    oldComponents.reset();
+
+                    // Add new HTML
                     window.currentGrapeEditor.setComponents(newHtml);
+
+                    // Restore CSS if it was lost
+                    const newCss = window.currentGrapeEditor.getCss();
+                    console.log('New CSS length after setComponents:', newCss.length);
+
+                    if (newCss.length === 0 && currentCss.length > 0) {
+                        console.log('CSS was lost, restoring...');
+                        window.currentGrapeEditor.setStyle(currentCss);
+                    }
+
+                    console.log('New components count:', wrapper.components().length);
                     console.log('Full page HTML updated successfully');
 
-                    // The GrapeJS editor.on('update') event will automatically save to Livewire
-                    // We don't need to manually trigger it here as setComponents fires update event
-                    console.log('GrapeJS will auto-save via update event handler');
+                    // Force complete canvas refresh
+                    setTimeout(() => {
+                        const editor = window.currentGrapeEditor;
+
+                        // Trigger change
+                        editor.trigger('change:changesCount');
+
+                        // Force canvas refresh
+                        const canvas = editor.Canvas;
+                        if (canvas) {
+                            console.log('Refreshing canvas (without closing)...');
+                            canvas.refresh();
+
+                            // Also refresh the frame
+                            const frame = canvas.getFrame();
+                            if (frame) {
+                                const frameEl = frame.getEl();
+                                if (frameEl) {
+                                    frameEl.contentWindow.location.reload = function() {};
+                                }
+                            }
+                        }
+
+                        // Force editor refresh
+                        editor.refresh();
+
+                        console.log('Canvas refresh complete (without closing)');
+                    }, 100);
                 }
 
                 // Show success feedback
-                console.log('Code changes applied without closing. Modal should stay open.');
-                showSaveNotification();
+                setTimeout(() => {
+                    console.log('Code changes applied without closing. Modal should stay open.');
+                    showSaveNotification();
+                }, 200);
             } catch (e) {
                 console.error('Failed to update HTML:', e);
                 alert('Error updating HTML: ' + e.message + '\nPlease check the console for details.');
