@@ -1114,6 +1114,42 @@ class EntryForm extends Component
         }
     }
 
+    /**
+     * Improve HTML code using AI
+     * Used by the code editor AI assistant
+     */
+    public function improveCode(string $currentCode, string $prompt): string
+    {
+        \Log::info('improveCode called', [
+            'code_length' => strlen($currentCode),
+            'prompt' => $prompt
+        ]);
+
+        try {
+            // Use AI to improve code
+            $aiManager = new \App\Services\AI\AIManager();
+            $result = $aiManager->getProvider()->improveCode($currentCode, $prompt);
+
+            \Log::info('AI code improvement response', ['success' => $result['success'] ?? false]);
+
+            if ($result['success']) {
+                $improvedCode = $result['data'] ?? $currentCode;
+                \Log::info('Code improved successfully', ['improved_code_length' => strlen($improvedCode)]);
+                return $improvedCode;
+            } else {
+                $errorMsg = $result['message'] ?? 'Failed to improve code';
+                \Log::error('AI code improvement failed', ['error' => $errorMsg]);
+                throw new \Exception($errorMsg);
+            }
+        } catch (\Exception $e) {
+            \Log::error('Code Improvement Error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw new \Exception('Failed to improve code: ' . $e->getMessage());
+        }
+    }
+
     public function render()
     {
         // Reload template with fresh fields data

@@ -908,6 +908,123 @@ USERMSG;
         }
     }
 
+    /**
+     * Improve HTML code using AI based on user prompt
+     */
+    public function improveCode(string $currentCode, string $userPrompt): array
+    {
+        try {
+            // Sanitize inputs
+            $currentCode = $this->ensureValidUtf8($currentCode);
+            $userPrompt = $this->ensureValidUtf8($userPrompt);
+
+            // Build system prompt
+            $systemPrompt = <<<SYSTEM
+You are an expert HTML/CSS developer and code quality assistant.
+
+IMPORTANT RULES:
+1. **Return ONLY the improved HTML code** - no explanations, no markdown code blocks
+2. **Preserve the structure** unless the user specifically asks to change it
+3. **Maintain all Blade syntax** (@if, @foreach, {{ }}, etc.) exactly as-is
+4. **Keep all data attributes and Alpine.js directives** (x-data, @click, etc.)
+5. **Improve based on the request:**
+   - Add responsive Tailwind classes if asked
+   - Fix accessibility issues (ARIA labels, semantic HTML)
+   - Improve code formatting and readability
+   - Add or update CSS classes
+   - Fix HTML validation issues
+   - Optimize structure and semantics
+6. **Use Tailwind CSS classes** for styling when adding new elements
+7. **Preserve all existing functionality** - don't remove working code
+SYSTEM;
+
+            $userMessage = <<<USERMSG
+CURRENT HTML CODE:
+{$currentCode}
+
+USER REQUEST:
+{$userPrompt}
+
+Return ONLY the improved HTML code. No explanations, no markdown formatting.
+USERMSG;
+
+            // Sanitize final messages
+            $systemPrompt = $this->ensureValidUtf8($systemPrompt);
+            $userMessage = $this->ensureValidUtf8($userMessage);
+
+            \Log::info('Calling Claude API for code improvement...', [
+                'code_length' => strlen($currentCode),
+                'prompt' => $userPrompt
+            ]);
+
+            $response = Http::timeout(120)
+                ->withHeaders([
+                    'x-api-key' => $this->apiKey,
+                    'anthropic-version' => '2023-06-01',
+                    'content-type' => 'application/json',
+                ])
+                ->post($this->apiUrl, [
+                    'model' => $this->model,
+                    'max_tokens' => 8192, // Larger for code responses
+                    'system' => $systemPrompt,
+                    'messages' => [
+                        [
+                            'role' => 'user',
+                            'content' => $userMessage
+                        ]
+                    ]
+                ]);
+
+            if (!$response->successful()) {
+                \Log::error('Claude API request failed', [
+                    'status' => $response->status(),
+                    'body' => $response->body()
+                ]);
+
+                return [
+                    'success' => false,
+                    'message' => 'API request failed: ' . $response->status()
+                ];
+            }
+
+            $data = $response->json();
+            $improvedCode = $data['content'][0]['text'] ?? '';
+
+            if (empty($improvedCode)) {
+                return [
+                    'success' => false,
+                    'message' => 'No improved code received from AI'
+                ];
+            }
+
+            // Clean up any markdown code blocks if AI disobeyed instructions
+            $improvedCode = preg_replace('/^```html\n?/', '', $improvedCode);
+            $improvedCode = preg_replace('/\n?```$/', '', $improvedCode);
+            $improvedCode = trim($improvedCode);
+
+            \Log::info('Code improved successfully', [
+                'original_length' => strlen($currentCode),
+                'improved_length' => strlen($improvedCode)
+            ]);
+
+            return [
+                'success' => true,
+                'data' => $improvedCode
+            ];
+
+        } catch (\Exception $e) {
+            \Log::error('Claude improveCode error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return [
+                'success' => false,
+                'message' => $e->getMessage()
+            ];
+        }
+    }
+
     public function testConnection(): bool
     {
         try {

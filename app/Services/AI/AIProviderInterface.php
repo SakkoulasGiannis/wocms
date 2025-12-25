@@ -49,6 +49,13 @@ interface AIProviderInterface
     public function improveContent(array $contextData, string $userPrompt): array;
 
     /**
+     * Improve HTML code based on user prompt
+     * Used by code editor AI assistant
+     * Returns array with success status and improved code
+     */
+    public function improveCode(string $currentCode, string $userPrompt): array;
+
+    /**
      * Test the API connection
      */
     public function testConnection(): bool;

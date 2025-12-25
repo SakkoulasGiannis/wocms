@@ -365,6 +365,8 @@
             setTimeout(() => {
                 codeEditorInstance.refresh();
                 codeEditorInstance.focus();
+                // Auto-format code on open
+                formatCode();
             }, 100);
         }
 
@@ -449,6 +451,8 @@
             setTimeout(() => {
                 codeEditorInstance.refresh();
                 codeEditorInstance.focus();
+                // Auto-format code on open
+                formatCode();
             }, 100);
         }
 
@@ -732,6 +736,76 @@
             } catch (e) {
                 console.error('Failed to format code:', e);
                 alert('Error formatting code: ' + e.message);
+            }
+        }
+
+        // Improve code with AI
+        async function improveCodeWithAI() {
+            console.log('=== improveCodeWithAI() called ===');
+
+            if (!codeEditorInstance) {
+                alert('Code editor not initialized');
+                return;
+            }
+
+            const promptInput = document.getElementById('code-ai-prompt');
+            const btn = document.getElementById('code-ai-improve-btn');
+            const iconDefault = document.getElementById('code-ai-icon-default');
+            const iconLoading = document.getElementById('code-ai-icon-loading');
+            const btnText = document.getElementById('code-ai-btn-text');
+            const resultDiv = document.getElementById('code-ai-result');
+            const messageEl = document.getElementById('code-ai-message');
+
+            const prompt = promptInput.value.trim();
+            if (!prompt) {
+                alert('⚠️ Please enter a prompt for the AI');
+                return;
+            }
+
+            // Set loading state
+            btn.disabled = true;
+            iconDefault.style.display = 'none';
+            iconLoading.style.display = 'block';
+            btnText.textContent = 'Processing...';
+            resultDiv.style.display = 'none';
+
+            try {
+                // Get current code from editor
+                const currentCode = codeEditorInstance.getValue();
+
+                console.log('Current code length:', currentCode.length);
+                console.log('Prompt:', prompt);
+
+                // Call Livewire method
+                const improvedCode = await @this.call('improveCode', currentCode, prompt);
+
+                console.log('Improved code received, length:', improvedCode.length);
+
+                // Update editor with improved code
+                codeEditorInstance.setValue(improvedCode);
+                codeEditorInstance.refresh();
+
+                // Format the improved code
+                formatCode();
+
+                // Show success message
+                messageEl.textContent = '✅ Code improved successfully!';
+                messageEl.style.color = '#4ade80';
+                resultDiv.style.display = 'block';
+
+                // Clear prompt
+                promptInput.value = '';
+
+            } catch (error) {
+                console.error('Code improvement failed:', error);
+                messageEl.textContent = '❌ Error: ' + error.message;
+                messageEl.style.color = '#f87171';
+                resultDiv.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                iconDefault.style.display = 'block';
+                iconLoading.style.display = 'none';
+                btnText.textContent = 'Improve Code';
             }
         }
 
