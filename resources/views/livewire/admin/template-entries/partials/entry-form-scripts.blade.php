@@ -789,7 +789,7 @@
                 formatCode();
 
                 // Show success message
-                messageEl.textContent = '✅ Code improved successfully!';
+                messageEl.textContent = '✅ Code improved successfully! Click "Save" or "Apply & Close" to update the page.';
                 messageEl.style.color = '#4ade80';
                 resultDiv.style.display = 'block';
 
