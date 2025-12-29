@@ -27,6 +27,7 @@ class EntryForm extends Component
     public $availableParentNodes = [];
     public $createdAt = null; // Created date/time for the entry
     public $status = 'active'; // Entry status (active, draft, disabled)
+    public $cacheEnabled = ''; // Cache override: '' = use template, '1' = force enable, '0' = force disable
 
     // Prevent re-render on file upload
     protected $listeners = ['fileUploaded' => 'handleFileUploaded'];
@@ -159,6 +160,8 @@ class EntryForm extends Component
                 ->first();
             if ($contentNode) {
                 $this->parentNodeId = $contentNode->parent_id;
+                // Load cache setting
+                $this->cacheEnabled = $contentNode->cache_enabled === null ? '' : (string) $contentNode->cache_enabled;
             }
 
             // Load created_at for editing
@@ -482,6 +485,7 @@ class EntryForm extends Component
             'title' => $title,
             'slug' => $slug,
             'is_published' => true,
+            'cache_enabled' => $this->cacheEnabled === '' ? null : (bool) $this->cacheEnabled,
         ]);
 
         // Use selected parent node or auto-detect
@@ -518,6 +522,7 @@ class EntryForm extends Component
             'title' => $title,
             'slug' => $slug,
             'parent_id' => $this->parentNodeId,
+            'cache_enabled' => $this->cacheEnabled === '' ? null : (bool) $this->cacheEnabled,
         ]);
     }
 
