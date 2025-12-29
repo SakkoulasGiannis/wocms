@@ -1,6 +1,17 @@
 {{-- Right Sidebar with Settings --}}
 <div class="space-y-4">
 
+    {{-- Sidebar Fields --}}
+    @foreach($template->fields->where('column_position', 'sidebar') as $field)
+        <div class="bg-white rounded-lg shadow p-4">
+            @include('livewire.admin.template-entries.partials.dynamic-field', [
+                'field' => $field,
+                'entryId' => $entryId,
+                'entry' => $entry
+            ])
+        </div>
+    @endforeach
+
     {{-- AI Content Assistant --}}
     <div class="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-lg shadow-md p-4 border border-purple-200">
         <div x-data="{ open: false }">

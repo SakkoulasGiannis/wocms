@@ -19,6 +19,7 @@ class TemplateField extends Model
         'order',
         'is_required',
         'show_in_table',
+        'column_position',
         'adapts_to_render_mode',
         'is_searchable',
         'is_filterable',

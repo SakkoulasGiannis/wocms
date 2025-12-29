@@ -423,6 +423,9 @@
                                     <th class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-20" title="URL identifier (one per template)">
                                         👁️
                                     </th>
+                                    <th class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-24" title="Column Position">
+                                        📍
+                                    </th>
                                     <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
                                         Actions
                                     </th>
@@ -528,6 +531,15 @@
                                                    wire:click="ensureSingleUrlIdentifier({{ $index }})"
                                                    class="rounded border-gray-300 text-orange-600 shadow-sm focus:border-orange-500 focus:ring-orange-500"
                                                    title="URL identifier (only one per template)">
+                                        </td>
+
+                                        <!-- Column Position -->
+                                        <td class="px-3 py-3">
+                                            <select wire:model="fields.{{ $index }}.column_position"
+                                                    class="w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-xs py-1.5 p-2 border">
+                                                <option value="main">Main</option>
+                                                <option value="sidebar">Sidebar</option>
+                                            </select>
                                         </td>
 
                                         <!-- Actions -->

@@ -804,7 +804,7 @@
                             {{-- All other render modes - Show fields with dynamic types --}}
                             <div class="bg-white rounded-lg shadow p-6">
                                 <div class="space-y-6">
-                                    @foreach($template->fields as $field)
+                                    @foreach($template->fields->where('column_position', 'main') as $field)
                                         @include('livewire.admin.template-entries.partials.dynamic-field', [
                                             'field' => $field,
                                             'entryId' => $entryId,
