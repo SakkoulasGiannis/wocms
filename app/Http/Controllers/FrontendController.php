@@ -117,18 +117,18 @@ class FrontendController extends Controller
             $cacheKey = "page.{$node->url_path}";
             $cacheTtl = $node->getCacheTtl();
 
-            // Check if cache exists before rendering
-            $isCached = \Cache::has($cacheKey);
-
-            if ($isCached) {
+            // Check if cache exists
+            if (\Cache::has($cacheKey)) {
                 \Log::info("✅ CACHE HIT: {$node->url_path} (serving from cache)");
-            } else {
-                \Log::info("❌ CACHE MISS: {$node->url_path} (generating and caching for {$cacheTtl}s)");
+                return \Cache::get($cacheKey);
             }
 
-            return \Cache::remember($cacheKey, $cacheTtl, function () use ($node, $template) {
-                return $this->renderNodeContent($node, $template);
-            });
+            // Cache miss - generate content and cache it
+            \Log::info("❌ CACHE MISS: {$node->url_path} (generating and caching for {$cacheTtl}s)");
+            $content = $this->renderNodeContent($node, $template);
+            \Cache::put($cacheKey, $content, $cacheTtl);
+
+            return $content;
         }
 
         \Log::info("🚫 NO CACHE: {$node->url_path} (caching disabled)");
