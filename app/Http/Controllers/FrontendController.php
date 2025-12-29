@@ -120,15 +120,18 @@ class FrontendController extends Controller
             // Check if cache exists
             if (\Cache::has($cacheKey)) {
                 \Log::info("✅ CACHE HIT: {$node->url_path} (serving from cache)");
-                return \Cache::get($cacheKey);
+                return response(\Cache::get($cacheKey));
             }
 
-            // Cache miss - generate content and cache it
+            // Cache miss - generate content and cache it as HTML string
             \Log::info("❌ CACHE MISS: {$node->url_path} (generating and caching for {$cacheTtl}s)");
-            $content = $this->renderNodeContent($node, $template);
-            \Cache::put($cacheKey, $content, $cacheTtl);
+            $view = $this->renderNodeContent($node, $template);
 
-            return $content;
+            // Render view to HTML string before caching
+            $html = $view->render();
+            \Cache::put($cacheKey, $html, $cacheTtl);
+
+            return $view;
         }
 
         \Log::info("🚫 NO CACHE: {$node->url_path} (caching disabled)");
