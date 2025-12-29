@@ -67,6 +67,8 @@ class BlogController extends Controller
      */
     public function show($slug)
     {
+        \Log::info("🔵 BlogController::show() called for slug: {$slug}");
+
         $template = Template::where('slug', 'blog')->firstOrFail();
 
         // Check if template is publicly accessible

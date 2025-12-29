@@ -82,6 +82,8 @@ class FrontendController extends Controller
      */
     public function handleDynamicRoute(Request $request, $path = null)
     {
+        \Log::info("🔴 FrontendController::handleDynamicRoute() called for path: {$path}");
+
         // Build the full URL path
         $urlPath = '/' . ltrim($path, '/');
 
