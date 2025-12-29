@@ -74,6 +74,20 @@ class BlogController extends Controller
             abort(403, 'This content is not publicly accessible');
         }
 
+        // Check if caching is enabled for this template
+        if ($template->enable_full_page_cache) {
+            $cacheKey = "page.blog.{$slug}";
+            $cacheTtl = $template->cache_ttl ?? 3600;
+
+            // Check if cache exists
+            if (\Cache::has($cacheKey)) {
+                \Log::info("✅ CACHE HIT: /blog/{$slug} (serving from cache)");
+                return response(\Cache::get($cacheKey));
+            }
+
+            \Log::info("❌ CACHE MISS: /blog/{$slug} (generating and caching for {$cacheTtl}s)");
+        }
+
         // Build query - admins and editors can see all posts
         $query = Blog::query();
 
@@ -103,6 +117,14 @@ class BlogController extends Controller
                 ->get();
         }
 
-        return view('frontend.blog.show', compact('post', 'template', 'relatedPosts'));
+        $view = view('frontend.blog.show', compact('post', 'template', 'relatedPosts'));
+
+        // Cache the rendered HTML if caching is enabled
+        if ($template->enable_full_page_cache) {
+            $html = $view->render();
+            \Cache::put($cacheKey, $html, $cacheTtl);
+        }
+
+        return $view;
     }
 }
