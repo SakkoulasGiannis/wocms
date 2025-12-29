@@ -22,11 +22,13 @@ class ContentNode extends Model
         'level',
         'tree_path',
         'is_published',
+        'cache_enabled',
         'sort_order',
     ];
 
     protected $casts = [
         'is_published' => 'boolean',
+        'cache_enabled' => 'boolean',
     ];
 
     protected static function boot()
@@ -195,5 +197,28 @@ class ContentNode extends Model
         return Template::whereIn('id', $this->template->allowed_child_templates)
             ->where('is_active', true)
             ->get();
+    }
+
+    /**
+     * Check if full page caching is enabled for this node
+     * Respects both template and per-page settings
+     */
+    public function isCacheEnabled(): bool
+    {
+        // If page-level override is set, use it
+        if ($this->cache_enabled !== null) {
+            return $this->cache_enabled;
+        }
+
+        // Otherwise use template setting
+        return $this->template && $this->template->enable_full_page_cache;
+    }
+
+    /**
+     * Get cache TTL for this node (in seconds)
+     */
+    public function getCacheTtl(): int
+    {
+        return $this->template->cache_ttl ?? 3600;
     }
 }

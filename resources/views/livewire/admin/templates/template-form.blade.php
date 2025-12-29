@@ -224,6 +224,42 @@
                 @endif
             </div>
 
+            <!-- Caching Settings -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Performance & Caching</h2>
+
+                <div class="mb-6">
+                    <label class="flex items-center">
+                        <input type="checkbox"
+                               wire:model.live="enable_full_page_cache"
+                               class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <span class="ml-2 text-sm text-gray-700">Enable Full Page Caching</span>
+                    </label>
+                    <p class="mt-1 ml-6 text-xs text-gray-500">
+                        When enabled, pages using this template will be cached to improve performance. Individual pages can override this setting.
+                    </p>
+                </div>
+
+                @if($enable_full_page_cache)
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Cache Duration (seconds)
+                        </label>
+                        <input type="number"
+                               wire:model="cache_ttl"
+                               class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
+                               placeholder="3600"
+                               min="60">
+                        @error('cache_ttl')
+                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                        @enderror
+                        <p class="mt-1 text-xs text-gray-500">
+                            How long to cache pages (in seconds). Examples: 3600 = 1 hour, 86400 = 1 day
+                        </p>
+                    </div>
+                @endif
+            </div>
+
             <!-- Family Settings -->
             <div class="bg-white rounded-lg shadow p-6">
                 <h2 class="text-lg font-semibold text-gray-900 mb-4">Family Settings</h2>

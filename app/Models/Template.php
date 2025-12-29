@@ -32,6 +32,9 @@ class Template extends Model
         'menu_icon',
         'menu_order',
         'settings',
+        // Caching
+        'enable_full_page_cache',
+        'cache_ttl',
         // Family & Hierarchy
         'allow_children',
         'allow_new_pages',
@@ -57,6 +60,8 @@ class Template extends Model
         'show_in_menu' => 'boolean',
         'use_slug_prefix' => 'boolean',
         'settings' => 'array',
+        'enable_full_page_cache' => 'boolean',
+        'cache_ttl' => 'integer',
         'allow_children' => 'boolean',
         'allow_new_pages' => 'boolean',
         'allowed_parent_templates' => 'array',

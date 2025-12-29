@@ -42,6 +42,10 @@ class TemplateForm extends Component
     // Visual
     public $icon = '';
 
+    // Caching
+    public $enable_full_page_cache = false;
+    public $cache_ttl = 3600;
+
     // Tree Structure
     public $parent_id = null;
 
@@ -89,6 +93,10 @@ class TemplateForm extends Component
 
             // Load visual
             $this->icon = $this->template->icon ?? '';
+
+            // Load caching
+            $this->enable_full_page_cache = $this->template->enable_full_page_cache ?? false;
+            $this->cache_ttl = $this->template->cache_ttl ?? 3600;
 
             // Load tree structure
             $this->parent_id = $this->template->parent_id;
@@ -406,6 +414,9 @@ class TemplateForm extends Component
             'allowed_roles' => 'nullable|array',
             // Visual
             'icon' => 'nullable|string',
+            // Caching
+            'enable_full_page_cache' => 'boolean',
+            'cache_ttl' => 'nullable|integer|min:60',
             // Fields
             'fields.*.name' => 'required|string|regex:/^[a-z_]+$/',
             'fields.*.label' => 'required|string',
