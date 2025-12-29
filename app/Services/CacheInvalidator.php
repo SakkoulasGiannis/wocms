@@ -38,6 +38,8 @@ class CacheInvalidator
             if ($node) {
                 Cache::forget("content_node.path.{$node->url_path}");
                 Cache::forget("node.{$node->id}.breadcrumbs");
+                // Clear full page cache
+                Cache::forget("page.{$node->url_path}");
                 \Log::info("Cleared cache for content node: {$node->url_path}");
             }
         }

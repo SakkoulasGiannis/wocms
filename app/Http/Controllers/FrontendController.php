@@ -112,6 +112,25 @@ class FrontendController extends Controller
             abort(403, 'This content is not publicly accessible');
         }
 
+        // Check if caching is enabled for this node
+        if ($node->isCacheEnabled()) {
+            $cacheKey = "page.{$node->url_path}";
+            $cacheTtl = $node->getCacheTtl();
+
+            return \Cache::remember($cacheKey, $cacheTtl, function () use ($node, $template) {
+                return $this->renderNodeContent($node, $template);
+            });
+        }
+
+        return $this->renderNodeContent($node, $template);
+    }
+
+    /**
+     * Render the actual node content (called from renderNode, may be cached)
+     */
+    protected function renderNodeContent(ContentNode $node, $template)
+    {
+
         // Get the content data if it exists
         $content = null;
         if ($node->content_type && $node->content_id) {
