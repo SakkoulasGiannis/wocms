@@ -58,3 +58,9 @@ vite-module-loader.js
 # Dynamically generated templates (created by CMS)
 resources/views/frontend/templates/
 resources/views/templates/
+
+# Code Editor backups and user-editable files
+*.backup-*
+resources/views/frontend/layout.blade.php
+resources/views/frontend/partials/header.blade.php
+resources/views/frontend/partials/footer.blade.php
