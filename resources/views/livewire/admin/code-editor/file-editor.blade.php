@@ -186,10 +186,18 @@ function initMonacoEditor() {
         document.getElementById('charCount').textContent = charCount;
 
         // Listen for file changes from Livewire
-        window.addEventListener('fileContentUpdated', event => {
-            editor.setValue(event.detail.content);
-            originalContent = event.detail.content;
+        Livewire.on('fileLoaded', (event) => {
+            const content = event.content || event[0].content || '';
+            editor.setValue(content);
+            originalContent = content;
             @this.set('isDirty', false, false);
+        });
+
+        // Listen for backup restore (don't update originalContent - keep it dirty)
+        Livewire.on('backupRestored', (event) => {
+            const content = event.content || event[0].content || '';
+            editor.setValue(content);
+            @this.set('isDirty', true, false);
         });
 
         // Listen for successful save

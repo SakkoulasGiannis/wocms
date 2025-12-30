@@ -53,6 +53,9 @@ class FileEditor extends Component
         $this->fileContent = File::get($this->selectedFile);
         $this->originalContent = $this->fileContent;
         $this->isDirty = false;
+
+        // Dispatch event to update Monaco Editor
+        $this->dispatch('fileLoaded', content: $this->fileContent);
     }
 
     public function save()
@@ -89,6 +92,9 @@ class FileEditor extends Component
     {
         $this->fileContent = $this->originalContent;
         $this->isDirty = false;
+
+        // Dispatch event to update Monaco Editor
+        $this->dispatch('fileLoaded', content: $this->fileContent);
     }
 
     public function restoreBackup($backupFile)
@@ -100,6 +106,11 @@ class FileEditor extends Component
             }
 
             $this->fileContent = File::get($backupFile);
+            $this->isDirty = true;
+
+            // Dispatch event to update Monaco Editor (without updating originalContent)
+            $this->dispatch('backupRestored', content: $this->fileContent);
+
             session()->flash('success', 'Backup restored. Click Save to apply changes.');
         } catch (\Exception $e) {
             session()->flash('error', 'Error restoring backup: ' . $e->getMessage());
