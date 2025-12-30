@@ -78,6 +78,15 @@ class FileEditor extends Component
         }
 
         try {
+            // Log the EXACT path we're trying to save
+            $realPath = realpath($this->selectedFile);
+            \Log::info('📂 File paths:', [
+                'selectedFile' => $this->selectedFile,
+                'realpath' => $realPath,
+                'basename' => basename($this->selectedFile),
+                'dirname' => dirname($this->selectedFile),
+            ]);
+
             // Check if file is writable
             if (!is_writable($this->selectedFile)) {
                 throw new \Exception('File is not writable. Please check permissions: ' . $this->selectedFile);
@@ -88,6 +97,15 @@ class FileEditor extends Component
             if (!is_writable($directory)) {
                 throw new \Exception('Directory is not writable. Please check permissions: ' . $directory);
             }
+
+            // Get file hash BEFORE save
+            $hashBefore = md5_file($this->selectedFile);
+            $sizeBefore = filesize($this->selectedFile);
+            \Log::info('📊 File state BEFORE save:', [
+                'size' => $sizeBefore,
+                'hash' => $hashBefore,
+                'modified' => date('Y-m-d H:i:s', filemtime($this->selectedFile)),
+            ]);
 
             // Create backup before saving
             $backupPath = $this->selectedFile . '.backup-' . date('Y-m-d-His');
@@ -101,7 +119,7 @@ class FileEditor extends Component
                 throw new \Exception('Failed to write to file. File::put returned false.');
             }
 
-            \Log::info('✅ File saved: ' . basename($this->selectedFile) . ' (' . $bytesWritten . ' bytes)');
+            \Log::info('✅ File::put executed - returned: ' . $bytesWritten . ' bytes');
 
             // Clear OPcache for this file (CRITICAL for live server)
             if (function_exists('opcache_invalidate')) {
@@ -113,9 +131,34 @@ class FileEditor extends Component
 
             // Verify the content was actually written
             clearstatcache(true, $this->selectedFile);
+
+            // Get file hash AFTER save
+            $hashAfter = md5_file($this->selectedFile);
+            $sizeAfter = filesize($this->selectedFile);
+            $modifiedAfter = filemtime($this->selectedFile);
+
+            \Log::info('📊 File state AFTER save:', [
+                'size' => $sizeAfter,
+                'hash' => $hashAfter,
+                'modified' => date('Y-m-d H:i:s', $modifiedAfter),
+                'hash_changed' => $hashBefore !== $hashAfter ? 'YES' : 'NO',
+                'size_changed' => $sizeBefore !== $sizeAfter ? 'YES' : 'NO',
+            ]);
+
+            // Read back the content
             $savedContent = File::get($this->selectedFile);
+            $savedHash = md5($savedContent);
+            $expectedHash = md5($this->fileContent);
+
             if ($savedContent !== $this->fileContent) {
-                \Log::warning('⚠️ File content verification failed - content mismatch after save');
+                \Log::error('❌ FILE CONTENT MISMATCH!', [
+                    'expected_hash' => $expectedHash,
+                    'saved_hash' => $savedHash,
+                    'expected_length' => strlen($this->fileContent),
+                    'saved_length' => strlen($savedContent),
+                    'first_100_chars_expected' => substr($this->fileContent, 0, 100),
+                    'first_100_chars_saved' => substr($savedContent, 0, 100),
+                ]);
             } else {
                 \Log::info('✅ File content verified - matches saved content');
             }
