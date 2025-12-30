@@ -88,7 +88,7 @@ class FileEditor extends Component
         }
     }
 
-    public function reset()
+    public function resetContent()
     {
         $this->fileContent = $this->originalContent;
         $this->isDirty = false;
