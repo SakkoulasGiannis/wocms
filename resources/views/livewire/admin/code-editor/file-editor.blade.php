@@ -201,19 +201,16 @@ function initMonacoEditor() {
             editor.setValue(content);
         });
 
-        // Save handler (flush debounce before saving)
+        // Save handler (pass content directly to save method)
         window.editorSave = function() {
             clearTimeout(syncTimer);
             const content = editor.getValue();
 
-            console.log('🔵 editorSave: Syncing content to backend');
+            console.log('🔵 editorSave: Calling save with content');
             console.log('   Content length:', content.length);
             console.log('   First 100 chars:', content.substring(0, 100));
 
-            @this.set('fileContent', content).then(() => {
-                console.log('🟢 editorSave: Content synced, calling save()');
-                return @this.call('save');
-            }).then(() => {
+            @this.call('save', content).then(() => {
                 console.log('🟢 editorSave: Save completed');
             }).catch((error) => {
                 console.error('🔴 editorSave: Error:', error);
