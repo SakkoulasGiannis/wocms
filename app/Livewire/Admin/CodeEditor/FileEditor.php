@@ -60,7 +60,14 @@ class FileEditor extends Component
 
     public function save()
     {
+        \Log::info('💾 Save method called', [
+            'selectedFile' => $this->selectedFile,
+            'fileContentLength' => strlen($this->fileContent ?? ''),
+            'isDirty' => $this->isDirty,
+        ]);
+
         if (!$this->selectedFile) {
+            \Log::warning('❌ Save failed: No file selected');
             session()->flash('error', 'No file selected');
             return;
         }
@@ -69,21 +76,29 @@ class FileEditor extends Component
             // Create backup before saving
             $backupPath = $this->selectedFile . '.backup-' . date('Y-m-d-His');
             File::copy($this->selectedFile, $backupPath);
+            \Log::info('✅ Backup created: ' . basename($backupPath));
 
             // Save the file
             File::put($this->selectedFile, $this->fileContent);
+            \Log::info('✅ File saved: ' . basename($this->selectedFile));
 
             $this->originalContent = $this->fileContent;
             $this->isDirty = false;
 
             // Clear view cache
             \Artisan::call('view:clear');
+            \Log::info('✅ View cache cleared');
 
             // Dispatch event to update frontend
             $this->dispatch('fileSaved');
 
             session()->flash('success', 'File saved successfully! Backup created at: ' . basename($backupPath));
+            \Log::info('✅ Save completed successfully');
         } catch (\Exception $e) {
+            \Log::error('❌ Save failed: ' . $e->getMessage(), [
+                'exception' => $e,
+                'file' => $this->selectedFile,
+            ]);
             session()->flash('error', 'Error saving file: ' . $e->getMessage());
         }
     }

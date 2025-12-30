@@ -170,11 +170,13 @@ function initMonacoEditor() {
 
             // Check if dirty and update UI immediately
             const isDirty = content !== originalContent;
+            console.log('📝 Content changed, isDirty:', isDirty);
             @this.set('isDirty', isDirty, false); // false = don't wait for server response
 
             // Debounce Livewire sync (only after 500ms of no typing)
             clearTimeout(syncTimer);
             syncTimer = setTimeout(function() {
+                console.log('⏱️ Debounce complete, syncing fileContent to backend');
                 @this.set('fileContent', content, false); // false = fire and forget
             }, 500);
         });
@@ -208,10 +210,18 @@ function initMonacoEditor() {
 
         // Save function (sync immediately before saving)
         window.editorSave = function() {
+            console.log('🔵 editorSave called');
             clearTimeout(syncTimer);
             const content = editor.getValue();
+
+            console.log('🔵 Setting fileContent and calling save...');
             @this.set('fileContent', content).then(() => {
-                @this.call('save');
+                console.log('🟢 fileContent set, calling save...');
+                return @this.call('save');
+            }).then(() => {
+                console.log('🟢 Save completed');
+            }).catch((error) => {
+                console.error('🔴 Save error:', error);
             });
         };
 
