@@ -23,7 +23,7 @@
                     Reset
                 </button>
 
-                <button onclick="if(window.editorSave) window.editorSave()"
+                <button wire:click="save"
                         @if(!$isDirty) disabled @endif
                         class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
                     <svg class="inline-block w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -163,24 +163,18 @@ function initMonacoEditor() {
             renderWhitespace: 'none',
         });
 
-        // Debounce timer for Livewire sync (reduce server requests)
-        let syncTimer = null;
-
-        // Update Livewire property on change (with debouncing)
+        // Update Livewire property on change (NO debouncing - sync immediately)
         editor.onDidChangeModelContent(function() {
             const content = editor.getValue();
 
-            // Update stats immediately (instant feedback)
+            // Sync to Livewire immediately
+            @this.set('fileContent', content);
+
+            // Update stats
             const lineCount = editor.getModel().getLineCount();
             const charCount = content.length;
             document.getElementById('lineCount').textContent = lineCount;
             document.getElementById('charCount').textContent = charCount;
-
-            // Debounce Livewire sync (only after 300ms of no typing)
-            clearTimeout(syncTimer);
-            syncTimer = setTimeout(function() {
-                @this.set('fileContent', content);
-            }, 300);
         });
 
         // Update stats on load
@@ -201,25 +195,9 @@ function initMonacoEditor() {
             editor.setValue(content);
         });
 
-        // Save handler (pass content directly to save method)
-        window.editorSave = function() {
-            clearTimeout(syncTimer);
-            const content = editor.getValue();
-
-            console.log('🔵 editorSave: Calling save with content');
-            console.log('   Content length:', content.length);
-            console.log('   First 100 chars:', content.substring(0, 100));
-
-            @this.call('save', content).then(() => {
-                console.log('🟢 editorSave: Save completed');
-            }).catch((error) => {
-                console.error('🔴 editorSave: Error:', error);
-            });
-        };
-
         // Keyboard shortcuts
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, function() {
-            window.editorSave();
+            @this.call('save');
         });
     });
 }

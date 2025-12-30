@@ -63,19 +63,14 @@ class FileEditor extends Component
         $this->isDirty = $this->fileContent !== $this->originalContent;
     }
 
-    public function save($content = null)
+    public function save()
     {
-        // Use provided content or fall back to property
-        $contentToSave = $content ?? $this->fileContent;
-
         \Log::info('💾 Save method called', [
             'selectedFile' => $this->selectedFile,
-            'contentParameter' => $content ? 'PROVIDED' : 'NULL',
             'fileContentLength' => strlen($this->fileContent ?? ''),
-            'contentToSaveLength' => strlen($contentToSave ?? ''),
             'isDirty' => $this->isDirty,
-            'fileContent_first100' => substr($contentToSave ?? '', 0, 100),
-            'fileContent_md5' => md5($contentToSave ?? ''),
+            'fileContent_first100' => substr($this->fileContent ?? '', 0, 100),
+            'fileContent_md5' => md5($this->fileContent ?? ''),
         ]);
 
         if (!$this->selectedFile) {
@@ -120,7 +115,7 @@ class FileEditor extends Component
             \Log::info('✅ Backup created: ' . basename($backupPath));
 
             // Save the file
-            $bytesWritten = File::put($this->selectedFile, $contentToSave);
+            $bytesWritten = File::put($this->selectedFile, $this->fileContent);
 
             if ($bytesWritten === false) {
                 throw new \Exception('Failed to write to file. File::put returned false.');
@@ -155,24 +150,22 @@ class FileEditor extends Component
             // Read back the content
             $savedContent = File::get($this->selectedFile);
             $savedHash = md5($savedContent);
-            $expectedHash = md5($contentToSave);
+            $expectedHash = md5($this->fileContent);
 
-            if ($savedContent !== $contentToSave) {
+            if ($savedContent !== $this->fileContent) {
                 \Log::error('❌ FILE CONTENT MISMATCH!', [
                     'expected_hash' => $expectedHash,
                     'saved_hash' => $savedHash,
-                    'expected_length' => strlen($contentToSave),
+                    'expected_length' => strlen($this->fileContent),
                     'saved_length' => strlen($savedContent),
-                    'first_100_chars_expected' => substr($contentToSave, 0, 100),
+                    'first_100_chars_expected' => substr($this->fileContent, 0, 100),
                     'first_100_chars_saved' => substr($savedContent, 0, 100),
                 ]);
             } else {
                 \Log::info('✅ File content verified - matches saved content');
             }
 
-            // Update the property to match what was saved
-            $this->fileContent = $contentToSave;
-            $this->originalContent = $contentToSave;
+            $this->originalContent = $this->fileContent;
             $this->isDirty = false;
 
             // Clear view cache
