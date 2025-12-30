@@ -23,7 +23,7 @@
                     Reset
                 </button>
 
-                <button wire:click="save"
+                <button onclick="if(window.editorSave) window.editorSave()"
                         @if(!$isDirty) disabled @endif
                         class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
                     <svg class="inline-block w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -145,25 +145,42 @@ function initMonacoEditor() {
             automaticLayout: true,
             fontSize: 14,
             lineNumbers: 'on',
-            minimap: { enabled: true },
+            minimap: { enabled: false },  // Disable minimap for performance
             scrollBeyondLastLine: false,
             wordWrap: 'on',
-            formatOnPaste: true,
-            formatOnType: true,
+            formatOnPaste: false,  // Disable auto-format for performance
+            formatOnType: false,   // Disable auto-format for performance
+            quickSuggestions: false,  // Disable autocomplete
+            suggestOnTriggerCharacters: false,
+            acceptSuggestionOnEnter: 'off',
+            tabCompletion: 'off',
+            wordBasedSuggestions: false,
+            parameterHints: { enabled: false },
+            renderValidationDecorations: 'off',  // Disable error squiggles
+            occurrencesHighlight: false,  // Disable highlight on cursor
+            renderLineHighlight: 'line',
+            folding: true,
+            renderWhitespace: 'none',
         });
 
-        // Update Livewire property on change
+        // Debounce timer for Livewire sync (reduce server requests)
+        let syncTimer = null;
+
+        // Update Livewire property on change (with debouncing)
         editor.onDidChangeModelContent(function() {
             const content = editor.getValue();
 
-            // Update Livewire with new content
-            @this.set('fileContent', content);
-
-            // Update stats
+            // Update stats immediately (instant feedback)
             const lineCount = editor.getModel().getLineCount();
             const charCount = content.length;
             document.getElementById('lineCount').textContent = lineCount;
             document.getElementById('charCount').textContent = charCount;
+
+            // Debounce Livewire sync (only after 300ms of no typing)
+            clearTimeout(syncTimer);
+            syncTimer = setTimeout(function() {
+                @this.set('fileContent', content);
+            }, 300);
         });
 
         // Update stats on load
@@ -184,9 +201,18 @@ function initMonacoEditor() {
             editor.setValue(content);
         });
 
+        // Save handler (flush debounce before saving)
+        window.editorSave = function() {
+            clearTimeout(syncTimer);
+            const content = editor.getValue();
+            @this.set('fileContent', content).then(() => {
+                @this.call('save');
+            });
+        };
+
         // Keyboard shortcuts
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, function() {
-            @this.call('save');
+            window.editorSave();
         });
     });
 }
