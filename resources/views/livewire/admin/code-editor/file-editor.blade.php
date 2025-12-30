@@ -205,8 +205,18 @@ function initMonacoEditor() {
         window.editorSave = function() {
             clearTimeout(syncTimer);
             const content = editor.getValue();
+
+            console.log('🔵 editorSave: Syncing content to backend');
+            console.log('   Content length:', content.length);
+            console.log('   First 100 chars:', content.substring(0, 100));
+
             @this.set('fileContent', content).then(() => {
-                @this.call('save');
+                console.log('🟢 editorSave: Content synced, calling save()');
+                return @this.call('save');
+            }).then(() => {
+                console.log('🟢 editorSave: Save completed');
+            }).catch((error) => {
+                console.error('🔴 editorSave: Error:', error);
             });
         };
 

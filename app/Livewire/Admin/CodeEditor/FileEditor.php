@@ -69,6 +69,8 @@ class FileEditor extends Component
             'selectedFile' => $this->selectedFile,
             'fileContentLength' => strlen($this->fileContent ?? ''),
             'isDirty' => $this->isDirty,
+            'fileContent_first100' => substr($this->fileContent ?? '', 0, 100),
+            'fileContent_md5' => md5($this->fileContent ?? ''),
         ]);
 
         if (!$this->selectedFile) {
