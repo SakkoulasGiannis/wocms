@@ -103,10 +103,21 @@ class FileEditor extends Component
 
             \Log::info('✅ File saved: ' . basename($this->selectedFile) . ' (' . $bytesWritten . ' bytes)');
 
+            // Clear OPcache for this file (CRITICAL for live server)
+            if (function_exists('opcache_invalidate')) {
+                opcache_invalidate($this->selectedFile, true);
+                \Log::info('✅ OPcache invalidated for file');
+            } else {
+                \Log::warning('⚠️ opcache_invalidate function not available');
+            }
+
             // Verify the content was actually written
+            clearstatcache(true, $this->selectedFile);
             $savedContent = File::get($this->selectedFile);
             if ($savedContent !== $this->fileContent) {
                 \Log::warning('⚠️ File content verification failed - content mismatch after save');
+            } else {
+                \Log::info('✅ File content verified - matches saved content');
             }
 
             $this->originalContent = $this->fileContent;
