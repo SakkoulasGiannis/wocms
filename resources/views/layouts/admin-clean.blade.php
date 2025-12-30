@@ -184,6 +184,15 @@
                             Section Templates
                         </a>
 
+                        <a href="{{ route('admin.code-editor') }}"
+                           class="flex items-center px-3 py-2 text-sm font-medium rounded-lg transition
+                                  {{ request()->routeIs('admin.code-editor') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50' }}">
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+                            </svg>
+                            Code Editor
+                        </a>
+
                         <a href="{{ route('admin.modules.index') }}"
                            class="flex items-center px-3 py-2 text-sm font-medium rounded-lg transition
                                   {{ request()->routeIs('admin.modules.*') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50' }}">

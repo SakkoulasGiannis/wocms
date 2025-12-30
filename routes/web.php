@@ -75,6 +75,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     Route::post('/cache/clear/{type}', [\App\Http\Controllers\Admin\CacheController::class, 'clearType'])->name('cache.clear-type');
     Route::get('/cache/stats', [\App\Http\Controllers\Admin\CacheController::class, 'stats'])->name('cache.stats');
 
+    // Code Editor Route
+    Route::get('/code-editor', \App\Livewire\Admin\CodeEditor\FileEditor::class)->name('code-editor');
+
     // Dynamic Template Entries Routes (must be last to not conflict with other routes)
     Route::get('/{templateSlug}', \App\Livewire\Admin\TemplateEntries\EntryList::class)->name('template-entries.index');
     Route::get('/{templateSlug}/create', \App\Livewire\Admin\TemplateEntries\EntryForm::class)->name('template-entries.create');
