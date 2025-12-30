@@ -20,9 +20,7 @@ class FileEditor extends Component
         // Define editable files
         $this->files = [
             'Header' => resource_path('views/frontend/partials/header.blade.php'),
-            'Default Header' => resource_path('views/frontend/partials/default-header.blade.php'),
             'Footer' => resource_path('views/frontend/partials/footer.blade.php'),
-            'Default Footer' => resource_path('views/frontend/partials/default-footer.blade.php'),
         ];
 
         // Select first file by default
