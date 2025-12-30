@@ -55,11 +55,6 @@ class FileEditor extends Component
         $this->isDirty = false;
     }
 
-    public function updatedFileContent()
-    {
-        $this->isDirty = $this->fileContent !== $this->originalContent;
-    }
-
     public function save()
     {
         if (!$this->selectedFile) {
@@ -80,6 +75,9 @@ class FileEditor extends Component
 
             // Clear view cache
             \Artisan::call('view:clear');
+
+            // Dispatch event to update frontend
+            $this->dispatch('fileSaved');
 
             session()->flash('success', 'File saved successfully! Backup created at: ' . basename($backupPath));
         } catch (\Exception $e) {

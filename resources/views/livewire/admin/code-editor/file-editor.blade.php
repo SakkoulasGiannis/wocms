@@ -23,7 +23,7 @@
                     Reset
                 </button>
 
-                <button wire:click="save"
+                <button onclick="window.editorSave && window.editorSave()"
                         @if(!$isDirty) disabled @endif
                         class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
                     <svg class="inline-block w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -152,16 +152,31 @@ function initMonacoEditor() {
             formatOnType: true,
         });
 
-        // Update Livewire property on change
+        // Store original content (mutable)
+        let originalContent = @js($originalContent);
+
+        // Debounce timer for Livewire sync
+        let syncTimer = null;
+
+        // Update Livewire property on change (debounced)
         editor.onDidChangeModelContent(function() {
             const content = editor.getValue();
-            @this.set('fileContent', content);
 
-            // Update stats
+            // Update stats immediately (no lag)
             const lineCount = editor.getModel().getLineCount();
             const charCount = content.length;
             document.getElementById('lineCount').textContent = lineCount;
             document.getElementById('charCount').textContent = charCount;
+
+            // Check if dirty and update UI immediately
+            const isDirty = content !== originalContent;
+            @this.set('isDirty', isDirty, false); // false = don't wait for server response
+
+            // Debounce Livewire sync (only after 500ms of no typing)
+            clearTimeout(syncTimer);
+            syncTimer = setTimeout(function() {
+                @this.set('fileContent', content, false); // false = fire and forget
+            }, 500);
         });
 
         // Update stats on load
@@ -173,11 +188,28 @@ function initMonacoEditor() {
         // Listen for file changes from Livewire
         window.addEventListener('fileContentUpdated', event => {
             editor.setValue(event.detail.content);
+            originalContent = event.detail.content;
+            @this.set('isDirty', false, false);
         });
+
+        // Listen for successful save
+        Livewire.on('fileSaved', () => {
+            originalContent = editor.getValue();
+            @this.set('isDirty', false, false);
+        });
+
+        // Save function (sync immediately before saving)
+        window.editorSave = function() {
+            clearTimeout(syncTimer);
+            const content = editor.getValue();
+            @this.set('fileContent', content).then(() => {
+                @this.call('save');
+            });
+        };
 
         // Keyboard shortcuts
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, function() {
-            @this.call('save');
+            window.editorSave();
         });
     });
 }
