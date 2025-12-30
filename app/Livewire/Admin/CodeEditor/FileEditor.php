@@ -78,14 +78,36 @@ class FileEditor extends Component
         }
 
         try {
+            // Check if file is writable
+            if (!is_writable($this->selectedFile)) {
+                throw new \Exception('File is not writable. Please check permissions: ' . $this->selectedFile);
+            }
+
+            // Check if directory is writable (for backup)
+            $directory = dirname($this->selectedFile);
+            if (!is_writable($directory)) {
+                throw new \Exception('Directory is not writable. Please check permissions: ' . $directory);
+            }
+
             // Create backup before saving
             $backupPath = $this->selectedFile . '.backup-' . date('Y-m-d-His');
             File::copy($this->selectedFile, $backupPath);
             \Log::info('✅ Backup created: ' . basename($backupPath));
 
             // Save the file
-            File::put($this->selectedFile, $this->fileContent);
-            \Log::info('✅ File saved: ' . basename($this->selectedFile));
+            $bytesWritten = File::put($this->selectedFile, $this->fileContent);
+
+            if ($bytesWritten === false) {
+                throw new \Exception('Failed to write to file. File::put returned false.');
+            }
+
+            \Log::info('✅ File saved: ' . basename($this->selectedFile) . ' (' . $bytesWritten . ' bytes)');
+
+            // Verify the content was actually written
+            $savedContent = File::get($this->selectedFile);
+            if ($savedContent !== $this->fileContent) {
+                \Log::warning('⚠️ File content verification failed - content mismatch after save');
+            }
 
             $this->originalContent = $this->fileContent;
             $this->isDirty = false;
@@ -94,12 +116,18 @@ class FileEditor extends Component
             \Artisan::call('view:clear');
             \Log::info('✅ View cache cleared');
 
-            session()->flash('success', 'File saved successfully! Backup created at: ' . basename($backupPath));
+            session()->flash('success', 'File saved successfully! Backup created at: ' . basename($backupPath) . ' (' . $bytesWritten . ' bytes written)');
             \Log::info('✅ Save completed successfully');
         } catch (\Exception $e) {
             \Log::error('❌ Save failed: ' . $e->getMessage(), [
                 'exception' => $e,
                 'file' => $this->selectedFile,
+                'is_writable' => is_writable($this->selectedFile),
+                'file_exists' => file_exists($this->selectedFile),
+                'file_permissions' => file_exists($this->selectedFile) ? substr(sprintf('%o', fileperms($this->selectedFile)), -4) : 'N/A',
+                'directory' => dirname($this->selectedFile),
+                'dir_writable' => is_writable(dirname($this->selectedFile)),
+                'dir_permissions' => is_dir(dirname($this->selectedFile)) ? substr(sprintf('%o', fileperms(dirname($this->selectedFile))), -4) : 'N/A',
             ]);
             session()->flash('error', 'Error saving file: ' . $e->getMessage());
         }
