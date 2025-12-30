@@ -30,6 +30,9 @@
 
     @livewireStyles
     @stack('styles')
+
+    {{-- Auto-refresh CSRF token to prevent 419 errors --}}
+    <x-csrf-refresh />
 </head>
 <body class="h-full">
     <div class="flex h-screen bg-gray-50">

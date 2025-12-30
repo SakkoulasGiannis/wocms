@@ -19,11 +19,12 @@ class CheckUnderConstruction
         // Check if under construction mode is enabled
         $underConstruction = Setting::get('under_construction', false);
 
-        // Skip check for admin routes, login, and livewire
+        // Skip check for admin routes, login, livewire, and API endpoints
         if ($request->is('admin/*') ||
             $request->is('login') ||
             $request->is('logout') ||
-            $request->is('livewire/*')) {
+            $request->is('livewire/*') ||
+            $request->is('csrf-token')) {
             return $next($request);
         }
 
