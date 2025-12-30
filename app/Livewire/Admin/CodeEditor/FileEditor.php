@@ -19,7 +19,7 @@ class FileEditor extends Component
     {
         // Define editable files
         $this->files = [
-            'Default Layout' => resource_path('views/frontend/layout.blade.php'),
+            'Layout' => resource_path('views/frontend/layout.blade.php'),
             'Header' => resource_path('views/frontend/partials/header.blade.php'),
             'Footer' => resource_path('views/frontend/partials/footer.blade.php'),
         ];

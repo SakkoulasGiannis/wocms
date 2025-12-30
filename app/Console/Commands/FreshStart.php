@@ -90,10 +90,15 @@ class FreshStart extends Command
 
         // Reset header and footer partials to defaults
         $partialsPath = resource_path('views/frontend/partials');
+        $frontendPath = resource_path('views/frontend');
+
         $defaultHeader = $partialsPath . '/default-header.blade.php';
         $defaultFooter = $partialsPath . '/default-footer.blade.php';
+        $defaultLayout = $frontendPath . '/default-layout.blade.php';
+
         $header = $partialsPath . '/header.blade.php';
         $footer = $partialsPath . '/footer.blade.php';
+        $layout = $frontendPath . '/layout.blade.php';
 
         if (File::exists($defaultHeader)) {
             File::copy($defaultHeader, $header);
@@ -103,6 +108,11 @@ class FreshStart extends Command
         if (File::exists($defaultFooter)) {
             File::copy($defaultFooter, $footer);
             $this->comment("  ✓ Reset: footer.blade.php");
+        }
+
+        if (File::exists($defaultLayout)) {
+            File::copy($defaultLayout, $layout);
+            $this->comment("  ✓ Reset: layout.blade.php");
         }
 
         // Step 4: Clear cache
@@ -130,7 +140,7 @@ class FreshStart extends Command
         $this->line('  • 10 blog posts with ContentNodes created');
         $this->line('  • All uploaded files deleted');
         $this->line('  • Physical template files deleted');
-        $this->line('  • Header & Footer reset to defaults');
+        $this->line('  • Layout, Header & Footer reset to defaults');
         $this->line('  • Cache cleared');
         $this->line('  • Logs cleared');
         $this->newLine();
