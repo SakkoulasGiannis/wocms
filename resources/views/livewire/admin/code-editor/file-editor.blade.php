@@ -23,7 +23,7 @@
                     Reset
                 </button>
 
-                <button onclick="window.editorSave && window.editorSave()"
+                <button wire:click="save"
                         @if(!$isDirty) disabled @endif
                         class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
                     <svg class="inline-block w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -152,33 +152,18 @@ function initMonacoEditor() {
             formatOnType: true,
         });
 
-        // Store original content (mutable)
-        let originalContent = @js($originalContent);
-
-        // Debounce timer for Livewire sync
-        let syncTimer = null;
-
-        // Update Livewire property on change (debounced)
+        // Update Livewire property on change
         editor.onDidChangeModelContent(function() {
             const content = editor.getValue();
 
-            // Update stats immediately (no lag)
+            // Update Livewire with new content
+            @this.set('fileContent', content);
+
+            // Update stats
             const lineCount = editor.getModel().getLineCount();
             const charCount = content.length;
             document.getElementById('lineCount').textContent = lineCount;
             document.getElementById('charCount').textContent = charCount;
-
-            // Check if dirty and update UI immediately
-            const isDirty = content !== originalContent;
-            console.log('📝 Content changed, isDirty:', isDirty);
-            @this.set('isDirty', isDirty, false); // false = don't wait for server response
-
-            // Debounce Livewire sync (only after 500ms of no typing)
-            clearTimeout(syncTimer);
-            syncTimer = setTimeout(function() {
-                console.log('⏱️ Debounce complete, syncing fileContent to backend');
-                @this.set('fileContent', content, false); // false = fire and forget
-            }, 500);
         });
 
         // Update stats on load
@@ -191,43 +176,17 @@ function initMonacoEditor() {
         Livewire.on('fileLoaded', (event) => {
             const content = event.content || event[0].content || '';
             editor.setValue(content);
-            originalContent = content;
-            @this.set('isDirty', false, false);
         });
 
-        // Listen for backup restore (don't update originalContent - keep it dirty)
+        // Listen for backup restore
         Livewire.on('backupRestored', (event) => {
             const content = event.content || event[0].content || '';
             editor.setValue(content);
-            @this.set('isDirty', true, false);
         });
-
-        // Listen for successful save
-        Livewire.on('fileSaved', () => {
-            originalContent = editor.getValue();
-            @this.set('isDirty', false, false);
-        });
-
-        // Save function (sync immediately before saving)
-        window.editorSave = function() {
-            console.log('🔵 editorSave called');
-            clearTimeout(syncTimer);
-            const content = editor.getValue();
-
-            console.log('🔵 Setting fileContent and calling save...');
-            @this.set('fileContent', content).then(() => {
-                console.log('🟢 fileContent set, calling save...');
-                return @this.call('save');
-            }).then(() => {
-                console.log('🟢 Save completed');
-            }).catch((error) => {
-                console.error('🔴 Save error:', error);
-            });
-        };
 
         // Keyboard shortcuts
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, function() {
-            window.editorSave();
+            @this.call('save');
         });
     });
 }

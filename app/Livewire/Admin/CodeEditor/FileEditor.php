@@ -58,6 +58,11 @@ class FileEditor extends Component
         $this->dispatch('fileLoaded', content: $this->fileContent);
     }
 
+    public function updatedFileContent()
+    {
+        $this->isDirty = $this->fileContent !== $this->originalContent;
+    }
+
     public function save()
     {
         \Log::info('💾 Save method called', [
@@ -88,9 +93,6 @@ class FileEditor extends Component
             // Clear view cache
             \Artisan::call('view:clear');
             \Log::info('✅ View cache cleared');
-
-            // Dispatch event to update frontend
-            $this->dispatch('fileSaved');
 
             session()->flash('success', 'File saved successfully! Backup created at: ' . basename($backupPath));
             \Log::info('✅ Save completed successfully');
