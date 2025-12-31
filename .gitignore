@@ -64,3 +64,9 @@ resources/views/templates/
 resources/views/frontend/layout.blade.php
 resources/views/frontend/partials/header.blade.php
 resources/views/frontend/partials/footer.blade.php
+
+# Custom scripts (local development tools)
+/custom-scripts/
+
+# Backups directory
+/backups/
