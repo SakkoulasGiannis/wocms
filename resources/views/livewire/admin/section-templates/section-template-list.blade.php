@@ -5,10 +5,16 @@
             <h1 class="text-2xl font-bold text-gray-900">Section Templates</h1>
             <p class="mt-1 text-sm text-gray-600">Manage reusable section templates for your pages</p>
         </div>
-        <button wire:click="openCreateModal" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow-sm transition">
-            <i class="fa fa-plus mr-2"></i>
-            Create Custom Template
-        </button>
+        <div class="flex gap-3">
+            <button wire:click="openCreateModal" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg shadow-sm transition">
+                <i class="fa fa-plus mr-2"></i>
+                Quick Create
+            </button>
+            <a href="{{ route('admin.section-templates.create') }}" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow-sm transition">
+                <i class="fa fa-plus mr-2"></i>
+                Create Template
+            </a>
+        </div>
     </div>
 
     <!-- Success/Error Messages -->
@@ -74,15 +80,23 @@
                         <!-- Template Actions -->
                         <div class="p-4 border-t border-gray-200 bg-gray-50">
                             <div class="flex items-center justify-between">
-                                <!-- Active Toggle -->
-                                <button wire:click="toggleActive({{ $template->id }})"
-                                        class="text-sm {{ $template->is_active ? 'text-green-600' : 'text-gray-400' }} hover:text-green-700">
-                                    @if($template->is_active)
-                                        <i class="fa fa-check-circle mr-1"></i>Active
-                                    @else
-                                        <i class="fa fa-times-circle mr-1"></i>Inactive
-                                    @endif
-                                </button>
+                                <div class="flex items-center gap-3">
+                                    <!-- Active Toggle -->
+                                    <button wire:click="toggleActive({{ $template->id }})"
+                                            class="text-sm {{ $template->is_active ? 'text-green-600' : 'text-gray-400' }} hover:text-green-700">
+                                        @if($template->is_active)
+                                            <i class="fa fa-check-circle mr-1"></i>Active
+                                        @else
+                                            <i class="fa fa-times-circle mr-1"></i>Inactive
+                                        @endif
+                                    </button>
+
+                                    <!-- Edit Button -->
+                                    <a href="{{ route('admin.section-templates.edit', $template->id) }}"
+                                       class="text-sm text-blue-600 hover:text-blue-700">
+                                        <i class="fa fa-edit mr-1"></i>Edit
+                                    </a>
+                                </div>
 
                                 <!-- Delete Button (only for non-system templates) -->
                                 @if(!$template->is_system)

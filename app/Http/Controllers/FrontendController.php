@@ -169,6 +169,27 @@ class FrontendController extends Controller
             'breadcrumbs' => $node->breadcrumbs(),
         ];
 
+        // Load sections if template or content uses sections render mode
+        $renderMode = ($content && isset($content->render_mode))
+            ? $content->render_mode
+            : ($template->render_mode ?? 'full_page_grapejs');
+
+        if ($renderMode === 'sections' && $content && method_exists($content, 'activeSections')) {
+            $data['sections'] = $content->activeSections()->get();
+            \Log::info('📋 Loaded sections for page', [
+                'url' => $node->url_path,
+                'sections_count' => $data['sections']->count(),
+                'sections' => $data['sections']->pluck('name', 'id')->toArray(),
+            ]);
+        } else {
+            \Log::info('⚠️ No sections loaded', [
+                'url' => $node->url_path,
+                'render_mode' => $renderMode,
+                'has_content' => $content !== null,
+                'has_activeSections_method' => $content ? method_exists($content, 'activeSections') : false,
+            ]);
+        }
+
         // PRIORITY 1: Check if there's a physical blade file for this template
         if ($template->has_physical_file) {
             // First, check if there's a generated blade file for this specific entry

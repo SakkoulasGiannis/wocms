@@ -12,8 +12,25 @@ class Section extends Model
     protected $table = 'sections';
 
     protected $fillable = [
-        'title', 'slug', 'body', 'body_css', 'render_mode', 'status', 'created_at'
+        'title', 'slug', 'render_mode', 'status', 'created_at'
     ];
+
+    /**
+     * Get the page sections for this entry
+     */
+    public function sections()
+    {
+        return $this->morphMany(PageSection::class, 'sectionable')->orderBy('order');
+    }
+
+    /**
+     * Get only active page sections for this entry
+     */
+    public function activeSections()
+    {
+        return $this->sections()->where('is_active', true);
+    }
+
     /**
      * Scope a query to only include active (published) entries
      */

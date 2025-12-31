@@ -62,6 +62,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
 
     // Section Templates Routes
     Route::get('/section-templates', \App\Livewire\Admin\SectionTemplates\SectionTemplateList::class)->name('section-templates.index');
+    Route::get('/section-templates/create', \App\Livewire\Admin\SectionTemplates\SectionTemplateForm::class)->name('section-templates.create');
+    Route::get('/section-templates/{templateId}/edit', \App\Livewire\Admin\SectionTemplates\SectionTemplateForm::class)->name('section-templates.edit');
 
     // Module Management Routes
     Route::get('/modules', [\App\Http\Controllers\Admin\ModuleController::class, 'index'])->name('modules.index');

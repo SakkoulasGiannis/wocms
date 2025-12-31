@@ -430,6 +430,11 @@ class EntryForm extends Component
             // Add status to create data
             $createData['status'] = $this->status;
 
+            // Set render_mode from template if the model has this field
+            if ($this->template->render_mode && \Schema::hasColumn((new $modelClass)->getTable(), 'render_mode')) {
+                $createData['render_mode'] = $this->template->render_mode;
+            }
+
             // Create entry
             $newEntry = $modelClass::create($createData);
 
@@ -799,6 +804,12 @@ class EntryForm extends Component
 
     public function saveSection()
     {
+        \Log::info('🟢 saveSection() called', [
+            'sectionForm' => $this->sectionForm,
+            'editingSectionIndex' => $this->editingSectionIndex,
+            'current_sections_count' => count($this->sections),
+        ]);
+
         if (!isset($this->sectionForm['section_template_id'])) {
             session()->flash('section-error', 'Please select a template first.');
             return;
@@ -833,10 +844,17 @@ class EntryForm extends Component
         if ($this->editingSectionIndex !== null) {
             // Update existing section
             $this->sections[$this->editingSectionIndex] = $sectionData;
+            \Log::info('✏️ Updated existing section at index ' . $this->editingSectionIndex);
         } else {
             // Add new section
             $this->sections[] = $sectionData;
+            \Log::info('➕ Added new section', ['new_count' => count($this->sections)]);
         }
+
+        \Log::info('📦 Sections array after save:', [
+            'count' => count($this->sections),
+            'sections' => $this->sections,
+        ]);
 
         // Reset form
         $this->editingSectionIndex = null;
@@ -906,13 +924,26 @@ class EntryForm extends Component
      */
     protected function syncSections($entry)
     {
+        \Log::info('🔄 syncSections() called', [
+            'entry_id' => $entry->id,
+            'template_render_mode' => $this->template->render_mode,
+            'has_sections_method' => method_exists($entry, 'sections'),
+            'sections_count' => count($this->sections),
+            'sections_data' => $this->sections,
+        ]);
+
         if ($this->template->render_mode !== 'sections' || !method_exists($entry, 'sections')) {
+            \Log::warning('⚠️ syncSections() skipped - conditions not met', [
+                'render_mode' => $this->template->render_mode,
+                'has_sections_method' => method_exists($entry, 'sections'),
+            ]);
             return;
         }
 
         // Delete sections not in the list
         $sectionIds = collect($this->sections)->pluck('id')->filter();
-        $entry->sections()->whereNotIn('id', $sectionIds)->delete();
+        $deletedCount = $entry->sections()->whereNotIn('id', $sectionIds)->delete();
+        \Log::info('🗑️ Deleted old sections', ['count' => $deletedCount]);
 
         // Create/Update sections
         foreach ($this->sections as $order => $sectionData) {
@@ -940,12 +971,25 @@ class EntryForm extends Component
 
             if (isset($sectionData['id']) && $sectionData['id']) {
                 // Update existing
-                $entry->sections()->where('id', $sectionData['id'])->update($data);
+                $updated = $entry->sections()->where('id', $sectionData['id'])->update($data);
+                \Log::info('✏️ Updated existing section', [
+                    'section_id' => $sectionData['id'],
+                    'affected_rows' => $updated,
+                    'data' => $data,
+                ]);
             } else {
                 // Create new
-                $entry->sections()->create($data);
+                $newSection = $entry->sections()->create($data);
+                \Log::info('➕ Created new section', [
+                    'section_id' => $newSection->id,
+                    'data' => $data,
+                ]);
             }
         }
+
+        \Log::info('✅ syncSections() completed', [
+            'final_sections_count' => $entry->sections()->count(),
+        ]);
     }
 
     /**
