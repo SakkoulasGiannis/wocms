@@ -465,6 +465,21 @@
                 {{-- Main Content Area (2/3 width on large screens) --}}
                 <div class="lg:col-span-2 space-y-6">
 
+                        {{-- Show Template Fields (if any exist in 'main' column) --}}
+                        @if($template->fields->where('column_position', 'main')->count() > 0)
+                            <div class="bg-white rounded-lg shadow p-6">
+                                <div class="space-y-6">
+                                    @foreach($template->fields->where('column_position', 'main') as $field)
+                                        @include('livewire.admin.template-entries.partials.dynamic-field', [
+                                            'field' => $field,
+                                            'entryId' => $entryId,
+                                            'entry' => $entry
+                                        ])
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endif
+
                         {{-- Sections Mode - Show Sections UI --}}
                         @if($template->render_mode === 'sections')
                             <!-- Page Sections Management -->
@@ -809,19 +824,6 @@
                                 @endif
                             </div>
 
-                        @else
-                            {{-- All other render modes - Show fields with dynamic types --}}
-                            <div class="bg-white rounded-lg shadow p-6">
-                                <div class="space-y-6">
-                                    @foreach($template->fields->where('column_position', 'main') as $field)
-                                        @include('livewire.admin.template-entries.partials.dynamic-field', [
-                                            'field' => $field,
-                                            'entryId' => $entryId,
-                                            'entry' => $entry
-                                        ])
-                                    @endforeach
-                                </div>
-                            </div>
                         @endif
 
                 </div>
