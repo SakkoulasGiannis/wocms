@@ -17,16 +17,71 @@ class FileEditor extends Component
 
     public function mount()
     {
-        // Define editable files
-        $this->files = [
-            'Layout' => resource_path('views/frontend/layout.blade.php'),
-            'Header' => resource_path('views/frontend/partials/header.blade.php'),
-            'Footer' => resource_path('views/frontend/partials/footer.blade.php'),
-        ];
+        // Define editable files grouped by category
+        $this->files = $this->getEditableFiles();
 
         // Select first file by default
-        $this->selectedFile = array_values($this->files)[0];
+        $this->selectedFile = array_values($this->files)[0]['path'];
         $this->loadFile();
+    }
+
+    protected function getEditableFiles()
+    {
+        $files = [];
+
+        // Core Layout Files
+        $files[] = [
+            'name' => 'Layout',
+            'path' => resource_path('views/frontend/layout.blade.php'),
+            'category' => 'Core',
+            'description' => 'Main layout wrapper',
+        ];
+        $files[] = [
+            'name' => 'Header',
+            'path' => resource_path('views/frontend/partials/header.blade.php'),
+            'category' => 'Core',
+            'description' => 'Site header/navigation',
+        ];
+        $files[] = [
+            'name' => 'Footer',
+            'path' => resource_path('views/frontend/partials/footer.blade.php'),
+            'category' => 'Core',
+            'description' => 'Site footer',
+        ];
+
+        // Template Files (from templates table)
+        $templates = \App\Models\Template::where('has_physical_file', true)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        foreach ($templates as $template) {
+            // Check if template file exists
+            $templatePath = resource_path('views/templates/' . $template->slug . '.blade.php');
+
+            if (File::exists($templatePath)) {
+                $files[] = [
+                    'name' => $template->name,
+                    'path' => $templatePath,
+                    'category' => 'Templates',
+                    'description' => $template->description ?: 'Template: ' . $template->slug,
+                ];
+            }
+        }
+
+        // Frontend Template Files (generated templates)
+        $generatedTemplates = File::glob(resource_path('views/frontend/templates/*.blade.php'));
+        foreach ($generatedTemplates as $templatePath) {
+            $filename = basename($templatePath, '.blade.php');
+            $files[] = [
+                'name' => ucfirst(str_replace(['-', '_'], ' ', $filename)),
+                'path' => $templatePath,
+                'category' => 'Generated',
+                'description' => 'Auto-generated template',
+            ];
+        }
+
+        return $files;
     }
 
     public function selectFile($filePath)

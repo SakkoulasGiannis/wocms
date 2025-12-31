@@ -4,7 +4,7 @@
         <div class="flex items-center justify-between">
             <div>
                 <h1 class="text-2xl font-bold text-gray-900">Code Editor</h1>
-                <p class="mt-1 text-sm text-gray-600">Edit header and footer files</p>
+                <p class="mt-1 text-sm text-gray-600">Edit layouts, templates, and frontend files</p>
             </div>
 
             <div class="flex items-center gap-3">
@@ -64,20 +64,31 @@
         <div class="w-64 bg-gray-50 border-r border-gray-200 overflow-y-auto">
             <div class="p-4">
                 <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Files</h3>
-                <div class="space-y-1">
-                    @foreach($files as $name => $path)
-                        <button wire:click="selectFile('{{ $path }}')"
-                                class="w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors
-                                       {{ $selectedFile === $path ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100' }}">
-                            <div class="flex items-center">
-                                <svg class="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                                </svg>
-                                <span class="truncate">{{ $name }}</span>
-                            </div>
-                        </button>
-                    @endforeach
-                </div>
+
+                @php
+                    $groupedFiles = collect($files)->groupBy('category');
+                @endphp
+
+                @foreach($groupedFiles as $category => $categoryFiles)
+                    <div class="mb-4">
+                        <h4 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-3">{{ $category }}</h4>
+                        <div class="space-y-1">
+                            @foreach($categoryFiles as $file)
+                                <button wire:click="selectFile('{{ $file['path'] }}')"
+                                        class="w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors
+                                               {{ $selectedFile === $file['path'] ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100' }}"
+                                        title="{{ $file['description'] }}">
+                                    <div class="flex items-center">
+                                        <svg class="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                        </svg>
+                                        <span class="truncate">{{ $file['name'] }}</span>
+                                    </div>
+                                </button>
+                            @endforeach
+                        </div>
+                    </div>
+                @endforeach
 
                 {{-- Backups Section --}}
                 @if(count($backups) > 0)
