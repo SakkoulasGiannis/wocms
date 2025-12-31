@@ -30,7 +30,7 @@
     </div>
     @endif
 
-    <!-- Templates by Category -->
+    <!-- Templates Table -->
     @php
         $groupedTemplates = $templates->groupBy('category');
     @endphp
@@ -44,74 +44,88 @@
                 <span class="ml-2 text-gray-400 text-sm">({{ $categoryTemplates->count() }})</span>
             </h2>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                @foreach($categoryTemplates as $template)
-                    <div class="bg-white rounded-lg shadow hover:shadow-md transition border border-gray-200">
-                        <!-- Template Header -->
-                        <div class="p-4 border-b border-gray-200">
-                            <div class="flex items-start justify-between">
-                                <div class="flex-1">
-                                    <h3 class="font-semibold text-gray-900 flex items-center">
-                                        {{ $template->name }}
-                                        @if($template->is_system)
-                                            <span class="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">System</span>
-                                        @endif
-                                    </h3>
-                                    <p class="text-sm text-gray-500 mt-1">{{ $template->description }}</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Template Fields -->
-                        <div class="p-4 bg-gray-50">
-                            <div class="text-xs text-gray-600 mb-2 font-medium">Fields:</div>
-                            <div class="flex flex-wrap gap-1">
-                                @forelse($template->fields as $field)
-                                    <span class="inline-flex items-center px-2 py-1 bg-white border border-gray-200 rounded text-xs text-gray-700">
-                                        {{ $field->label }}
-                                        <span class="ml-1 text-gray-400">({{ $field->type }})</span>
-                                    </span>
-                                @empty
-                                    <span class="text-xs text-gray-400 italic">No fields defined</span>
-                                @endforelse
-                            </div>
-                        </div>
-
-                        <!-- Template Actions -->
-                        <div class="p-4 border-t border-gray-200 bg-gray-50">
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-3">
-                                    <!-- Active Toggle -->
+            <div class="bg-white rounded-lg shadow overflow-hidden">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Template
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Fields
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
+                                Status
+                            </th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-48">
+                                Actions
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        @foreach($categoryTemplates as $template)
+                            <tr class="hover:bg-gray-50 transition">
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center">
+                                        <div>
+                                            <div class="flex items-center">
+                                                <div class="font-medium text-gray-900">{{ $template->name }}</div>
+                                                @if($template->is_system)
+                                                    <span class="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">System</span>
+                                                @endif
+                                            </div>
+                                            @if($template->description)
+                                                <div class="text-sm text-gray-500 mt-1">{{ $template->description }}</div>
+                                            @endif
+                                            <div class="text-xs text-gray-400 mt-1">
+                                                Slug: <code class="bg-gray-100 px-1 rounded">{{ $template->slug }}</code>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="flex flex-wrap gap-1">
+                                        @forelse($template->fields as $field)
+                                            <span class="inline-flex items-center px-2 py-0.5 bg-gray-100 text-xs text-gray-700 rounded">
+                                                {{ $field->label }}
+                                            </span>
+                                        @empty
+                                            <span class="text-xs text-gray-400 italic">No fields</span>
+                                        @endforelse
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4">
                                     <button wire:click="toggleActive({{ $template->id }})"
-                                            class="text-sm {{ $template->is_active ? 'text-green-600' : 'text-gray-400' }} hover:text-green-700">
+                                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $template->is_active ? 'bg-green-100 text-green-800 hover:bg-green-200' : 'bg-gray-100 text-gray-800 hover:bg-gray-200' }}">
                                         @if($template->is_active)
                                             <i class="fa fa-check-circle mr-1"></i>Active
                                         @else
                                             <i class="fa fa-times-circle mr-1"></i>Inactive
                                         @endif
                                     </button>
+                                </td>
+                                <td class="px-6 py-4 text-right text-sm font-medium">
+                                    <div class="flex items-center justify-end gap-3">
+                                        <a href="{{ route('admin.section-templates.edit', $template->id) }}"
+                                           class="text-blue-600 hover:text-blue-900">
+                                            <i class="fa fa-edit mr-1"></i>Edit
+                                        </a>
 
-                                    <!-- Edit Button -->
-                                    <a href="{{ route('admin.section-templates.edit', $template->id) }}"
-                                       class="text-sm text-blue-600 hover:text-blue-700">
-                                        <i class="fa fa-edit mr-1"></i>Edit
-                                    </a>
-                                </div>
-
-                                <!-- Delete Button (only for non-system templates) -->
-                                @if(!$template->is_system)
-                                    <button wire:click="delete({{ $template->id }})"
-                                            wire:confirm="Are you sure you want to delete '{{ $template->name }}'?"
-                                            class="text-sm text-red-600 hover:text-red-700">
-                                        <i class="fa fa-trash mr-1"></i>Delete
-                                    </button>
-                                @else
-                                    <span class="text-xs text-gray-400 italic">Protected</span>
-                                @endif
-                            </div>
-                        </div>
-                    </div>
-                @endforeach
+                                        @if(!$template->is_system)
+                                            <button wire:click="delete({{ $template->id }})"
+                                                    wire:confirm="Are you sure you want to delete '{{ $template->name }}'?"
+                                                    class="text-red-600 hover:text-red-900">
+                                                <i class="fa fa-trash mr-1"></i>Delete
+                                            </button>
+                                        @else
+                                            <span class="text-xs text-gray-400 italic">Protected</span>
+                                        @endif
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
             </div>
         </div>
     @endforeach

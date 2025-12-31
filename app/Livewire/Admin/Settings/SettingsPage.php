@@ -301,6 +301,49 @@ class SettingsPage extends Component
         }
     }
 
+    public function buildAssets()
+    {
+        try {
+            \Log::info('🔨 Starting npm build...');
+
+            // Run npm build in background
+            $process = proc_open(
+                'cd ' . base_path() . ' && npm run build 2>&1',
+                [
+                    0 => ['pipe', 'r'], // stdin
+                    1 => ['pipe', 'w'], // stdout
+                    2 => ['pipe', 'w'], // stderr
+                ],
+                $pipes
+            );
+
+            if (is_resource($process)) {
+                // Read output
+                $output = stream_get_contents($pipes[1]);
+                $error = stream_get_contents($pipes[2]);
+
+                fclose($pipes[0]);
+                fclose($pipes[1]);
+                fclose($pipes[2]);
+
+                $returnCode = proc_close($process);
+
+                if ($returnCode === 0) {
+                    \Log::info('✅ npm build completed successfully', ['output' => $output]);
+                    session()->flash('success', 'Assets built successfully! The frontend has been updated.');
+                } else {
+                    \Log::error('❌ npm build failed', ['error' => $error, 'output' => $output]);
+                    session()->flash('error', 'Build failed: ' . ($error ?: $output));
+                }
+            } else {
+                throw new \Exception('Failed to start build process');
+            }
+        } catch (\Exception $e) {
+            \Log::error('❌ Build error: ' . $e->getMessage());
+            session()->flash('error', 'Failed to build assets: ' . $e->getMessage());
+        }
+    }
+
     public function render()
     {
         return view('livewire.admin.settings.settings-page')->layout('layouts.admin-clean');

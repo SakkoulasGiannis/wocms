@@ -665,9 +665,61 @@
 
     <!-- Theme Tab -->
     @if($activeTab === 'theme')
-        <div class="bg-white rounded-lg shadow p-6">
-            <h2 class="text-lg font-semibold text-gray-900 mb-4">Theme Settings</h2>
-            <p class="text-gray-600">Theme customization options will be available here soon.</p>
+        <div class="space-y-6">
+            <!-- Asset Build Section -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Frontend Assets</h2>
+
+                <div class="space-y-4">
+                    <div>
+                        <p class="text-gray-600 mb-4">
+                            Build and compile frontend assets (CSS, JavaScript) using Vite.
+                            This is required after making changes to frontend files.
+                        </p>
+                    </div>
+
+                    <div class="flex items-center gap-4">
+                        <button wire:click="buildAssets"
+                                wire:loading.attr="disabled"
+                                class="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium rounded-lg shadow-sm transition flex items-center gap-2">
+                            <svg wire:loading.remove wire:target="buildAssets" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                            </svg>
+                            <svg wire:loading wire:target="buildAssets" class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span wire:loading.remove wire:target="buildAssets">Build Assets</span>
+                            <span wire:loading wire:target="buildAssets">Building...</span>
+                        </button>
+
+                        <div class="text-sm text-gray-500">
+                            <p>This will run: <code class="bg-gray-100 px-2 py-1 rounded">npm run build</code></p>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <h3 class="text-sm font-semibold text-blue-900 mb-2 flex items-center">
+                            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                            </svg>
+                            When to build assets
+                        </h3>
+                        <ul class="text-sm text-blue-800 space-y-1 ml-6 list-disc">
+                            <li>After modifying CSS or JavaScript files</li>
+                            <li>After updating frontend dependencies</li>
+                            <li>Before deploying to production</li>
+                            <li>When styles or scripts are not updating</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Future Theme Settings -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Theme Customization</h2>
+                <p class="text-gray-600">Additional theme customization options will be available here soon.</p>
+            </div>
         </div>
     @endif
 </div>
