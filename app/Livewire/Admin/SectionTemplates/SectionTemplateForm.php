@@ -149,9 +149,9 @@ class SectionTemplateForm extends Component
                 'name' => $fieldData['name'],
                 'label' => $fieldData['label'],
                 'type' => $fieldData['type'],
-                'default_value' => $fieldData['default_value'],
+                'default_value' => $fieldData['default_value'] ?: null,
                 'is_required' => $fieldData['is_required'],
-                'options' => $fieldData['options'],
+                'options' => $fieldData['options'] ?: null, // Convert empty string to null
                 'order' => $order,
             ];
 
