@@ -12,11 +12,11 @@
   },
   "assets": {
     "css": [
-      "assets/css/bootstrap.min.css",
-      "assets/css/custom.css"
+      "https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css",
+      "/themes/bootstrap/assets/css/custom.css"
     ],
     "js": [
-      "assets/js/bootstrap.bundle.min.js"
+      "https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
     ]
   },
   "vite": false
