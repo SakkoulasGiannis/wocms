@@ -715,10 +715,72 @@
                 </div>
             </div>
 
-            <!-- Future Theme Settings -->
+            <!-- Theme Selection -->
             <div class="bg-white rounded-lg shadow p-6">
-                <h2 class="text-lg font-semibold text-gray-900 mb-4">Theme Customization</h2>
-                <p class="text-gray-600">Additional theme customization options will be available here soon.</p>
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Active Theme</h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    @foreach($availableThemes as $slug => $theme)
+                        <div class="border-2 rounded-lg p-4 cursor-pointer transition {{ $active_theme === $slug ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300' }}"
+                             wire:click="$set('active_theme', '{{ $slug }}')">
+                            <div class="flex items-start justify-between mb-3">
+                                <div class="flex-1">
+                                    <h3 class="font-semibold text-gray-900">{{ $theme['name'] }}</h3>
+                                    <p class="text-xs text-gray-500 mt-1">v{{ $theme['version'] }}</p>
+                                </div>
+                                @if($active_theme === $slug)
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        Active
+                                    </span>
+                                @endif
+                            </div>
+
+                            <p class="text-sm text-gray-600 mb-3">{{ $theme['description'] }}</p>
+
+                            <div class="flex items-center text-xs text-gray-500 space-x-3">
+                                <span class="flex items-center">
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+                                    </svg>
+                                    {{ $theme['supports']['css_framework'] ?? 'custom' }}
+                                </span>
+                                <span class="flex items-center">
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                                    </svg>
+                                    {{ $theme['author'] }}
+                                </span>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+
+                <div class="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div class="flex items-start">
+                        <svg class="w-5 h-5 text-yellow-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                        </svg>
+                        <div>
+                            <h4 class="text-sm font-semibold text-yellow-800 mb-1">Important Notes</h4>
+                            <ul class="text-sm text-yellow-700 space-y-1">
+                                <li>• Click "Save Settings" below to activate the selected theme</li>
+                                <li>• Ensure theme assets are linked by running: <code class="bg-yellow-100 px-1 rounded">php artisan theme:link</code></li>
+                                <li>• For Bootstrap theme, download Bootstrap files and place them in the theme's assets folder</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex items-center justify-between pt-4 border-t border-gray-200">
+                    <div class="text-sm text-gray-600">
+                        Current Active Theme: <strong class="text-gray-900">{{ $availableThemes[$active_theme]['name'] ?? 'Unknown' }}</strong>
+                    </div>
+                    <button type="button"
+                            wire:click="saveGeneral"
+                            class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow-sm transition">
+                        Save Settings
+                    </button>
+                </div>
             </div>
         </div>
     @endif

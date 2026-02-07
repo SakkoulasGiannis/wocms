@@ -5,10 +5,17 @@ namespace App\Http\Controllers;
 use App\Models\Home;
 use App\Models\ContentNode;
 use App\Models\Template;
+use App\Services\ThemeManager;
 use Illuminate\Http\Request;
 
 class FrontendController extends Controller
 {
+    protected ThemeManager $themeManager;
+
+    public function __construct(ThemeManager $themeManager)
+    {
+        $this->themeManager = $themeManager;
+    }
     public function home()
     {
         // Check if home exists in content tree
@@ -220,7 +227,8 @@ class FrontendController extends Controller
                 if ($content && method_exists($content, 'activeSections')) {
                     $data['sections'] = $content->activeSections()->get();
                 }
-                return view('frontend.sections', $data);
+                $view = $this->themeManager->getTemplateView('sections') ?? 'frontend.sections';
+                return view($view, $data);
 
             case 'simple_content':
                 // Simple WYSIWYG content
@@ -247,7 +255,8 @@ class FrontendController extends Controller
                         $data['html'] = $rawHtml;
                     }
                 }
-                return view('frontend.simple', $data);
+                $view = $this->themeManager->getTemplateView('simple') ?? 'frontend.simple';
+                return view($view, $data);
 
             case 'full_page_grapejs':
             default:
@@ -264,7 +273,8 @@ class FrontendController extends Controller
                         // Keep original HTML if compilation fails
                     }
                 }
-                return view('frontend.default', $data);
+                $view = $this->themeManager->getTemplateView('default') ?? 'frontend.default';
+                return view($view, $data);
         }
     }
 

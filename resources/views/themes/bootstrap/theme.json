@@ -1,0 +1,23 @@
+{
+  "name": "Bootstrap 5 Theme",
+  "slug": "bootstrap",
+  "description": "Professional Bootstrap 5 theme with responsive design",
+  "version": "1.0.0",
+  "author": "WebOrange",
+  "screenshot": "screenshot.png",
+  "supports": {
+    "layouts": ["layout", "layout-full-width"],
+    "partials": ["header", "footer", "sidebar"],
+    "css_framework": "bootstrap"
+  },
+  "assets": {
+    "css": [
+      "assets/css/bootstrap.min.css",
+      "assets/css/custom.css"
+    ],
+    "js": [
+      "assets/js/bootstrap.bundle.min.js"
+    ]
+  },
+  "vite": false
+}

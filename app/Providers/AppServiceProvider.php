@@ -11,7 +11,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Register ThemeManager as singleton
+        $this->app->singleton(\App\Services\ThemeManager::class, function ($app) {
+            return new \App\Services\ThemeManager();
+        });
     }
 
     /**

@@ -1,0 +1,18 @@
+{
+  "name": "Tailwind CSS Theme",
+  "slug": "tailwind",
+  "description": "Modern Tailwind CSS 4 theme with Livewire support",
+  "version": "1.0.0",
+  "author": "WebOrange",
+  "screenshot": "screenshot.png",
+  "supports": {
+    "layouts": ["layout"],
+    "partials": ["header", "footer"],
+    "css_framework": "tailwindcss"
+  },
+  "assets": {
+    "css": [],
+    "js": []
+  },
+  "vite": true
+}

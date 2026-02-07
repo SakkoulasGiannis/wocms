@@ -4,6 +4,7 @@ namespace App\Livewire\Admin\Settings;
 
 use App\Models\Setting;
 use App\Models\ImageSize;
+use App\Services\ThemeManager;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
@@ -21,6 +22,8 @@ class SettingsPage extends Component
     public $site_favicon_upload = null; // For favicon upload
     public $site_description = '';
     public $under_construction = false;
+    public $active_theme = 'tailwind';
+    public $availableThemes = [];
 
     // AI Settings
     public $ai_provider = 'claude'; // claude, chatgpt, ollama
@@ -62,6 +65,11 @@ class SettingsPage extends Component
         $this->site_favicon = Setting::get('site_favicon', '');
         $this->site_description = Setting::get('site_description', '');
         $this->under_construction = Setting::get('under_construction', false);
+        $this->active_theme = Setting::get('active_theme', 'tailwind');
+
+        // Load available themes
+        $themeManager = app(ThemeManager::class);
+        $this->availableThemes = $themeManager->getAvailableThemes();
 
         // AI settings
         $this->ai_provider = Setting::get('ai_provider', 'claude');
@@ -132,6 +140,11 @@ class SettingsPage extends Component
 
         Setting::set('site_description', $this->site_description, 'general');
         Setting::set('under_construction', $this->under_construction, 'general');
+        Setting::set('active_theme', $this->active_theme, 'general');
+
+        // Clear theme cache
+        $themeManager = app(ThemeManager::class);
+        $themeManager->clearCache();
 
         session()->flash('success', 'General settings saved successfully!');
     }
