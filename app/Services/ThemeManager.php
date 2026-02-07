@@ -208,7 +208,12 @@ class ThemeManager
 
         $html = '';
         foreach ($metadata['assets']['css'] as $css) {
-            $path = "/themes/{$this->getActiveTheme()}/{$css}";
+            // Check if it's an absolute URL (http/https) or already has a path
+            if (str_starts_with($css, 'http://') || str_starts_with($css, 'https://') || str_starts_with($css, '/')) {
+                $path = $css;
+            } else {
+                $path = "/themes/{$this->getActiveTheme()}/{$css}";
+            }
             $html .= "<link rel=\"stylesheet\" href=\"{$path}\">\n";
         }
 
@@ -228,7 +233,12 @@ class ThemeManager
 
         $html = '';
         foreach ($metadata['assets']['js'] as $js) {
-            $path = "/themes/{$this->getActiveTheme()}/{$js}";
+            // Check if it's an absolute URL (http/https) or already has a path
+            if (str_starts_with($js, 'http://') || str_starts_with($js, 'https://') || str_starts_with($js, '/')) {
+                $path = $js;
+            } else {
+                $path = "/themes/{$this->getActiveTheme()}/{$js}";
+            }
             $html .= "<script src=\"{$path}\"></script>\n";
         }
 
