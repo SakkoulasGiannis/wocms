@@ -1,12 +1,16 @@
 <!DOCTYPE html>
-<html lang="en">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-US" lang="en-US">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
     <!-- Favicon -->
     @if(\App\Models\Setting::get('site_favicon'))
-        <link rel="icon" type="image/x-icon" href="{{ \App\Models\Setting::get('site_favicon') }}">
+        <link rel="shortcut icon" href="{{ \App\Models\Setting::get('site_favicon') }}">
+        <link rel="apple-touch-icon-precomposed" href="{{ \App\Models\Setting::get('site_favicon') }}">
+    @else
+        <link rel="shortcut icon" href="/themes/bootstrap/images/logo/favicon.png">
+        <link rel="apple-touch-icon-precomposed" href="/themes/bootstrap/images/logo/favicon.png">
     @endif
 
     {{-- SEO Meta Tags --}}
@@ -35,13 +39,29 @@
 
     @stack('styles')
 </head>
-<body>
-    @include($themeManager->getPartial('header'))
+<body class="body">
 
-    <!-- Main Content -->
-    <main>
-        @yield('content')
-    </main>
+    <!-- preload -->
+    <div class="preload preload-container">
+        <div class="preload-logo">
+            <div class="spinner"></div>
+            <span class="icon icon-villa-fill"></span>
+        </div>
+    </div>
+    <!-- /preload -->
+
+    <div id="wrapper">
+        <div id="pagee" class="clearfix">
+
+            @include($themeManager->getPartial('header'))
+
+            <!-- Main Content -->
+            @yield('content')
+
+        </div>
+        <!-- /#page -->
+
+    </div>
 
     @include($themeManager->getPartial('footer'))
 

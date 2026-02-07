@@ -1062,7 +1062,34 @@
                 },
                 canvas: {
                     scripts: [
-                        'https://cdn.tailwindcss.com'
+                        @php
+                            $themeManager = app(\App\Services\ThemeManager::class);
+                            $metadata = $themeManager->getMetadata();
+                            $jsAssets = $metadata['assets']['js'] ?? [];
+
+                            // Filter JS assets for GrapeJS canvas
+                            // Only include core libraries, exclude interactive plugins that need specific DOM elements
+                            $allowedScripts = ['jquery', 'bootstrap'];
+                            $filteredJsAssets = array_filter($jsAssets, function($js) use ($allowedScripts) {
+                                foreach ($allowedScripts as $allowed) {
+                                    if (stripos($js, $allowed) !== false) {
+                                        return true;
+                                    }
+                                }
+                                return false;
+                            });
+                        @endphp
+                        @foreach($filteredJsAssets as $js)
+                            '{{ $js }}',
+                        @endforeach
+                    ],
+                    styles: [
+                        @php
+                            $cssAssets = $metadata['assets']['css'] ?? [];
+                        @endphp
+                        @foreach($cssAssets as $css)
+                            '{{ $css }}',
+                        @endforeach
                     ],
                 },
             });

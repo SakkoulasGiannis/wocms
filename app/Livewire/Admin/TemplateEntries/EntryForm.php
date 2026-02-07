@@ -593,8 +593,8 @@ class EntryForm extends Component
             \File::makeDirectory($directory, 0755, true);
         }
 
-        // Create blade template content
-        $bladeContent = "@extends('frontend.layout')\n\n";
+        // Create blade template content with dynamic theme layout
+        $bladeContent = "@extends(app(\\App\\Services\\ThemeManager::class)->getLayout())\n\n";
         $bladeContent .= "@section('title', \$node->title ?? \$title ?? 'Page')\n\n";
 
         // Add CSS section if exists and setting is enabled
