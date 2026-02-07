@@ -1,4 +1,4 @@
-@extends('frontend.layout')
+@extends(app(\App\Services\ThemeManager::class)->getLayout())
 
 @section('title', 'Blog')
 
