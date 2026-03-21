@@ -3,6 +3,7 @@
 namespace App\Traits;
 
 use App\Models\PageSection;
+use App\Models\SectionTemplate;
 
 trait HasSections
 {
@@ -24,29 +25,62 @@ trait HasSections
     }
 
     /**
-     * Add a new section
+     * Add a new section by template (ID or slug) or legacy section type string.
      */
-    public function addSection(string $sectionType, array $content = [], array $settings = [], ?string $name = null, int $order = 0): PageSection
+    public function addSection(string|int $templateOrType, array $content = [], array $settings = [], ?string $name = null, int $order = 0): PageSection
     {
-        $sectionTypes = PageSection::getSectionTypes();
+        $template = null;
+        $sectionType = null;
 
-        if (!isset($sectionTypes[$sectionType])) {
-            throw new \InvalidArgumentException("Invalid section type: {$sectionType}");
+        // Try to resolve as SectionTemplate
+        if (is_int($templateOrType)) {
+            $template = SectionTemplate::findOrFail($templateOrType);
+        } else {
+            // Try slug first (e.g. 'hero-simple')
+            $template = SectionTemplate::where('slug', $templateOrType)->first();
+
+            // Try converting underscore type to slug (e.g. 'hero_simple' → 'hero-simple')
+            if (! $template) {
+                $slug = str_replace('_', '-', $templateOrType);
+                $template = SectionTemplate::where('slug', $slug)->first();
+            }
         }
 
-        // Get default content and settings
-        $defaultContent = $sectionTypes[$sectionType]['default_content'] ?? [];
-        $defaultSettings = $sectionTypes[$sectionType]['default_settings'] ?? [];
+        if ($template) {
+            $sectionType = str_replace('-', '_', $template->slug);
+
+            // Build default content from template fields if no content provided
+            if (empty($content)) {
+                foreach ($template->fields as $field) {
+                    $content[$field->name] = $field->default_value ?? '';
+                }
+            }
+
+            $defaultSettings = $template->default_settings ?? [];
+        } else {
+            // Fallback to legacy getSectionTypes()
+            $sectionTypes = PageSection::getSectionTypes();
+
+            if (! isset($sectionTypes[$templateOrType])) {
+                throw new \InvalidArgumentException("Invalid section type or template: {$templateOrType}");
+            }
+
+            $sectionType = $templateOrType;
+            $content = empty($content) ? ($sectionTypes[$sectionType]['default_content'] ?? []) : $content;
+            $defaultSettings = $sectionTypes[$sectionType]['default_settings'] ?? [];
+            $name = $name ?? $sectionTypes[$sectionType]['name'];
+        }
 
         // If no order specified, add at the end
         if ($order === 0) {
-            $order = $this->sections()->max('order') + 1;
+            $order = ($this->sections()->max('order') ?? 0) + 1;
         }
 
         return $this->sections()->create([
+            'section_template_id' => $template?->id,
             'section_type' => $sectionType,
-            'name' => $name ?? $sectionTypes[$sectionType]['name'],
-            'content' => empty($content) ? $defaultContent : $content,
+            'name' => $name ?? ($template?->name ?? ucfirst(str_replace('_', ' ', $sectionType))),
+            'content' => $content,
             'settings' => array_merge($defaultSettings, $settings),
             'order' => $order,
             'is_active' => true,
@@ -77,7 +111,8 @@ trait HasSections
     public function toggleSection(int $sectionId): bool
     {
         $section = $this->sections()->findOrFail($sectionId);
-        $section->is_active = !$section->is_active;
+        $section->is_active = ! $section->is_active;
+
         return $section->save();
     }
 }

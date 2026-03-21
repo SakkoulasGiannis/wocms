@@ -25,6 +25,7 @@ class PageSection extends Model
     ];
 
     protected $casts = [
+        'content' => 'array',
         'settings' => 'array',
         'is_active' => 'boolean',
         'order' => 'integer',
@@ -47,17 +48,49 @@ class PageSection extends Model
     }
 
     /**
-     * Get sections for a specific page
+     * Get sections for a specific sectionable model (polymorphic).
      */
-    public static function getPageSections(string $pageType, bool $activeOnly = true): \Illuminate\Database\Eloquent\Collection
+    public static function getForModel(string $sectionableType, int $sectionableId, bool $activeOnly = true): \Illuminate\Database\Eloquent\Collection
     {
-        $query = static::where('page_type', $pageType);
+        $query = static::where('sectionable_type', $sectionableType)
+            ->where('sectionable_id', $sectionableId);
 
         if ($activeOnly) {
             $query->where('is_active', true);
         }
 
         return $query->orderBy('order')->get();
+    }
+
+    /**
+     * Get available section templates from the database.
+     */
+    public static function getAvailableTemplates(): \Illuminate\Database\Eloquent\Collection
+    {
+        return SectionTemplate::where('is_active', true)
+            ->orderBy('category')
+            ->orderBy('order')
+            ->get();
+    }
+
+    /**
+     * Get the effective template: from relation or fallback by slug.
+     */
+    public function getEffectiveTemplate(): ?SectionTemplate
+    {
+        // Direct relation first
+        if ($this->sectionTemplate) {
+            return $this->sectionTemplate;
+        }
+
+        // Fallback: match section_type to template slug
+        if ($this->section_type) {
+            $slug = str_replace('_', '-', $this->section_type);
+
+            return SectionTemplate::where('slug', $slug)->first();
+        }
+
+        return null;
     }
 
     /**
@@ -77,7 +110,7 @@ class PageSection extends Model
                 'default_settings' => [
                     'container' => true,
                     'padding' => 'medium',
-                ]
+                ],
             ],
             'grapejs' => [
                 'name' => 'GrapeJS Page Builder',
@@ -87,7 +120,7 @@ class PageSection extends Model
                     'css' => 'css',
                 ],
                 'default_content' => '',
-                'default_settings' => []
+                'default_settings' => [],
             ],
             'html' => [
                 'name' => 'Raw HTML',
@@ -96,7 +129,7 @@ class PageSection extends Model
                     'html' => 'html',
                 ],
                 'default_content' => '<div class="container mx-auto px-4 py-16"><h2>Custom Section</h2></div>',
-                'default_settings' => []
+                'default_settings' => [],
             ],
 
             // Predefined Templates
@@ -114,8 +147,8 @@ class PageSection extends Model
                             'text' => 'string',
                             'button_text' => 'string',
                             'button_url' => 'string',
-                        ]
-                    ]
+                        ],
+                    ],
                 ],
                 'default_content' => [
                     'slides' => [
@@ -126,15 +159,15 @@ class PageSection extends Model
                             'text' => 'Description text',
                             'button_text' => 'Learn More',
                             'button_url' => '#',
-                        ]
-                    ]
+                        ],
+                    ],
                 ],
                 'default_settings' => [
                     'autoplay' => true,
                     'interval' => 5000,
                     'show_arrows' => true,
                     'show_dots' => true,
-                ]
+                ],
             ],
             'hero_simple' => [
                 'name' => 'Simple Hero',
@@ -159,7 +192,7 @@ class PageSection extends Model
                     'height' => 'screen',
                     'overlay_opacity' => 0.5,
                     'text_alignment' => 'center',
-                ]
+                ],
             ],
             'about_us' => [
                 'name' => 'About Us',
@@ -174,8 +207,8 @@ class PageSection extends Model
                             'icon' => 'string',
                             'title' => 'string',
                             'description' => 'string',
-                        ]
-                    ]
+                        ],
+                    ],
                 ],
                 'default_content' => [
                     'heading' => 'About Us',
@@ -184,12 +217,12 @@ class PageSection extends Model
                     'features' => [
                         ['icon' => '', 'title' => 'Feature 1', 'description' => 'Description'],
                         ['icon' => '', 'title' => 'Feature 2', 'description' => 'Description'],
-                    ]
+                    ],
                 ],
                 'default_settings' => [
                     'layout' => 'image_left',
                     'show_features' => true,
-                ]
+                ],
             ],
             'features_grid' => [
                 'name' => 'Features Grid',
@@ -203,8 +236,8 @@ class PageSection extends Model
                             'icon' => 'string',
                             'title' => 'string',
                             'description' => 'string',
-                        ]
-                    ]
+                        ],
+                    ],
                 ],
                 'default_content' => [
                     'heading' => 'Our Features',
@@ -213,12 +246,12 @@ class PageSection extends Model
                         ['icon' => '', 'title' => 'Feature 1', 'description' => 'Description'],
                         ['icon' => '', 'title' => 'Feature 2', 'description' => 'Description'],
                         ['icon' => '', 'title' => 'Feature 3', 'description' => 'Description'],
-                    ]
+                    ],
                 ],
                 'default_settings' => [
                     'columns' => 3,
                     'layout' => 'card',
-                ]
+                ],
             ],
             'blog_posts_list' => [
                 'name' => 'Blog Posts List',
@@ -238,7 +271,7 @@ class PageSection extends Model
                     'show_excerpt' => true,
                     'show_date' => true,
                     'show_author' => false,
-                ]
+                ],
             ],
             'testimonials' => [
                 'name' => 'Testimonials',
@@ -253,19 +286,19 @@ class PageSection extends Model
                             'avatar' => 'string',
                             'text' => 'string',
                             'rating' => 'number',
-                        ]
-                    ]
+                        ],
+                    ],
                 ],
                 'default_content' => [
                     'heading' => 'What Our Clients Say',
                     'testimonials' => [
                         ['name' => 'John Doe', 'role' => 'CEO', 'avatar' => '', 'text' => 'Great service!', 'rating' => 5],
-                    ]
+                    ],
                 ],
                 'default_settings' => [
                     'layout' => 'carousel',
                     'show_rating' => true,
-                ]
+                ],
             ],
             'call_to_action' => [
                 'name' => 'Call to Action',
@@ -287,7 +320,7 @@ class PageSection extends Model
                 'default_settings' => [
                     'style' => 'centered',
                     'overlay_opacity' => 0.7,
-                ]
+                ],
             ],
             'stats_counter' => [
                 'name' => 'Stats Counter',
@@ -300,20 +333,20 @@ class PageSection extends Model
                             'number' => 'string',
                             'label' => 'string',
                             'icon' => 'string',
-                        ]
-                    ]
+                        ],
+                    ],
                 ],
                 'default_content' => [
                     'heading' => 'Our Achievements',
                     'stats' => [
                         ['number' => '500+', 'label' => 'Happy Clients', 'icon' => ''],
                         ['number' => '1000+', 'label' => 'Projects', 'icon' => ''],
-                    ]
+                    ],
                 ],
                 'default_settings' => [
                     'columns' => 4,
                     'animated' => true,
-                ]
+                ],
             ],
             'gallery' => [
                 'name' => 'Gallery',
@@ -325,17 +358,17 @@ class PageSection extends Model
                         'items' => [
                             'url' => 'string',
                             'caption' => 'string',
-                        ]
-                    ]
+                        ],
+                    ],
                 ],
                 'default_content' => [
                     'heading' => 'Gallery',
-                    'images' => []
+                    'images' => [],
                 ],
                 'default_settings' => [
                     'columns' => 3,
                     'lightbox' => true,
-                ]
+                ],
             ],
             'contact_form' => [
                 'name' => 'Contact Form',
@@ -357,7 +390,7 @@ class PageSection extends Model
                 'default_settings' => [
                     'show_map' => false,
                     'show_info' => true,
-                ]
+                ],
             ],
             'structured_html' => [
                 'name' => 'Structured HTML',
@@ -377,17 +410,17 @@ class PageSection extends Model
                                     [
                                         'type' => 'h2',
                                         'classes' => 'text-3xl font-bold text-center',
-                                        'content' => 'Custom Section'
-                                    ]
-                                ]
-                            ]
-                        ]
-                    ]
+                                        'content' => 'Custom Section',
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
                 ],
                 'default_settings' => [
                     'container' => false,
                     'padding' => false,
-                ]
+                ],
             ],
             'custom_html' => [
                 'name' => 'Custom HTML (Legacy)',
@@ -401,7 +434,7 @@ class PageSection extends Model
                 'default_settings' => [
                     'container' => true,
                     'padding' => true,
-                ]
+                ],
             ],
         ];
     }
@@ -413,7 +446,7 @@ class PageSection extends Model
     {
         $types = static::getSectionTypes();
 
-        if (!isset($types[$this->section_type])) {
+        if (! isset($types[$this->section_type])) {
             return false;
         }
 
@@ -422,7 +455,7 @@ class PageSection extends Model
 
         foreach ($schema as $key => $rules) {
             if (is_array($rules) && isset($rules['type']) && $rules['type'] === 'array') {
-                if (isset($this->content[$key]) && !is_array($this->content[$key])) {
+                if (isset($this->content[$key]) && ! is_array($this->content[$key])) {
                     return false;
                 }
             }

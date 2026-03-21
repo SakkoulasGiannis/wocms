@@ -38,6 +38,52 @@
             box-shadow: 0 0 0 1px #3b82f6;
         }
 
+        /* Trix custom attributes styling */
+        trix-editor [data-trix-attribute="alignLeft"] div,
+        .trix-content [data-trix-attribute="alignLeft"] div {
+            text-align: left !important;
+        }
+
+        trix-editor [data-trix-attribute="alignCenter"] div,
+        .trix-content [data-trix-attribute="alignCenter"] div {
+            text-align: center !important;
+        }
+
+        trix-editor [data-trix-attribute="alignRight"] div,
+        .trix-content [data-trix-attribute="alignRight"] div {
+            text-align: right !important;
+        }
+
+        trix-editor [data-trix-attribute="alignJustify"] div,
+        .trix-content [data-trix-attribute="alignJustify"] div {
+            text-align: justify !important;
+        }
+
+        /* Headings */
+        trix-editor h2,
+        .trix-content h2 {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-top: 0.5em;
+            margin-bottom: 0.5em;
+        }
+
+        trix-editor h3,
+        .trix-content h3 {
+            font-size: 1.25em;
+            font-weight: bold;
+            margin-top: 0.5em;
+            margin-bottom: 0.5em;
+        }
+
+        trix-editor h4,
+        .trix-content h4 {
+            font-size: 1.1em;
+            font-weight: bold;
+            margin-top: 0.5em;
+            margin-bottom: 0.5em;
+        }
+
         .gjs-editor {
             border: 1px solid #d1d5db;
             border-radius: 0.5rem;
@@ -238,6 +284,27 @@
         .cm-searching {
             background: rgba(255, 255, 0, 0.3);
             border-bottom: 2px solid #f39c12;
+        }
+
+        /* SortableJS Drag & Drop Styles */
+        .section-ghost {
+            opacity: 0.4;
+            background: #e5e7eb;
+        }
+
+        .section-drag {
+            opacity: 1;
+            cursor: grabbing !important;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            transform: rotate(2deg);
+        }
+
+        .section-drag-handle {
+            transition: all 0.2s;
+        }
+
+        .section-drag-handle:hover {
+            transform: scale(1.1);
         }
     </style>
 @endpush

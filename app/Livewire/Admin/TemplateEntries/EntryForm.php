@@ -2,31 +2,40 @@
 
 namespace App\Livewire\Admin\TemplateEntries;
 
-use App\Models\Template;
 use App\Models\ContentNode;
 use App\Models\PageSection;
 use App\Models\SectionTemplate;
 use App\Models\Setting;
+use App\Models\Template;
 use App\Services\PageCssGenerator;
+use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\WithFileUploads;
-use Livewire\Attributes\Locked;
-use Illuminate\Support\Str;
 
 class EntryForm extends Component
 {
     use WithFileUploads;
 
     public $templateSlug;
+
     public $template;
+
     public $entryId;
+
     public $entry;
+
     public $fieldValues = [];
+
     public $uploadedFiles = []; // For Livewire file uploads
+
     public $parentNodeId = null;
+
     public $availableParentNodes = [];
+
     public $createdAt = null; // Created date/time for the entry
+
     public $status = 'active'; // Entry status (active, draft, disabled)
+
     public $cacheEnabled = ''; // Cache override: '' = use template, '1' = force enable, '0' = force disable
 
     // Prevent re-render on file upload
@@ -37,11 +46,17 @@ class EntryForm extends Component
 
     // Page Sections (for render_mode = 'sections')
     public $sections = [];
+
     public $sectionTypes = [];
+
     public $availableSectionTemplates = [];
+
     public $editingSectionIndex = null;
+
     public $sectionForm = [];
+
     public $selectedTemplateId = null;
+
     public $showSectionForm = false;
 
     public function mount($templateSlug, $entryId = null)
@@ -51,14 +66,14 @@ class EntryForm extends Component
         $this->template = \Cache::remember("template.{$templateSlug}.with-fields", 3600, function () use ($templateSlug) {
             return Template::where('slug', $templateSlug)
                 ->where('is_active', true)
-                ->with(['fields' => function($query) {
+                ->with(['fields' => function ($query) {
                     $query->orderBy('order');
                 }])
                 ->firstOrFail();
         });
 
         // Check if dynamic model exists
-        if (!$this->template->model_class || !class_exists("App\\Models\\{$this->template->model_class}")) {
+        if (! $this->template->model_class || ! class_exists("App\\Models\\{$this->template->model_class}")) {
             abort(500, 'Template model not found. Please save the template again to generate the model.');
         }
 
@@ -94,7 +109,7 @@ class EntryForm extends Component
 
                 // For grapejs fields, also load the CSS
                 if ($field->type === 'grapejs') {
-                    $cssFieldName = $field->name . '_css';
+                    $cssFieldName = $field->name.'_css';
                     if (isset($this->entry->{$cssFieldName})) {
                         $this->fieldValues[$cssFieldName] = $this->entry->{$cssFieldName};
                     }
@@ -134,19 +149,17 @@ class EntryForm extends Component
 
             // Load sections if template uses sections
             if ($this->template->render_mode === 'sections' && method_exists($this->entry, 'sections')) {
-                $this->sections = $this->entry->sections()->with('sectionTemplate')->orderBy('order')->get()->map(function($section) {
-                    $fieldData = is_string($section->content) ? json_decode($section->content, true) : $section->content;
-
+                $this->sections = $this->entry->sections()->with('sectionTemplate')->orderBy('order')->get()->map(function ($section) {
                     return [
                         'id' => $section->id,
                         'section_template_id' => $section->section_template_id,
                         'section_type' => $section->section_type,
                         'edit_mode' => $section->edit_mode ?? 'simple',
                         'name' => $section->name,
-                        'field_data' => $fieldData ?? [],
+                        'field_data' => $section->content ?? [],
                         'rendered_html' => $section->rendered_html ?? '',
-                        'content' => $fieldData ?? [], // For backward compatibility
-                        'settings' => is_string($section->settings) ? json_decode($section->settings, true) : $section->settings,
+                        'content' => $section->content ?? [],
+                        'settings' => $section->settings ?? [],
                         'css' => $section->css ?? '',
                         'is_active' => $section->is_active,
                         'order' => $section->order,
@@ -222,9 +235,9 @@ class EntryForm extends Component
         // If editing, exclude the current entry from parent options (can't be its own parent)
         if ($this->entryId) {
             $modelClass = "App\\Models\\{$this->template->model_class}";
-            $query->where(function($q) use ($modelClass) {
+            $query->where(function ($q) use ($modelClass) {
                 $q->where('content_type', '!=', $modelClass)
-                  ->orWhere('content_id', '!=', $this->entryId);
+                    ->orWhere('content_id', '!=', $this->entryId);
             });
         }
 
@@ -272,11 +285,12 @@ class EntryForm extends Component
         foreach ($nodes as $node) {
             $node->level = $level;
             $result[] = $node;
-            if (!empty($node->childNodes)) {
+            if (! empty($node->childNodes)) {
                 $childResults = $this->flattenTree($node->childNodes, $level + 1);
                 $result = array_merge($result, $childResults->all());
             }
         }
+
         return collect($result);
     }
 
@@ -290,7 +304,7 @@ class EntryForm extends Component
         // Return result for JavaScript promise
         return [
             'success' => true,
-            'message' => $this->template->name . ' updated successfully!'
+            'message' => $this->template->name.' updated successfully!',
         ];
     }
 
@@ -298,7 +312,7 @@ class EntryForm extends Component
     {
         $this->performSave();
 
-        session()->flash('success', $this->template->name . ' saved successfully!');
+        session()->flash('success', $this->template->name.' saved successfully!');
 
         // Return to the list page
         return redirect()->route('admin.template-entries.index', $this->templateSlug);
@@ -317,10 +331,11 @@ class EntryForm extends Component
             // Skip image fields - they are validated separately
             if ($field->type === 'image') {
                 $imageRules = ['nullable', 'image', 'max:10240']; // Max 10MB
-                if ($field->is_required && !$this->entryId) {
+                if ($field->is_required && ! $this->entryId) {
                     $imageRules[0] = 'required';
                 }
                 $rules["uploadedFiles.{$field->name}"] = implode('|', $imageRules);
+
                 continue;
             }
 
@@ -368,7 +383,7 @@ class EntryForm extends Component
         // Normalize checkbox/boolean fields - convert null to false
         foreach ($this->template->fields as $field) {
             if (in_array($field->type, ['checkbox', 'boolean'])) {
-                if (!isset($this->fieldValues[$field->name]) || $this->fieldValues[$field->name] === null) {
+                if (! isset($this->fieldValues[$field->name]) || $this->fieldValues[$field->name] === null) {
                     $this->fieldValues[$field->name] = false;
                 }
             }
@@ -405,6 +420,8 @@ class EntryForm extends Component
             $this->generateBladeTemplate($this->entry);
 
             // Sync sections if template uses sections
+            // Reload entry to ensure trait methods are available
+            $this->entry->refresh();
             $this->syncSections($this->entry);
 
             // Update ContentNode only if template is public
@@ -468,7 +485,7 @@ class EntryForm extends Component
             // Redirect to edit page of the newly created entry
             redirect()->route('admin.template-entries.edit', [
                 'templateSlug' => $this->templateSlug,
-                'entryId' => $newEntry->id
+                'entryId' => $newEntry->id,
             ]);
         }
     }
@@ -536,7 +553,7 @@ class EntryForm extends Component
      */
     protected function generateCssFiles($entry)
     {
-        $cssGenerator = new PageCssGenerator();
+        $cssGenerator = new PageCssGenerator;
 
         // Check if entry has a slug field
         $slug = $entry->slug ?? $entry->id;
@@ -544,10 +561,10 @@ class EntryForm extends Component
         // Find all GrapeJS fields and generate CSS files for their _css counterparts
         foreach ($this->template->fields as $field) {
             if ($field->type === 'grapejs') {
-                $cssFieldName = $field->name . '_css';
+                $cssFieldName = $field->name.'_css';
 
                 // Check if the CSS field exists and has content
-                if (isset($entry->$cssFieldName) && !empty($entry->$cssFieldName)) {
+                if (isset($entry->$cssFieldName) && ! empty($entry->$cssFieldName)) {
                     // Generate CSS file
                     $cssGenerator->generateCssFile($slug, $entry->$cssFieldName);
                 }
@@ -560,15 +577,20 @@ class EntryForm extends Component
      */
     protected function generateBladeTemplate($entry)
     {
+        // Don't generate blade templates for sections render mode
+        if ($this->template->render_mode === 'sections') {
+            return;
+        }
+
         // Find the first GrapeJS field
         $grapeJsField = $this->template->fields->where('type', 'grapejs')->first();
 
-        if (!$grapeJsField) {
+        if (! $grapeJsField) {
             return;
         }
 
         $htmlFieldName = $grapeJsField->name;
-        $cssFieldName = $htmlFieldName . '_css';
+        $cssFieldName = $htmlFieldName.'_css';
         $html = $entry->$htmlFieldName ?? '';
         $css = $entry->$cssFieldName ?? '';
 
@@ -589,7 +611,7 @@ class EntryForm extends Component
 
         // Ensure directory exists
         $directory = dirname($filePath);
-        if (!\File::exists($directory)) {
+        if (! \File::exists($directory)) {
             \File::makeDirectory($directory, 0755, true);
         }
 
@@ -599,7 +621,7 @@ class EntryForm extends Component
 
         // Add CSS section if exists and setting is enabled
         $includeCss = Setting::get('grapejs_include_css_in_blade', true);
-        if (!empty($css) && $includeCss) {
+        if (! empty($css) && $includeCss) {
             $bladeContent .= "@push('styles')\n";
             $bladeContent .= "<style>\n{$css}\n</style>\n";
             $bladeContent .= "@endpush\n\n";
@@ -629,8 +651,9 @@ class EntryForm extends Component
         ]);
 
         // Check if model uses HasMedia trait
-        if (!method_exists($entry, 'addMedia')) {
+        if (! method_exists($entry, 'addMedia')) {
             \Log::warning('Entry does not have addMedia method');
+
             return;
         }
 
@@ -658,7 +681,7 @@ class EntryForm extends Component
                             ->usingFileName($file->getClientOriginalName())
                             ->toMediaCollection($field->name);
 
-                        \Log::info("Media uploaded successfully", [
+                        \Log::info('Media uploaded successfully', [
                             'mediaId' => $media->id,
                             'collection' => $field->name,
                         ]);
@@ -682,7 +705,7 @@ class EntryForm extends Component
             if ($field->type === 'grapejs' && isset($this->fieldValues[$field->name])) {
                 $originalHtml = $this->fieldValues[$field->name];
 
-                if (!empty($originalHtml)) {
+                if (! empty($originalHtml)) {
                     $html = $originalHtml;
 
                     // Remove <body> tags and their attributes
@@ -716,11 +739,11 @@ class EntryForm extends Component
 
     public function addRepeaterItem($fieldName)
     {
-        if (!isset($this->fieldValues[$fieldName])) {
+        if (! isset($this->fieldValues[$fieldName])) {
             $this->fieldValues[$fieldName] = [];
         }
 
-        if (!is_array($this->fieldValues[$fieldName])) {
+        if (! is_array($this->fieldValues[$fieldName])) {
             $this->fieldValues[$fieldName] = [];
         }
 
@@ -743,18 +766,25 @@ class EntryForm extends Component
 
     public function addSection()
     {
+        \Log::info('🔧 AddSection called');
+
         // Reset state
         $this->editingSectionIndex = null;
         $this->selectedTemplateId = null;
         $this->sectionForm = [];
         $this->showSectionForm = true; // Show the form
+
+        \Log::info('🔧 AddSection completed', [
+            'showSectionForm' => $this->showSectionForm,
+            'availableTemplatesCount' => $this->availableSectionTemplates->count(),
+        ]);
     }
 
     public function selectTemplate($templateId)
     {
         $template = SectionTemplate::with('fields')->find($templateId);
 
-        if (!$template) {
+        if (! $template) {
             return;
         }
 
@@ -810,16 +840,18 @@ class EntryForm extends Component
             'current_sections_count' => count($this->sections),
         ]);
 
-        if (!isset($this->sectionForm['section_template_id'])) {
+        if (! isset($this->sectionForm['section_template_id'])) {
             session()->flash('section-error', 'Please select a template first.');
+
             return;
         }
 
         // Get the template
         $template = SectionTemplate::with('fields')->find($this->sectionForm['section_template_id']);
 
-        if (!$template) {
+        if (! $template) {
             session()->flash('section-error', 'Template not found.');
+
             return;
         }
 
@@ -844,7 +876,7 @@ class EntryForm extends Component
         if ($this->editingSectionIndex !== null) {
             // Update existing section
             $this->sections[$this->editingSectionIndex] = $sectionData;
-            \Log::info('✏️ Updated existing section at index ' . $this->editingSectionIndex);
+            \Log::info('✏️ Updated existing section at index '.$this->editingSectionIndex);
         } else {
             // Add new section
             $this->sections[] = $sectionData;
@@ -907,8 +939,37 @@ class EntryForm extends Component
     public function toggleSection($index)
     {
         if (isset($this->sections[$index])) {
-            $this->sections[$index]['is_active'] = !$this->sections[$index]['is_active'];
+            $this->sections[$index]['is_active'] = ! $this->sections[$index]['is_active'];
         }
+    }
+
+    /**
+     * Reorder sections using drag & drop
+     */
+    public function reorderSections($newOrder)
+    {
+        \Log::info('🔄 reorderSections() called', [
+            'newOrder' => $newOrder,
+            'current_sections_count' => count($this->sections),
+        ]);
+
+        // Create a new array with sections in the new order
+        $reorderedSections = [];
+
+        foreach ($newOrder as $newIndex => $oldIndex) {
+            if (isset($this->sections[$oldIndex])) {
+                $section = $this->sections[$oldIndex];
+                $section['order'] = $newIndex;
+                $reorderedSections[] = $section;
+            }
+        }
+
+        // Update the sections array
+        $this->sections = $reorderedSections;
+
+        \Log::info('✅ Sections reordered successfully', [
+            'new_sections_count' => count($this->sections),
+        ]);
     }
 
     public function cancelSectionEdit()
@@ -932,11 +993,12 @@ class EntryForm extends Component
             'sections_data' => $this->sections,
         ]);
 
-        if ($this->template->render_mode !== 'sections' || !method_exists($entry, 'sections')) {
+        if ($this->template->render_mode !== 'sections' || ! method_exists($entry, 'sections')) {
             \Log::warning('⚠️ syncSections() skipped - conditions not met', [
                 'render_mode' => $this->template->render_mode,
                 'has_sections_method' => method_exists($entry, 'sections'),
             ]);
+
             return;
         }
 
@@ -961,9 +1023,9 @@ class EntryForm extends Component
                 'section_type' => $sectionData['section_type'],
                 'edit_mode' => $sectionData['edit_mode'] ?? 'simple',
                 'name' => $sectionData['name'] ?: $templateName,
-                'content' => is_array($sectionData['field_data'] ?? []) ? json_encode($sectionData['field_data']) : ($sectionData['content'] ?? '{}'),
+                'content' => is_array($sectionData['field_data'] ?? null) ? $sectionData['field_data'] : ($sectionData['content'] ?? []),
                 'rendered_html' => $sectionData['rendered_html'] ?? '',
-                'settings' => isset($sectionData['settings']) && is_array($sectionData['settings']) ? json_encode($sectionData['settings']) : '{}',
+                'settings' => is_array($sectionData['settings'] ?? null) ? $sectionData['settings'] : [],
                 'css' => $sectionData['css'] ?? '',
                 'is_active' => $sectionData['is_active'] ?? true,
                 'order' => $order,
@@ -997,7 +1059,7 @@ class EntryForm extends Component
      */
     public function getFrontendUrlProperty()
     {
-        if (!$this->entryId || !$this->entry) {
+        if (! $this->entryId || ! $this->entry) {
             return null;
         }
 
@@ -1016,7 +1078,7 @@ class EntryForm extends Component
             if ($this->template->has_physical_file) {
                 // Check if entry is linked to a ContentNode
                 if (class_exists('App\Models\ContentNode')) {
-                    $contentType = 'App\\Models\\' . Str::studly(Str::singular($this->template->slug));
+                    $contentType = 'App\\Models\\'.Str::studly(Str::singular($this->template->slug));
                     $node = ContentNode::where('content_type', $contentType)
                         ->where('content_id', $this->entry->id)
                         ->where('is_published', true)
@@ -1028,7 +1090,7 @@ class EntryForm extends Component
             }
             // For simple templates without ContentNode, construct URL from identifier
             elseif ($urlValue) {
-                return '/' . $this->template->slug . '/' . $urlValue;
+                return '/'.$this->template->slug.'/'.$urlValue;
             }
         }
 
@@ -1042,9 +1104,10 @@ class EntryForm extends Component
     {
         \Log::info('generateSEOWithAI called');
 
-        if (!$this->template->has_seo) {
+        if (! $this->template->has_seo) {
             session()->flash('error', 'This template does not have SEO enabled.');
             \Log::warning('Template does not have SEO enabled', ['template' => $this->template->slug]);
+
             return;
         }
 
@@ -1060,7 +1123,7 @@ class EntryForm extends Component
             \Log::info('Calling AI to generate SEO...');
 
             // Use AI to generate SEO metadata
-            $aiManager = new \App\Services\AI\AIManager();
+            $aiManager = new \App\Services\AI\AIManager;
             $result = $aiManager->getProvider()->generateSEO($contentData, "Template: {$this->template->name}");
 
             \Log::info('AI response received', ['success' => $result['success'] ?? false]);
@@ -1090,14 +1153,14 @@ class EntryForm extends Component
             } else {
                 $errorMsg = $result['message'] ?? 'Failed to generate SEO metadata';
                 \Log::error('AI SEO generation failed', ['error' => $errorMsg]);
-                session()->flash('error', '❌ ' . $errorMsg);
+                session()->flash('error', '❌ '.$errorMsg);
             }
         } catch (\Exception $e) {
             \Log::error('SEO Generation Error', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
-            session()->flash('error', '❌ Error: ' . $e->getMessage());
+            session()->flash('error', '❌ Error: '.$e->getMessage());
         }
     }
 
@@ -1127,11 +1190,11 @@ class EntryForm extends Component
 
             \Log::info('Calling AI to improve content...', [
                 'fields_count' => count($fieldsMetadata),
-                'prompt' => $prompt
+                'prompt' => $prompt,
             ]);
 
             // Use AI to improve content
-            $aiManager = new \App\Services\AI\AIManager();
+            $aiManager = new \App\Services\AI\AIManager;
             $result = $aiManager->getProvider()->improveContent($contextData, $prompt);
 
             \Log::info('AI response received', ['success' => $result['success'] ?? false]);
@@ -1140,7 +1203,7 @@ class EntryForm extends Component
                 $improvedFields = $result['data'] ?? [];
 
                 \Log::info('Content improvements received', [
-                    'improved_fields' => array_keys($improvedFields)
+                    'improved_fields' => array_keys($improvedFields),
                 ]);
 
                 // Update only the fields that were improved
@@ -1155,14 +1218,14 @@ class EntryForm extends Component
             } else {
                 $errorMsg = $result['message'] ?? 'Failed to improve content';
                 \Log::error('AI content improvement failed', ['error' => $errorMsg]);
-                session()->flash('error', '❌ ' . $errorMsg);
+                session()->flash('error', '❌ '.$errorMsg);
             }
         } catch (\Exception $e) {
             \Log::error('Content Improvement Error', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
-            session()->flash('error', '❌ Error: ' . $e->getMessage());
+            session()->flash('error', '❌ Error: '.$e->getMessage());
         }
     }
 
@@ -1178,12 +1241,12 @@ class EntryForm extends Component
     {
         \Log::info('improveCode called', [
             'code_length' => strlen($currentCode),
-            'prompt' => $prompt
+            'prompt' => $prompt,
         ]);
 
         try {
             // Use AI to improve code
-            $aiManager = new \App\Services\AI\AIManager();
+            $aiManager = new \App\Services\AI\AIManager;
             $result = $aiManager->getProvider()->improveCode($currentCode, $prompt);
 
             \Log::info('AI code improvement response', ['success' => $result['success'] ?? false]);
@@ -1204,16 +1267,70 @@ class EntryForm extends Component
         } catch (\Exception $e) {
             \Log::error('Code Improvement Error', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
-            throw new \Exception('Failed to improve code: ' . $e->getMessage());
+            throw new \Exception('Failed to improve code: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Check if entry has a generated blade file
+     */
+    public function hasGeneratedBladeFile()
+    {
+        if (! $this->entry) {
+            return false;
+        }
+
+        $slug = $this->entry->slug ?? $this->entry->id;
+        $filename = "{$this->template->slug}-{$slug}.blade.php";
+        $filePath = resource_path("views/frontend/templates/{$filename}");
+
+        return file_exists($filePath);
+    }
+
+    /**
+     * Get generated blade file path
+     */
+    public function getGeneratedBladeFilePath()
+    {
+        if (! $this->entry) {
+            return null;
+        }
+
+        $slug = $this->entry->slug ?? $this->entry->id;
+
+        return "{$this->template->slug}-{$slug}.blade.php";
+    }
+
+    /**
+     * Delete generated blade file
+     */
+    public function deleteGeneratedBladeFile()
+    {
+        if (! $this->entry) {
+            session()->flash('error', 'No entry found.');
+
+            return;
+        }
+
+        $slug = $this->entry->slug ?? $this->entry->id;
+        $filename = "{$this->template->slug}-{$slug}.blade.php";
+        $filePath = resource_path("views/frontend/templates/{$filename}");
+
+        if (file_exists($filePath)) {
+            unlink($filePath);
+            session()->flash('success', 'Generated blade file deleted successfully!');
+            \Log::info('🗑️ Deleted generated blade file', ['file' => $filename]);
+        } else {
+            session()->flash('error', 'Generated blade file not found.');
         }
     }
 
     public function render()
     {
         // Reload template with fresh fields data
-        $this->template->load(['fields' => function($query) {
+        $this->template->load(['fields' => function ($query) {
             $query->orderBy('order');
         }]);
 

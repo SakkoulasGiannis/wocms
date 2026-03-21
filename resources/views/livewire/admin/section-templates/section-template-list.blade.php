@@ -141,11 +141,125 @@
     <!-- Create Template Modal -->
     @if($showCreateModal)
     <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" wire:click.self="closeCreateModal">
-        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div class="p-6 border-b border-gray-200">
-                <h2 class="text-xl font-semibold text-gray-900">Create Custom Section Template</h2>
+                <h2 class="text-xl font-semibold text-gray-900">Create Section Template with AI</h2>
+                <p class="text-sm text-gray-600 mt-1">Generate sections from descriptions or convert HTML to Tailwind CSS 4.1</p>
             </div>
 
+            <!-- Tabs -->
+            <div class="border-b border-gray-200">
+                <nav class="flex -mb-px">
+                    <button wire:click="switchTab('ai')"
+                            class="px-6 py-4 text-sm font-medium border-b-2 {{ $activeTab === 'ai' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
+                        <i class="fa fa-magic mr-2"></i>AI Generator
+                    </button>
+                    <button wire:click="switchTab('manual')"
+                            class="px-6 py-4 text-sm font-medium border-b-2 {{ $activeTab === 'manual' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
+                        <i class="fa fa-edit mr-2"></i>Manual
+                    </button>
+                </nav>
+            </div>
+
+            <!-- AI Tab -->
+            @if($activeTab === 'ai')
+            <div class="p-6 space-y-4">
+                <!-- AI Success Message -->
+                @if(session('ai_success'))
+                <div class="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg">
+                    <i class="fa fa-check-circle mr-2"></i>{{ session('ai_success') }}
+                </div>
+                @endif
+
+                <!-- AI Error -->
+                @if($aiError)
+                <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
+                    <i class="fa fa-exclamation-circle mr-2"></i>{{ $aiError }}
+                </div>
+                @endif
+
+                <!-- Input Type Selection -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">What would you like to do?</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button type="button"
+                                wire:click="$set('aiInputType', 'description')"
+                                class="p-4 border-2 rounded-lg text-left {{ $aiInputType === 'description' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300' }}">
+                            <div class="font-medium text-gray-900 mb-1">
+                                <i class="fa fa-lightbulb mr-2 text-yellow-500"></i>Describe a Section
+                            </div>
+                            <div class="text-xs text-gray-500">Tell AI what you want and it will create it</div>
+                        </button>
+                        <button type="button"
+                                wire:click="$set('aiInputType', 'html')"
+                                class="p-4 border-2 rounded-lg text-left {{ $aiInputType === 'html' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300' }}">
+                            <div class="font-medium text-gray-900 mb-1">
+                                <i class="fa fa-code mr-2 text-blue-500"></i>Convert HTML
+                            </div>
+                            <div class="text-xs text-gray-500">Paste Bootstrap/HTML and convert to Tailwind</div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- AI Input -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        @if($aiInputType === 'description')
+                            Describe your section
+                        @else
+                            Paste your HTML code
+                        @endif
+                    </label>
+
+                    @if($aiInputType === 'description')
+                        <textarea wire:model="aiInput"
+                                  rows="6"
+                                  class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                  placeholder="Example: Create a hero section with a large heading, subheading, CTA button, and a background gradient from blue to purple. Include an image on the right side for desktop."></textarea>
+                        <p class="text-xs text-gray-500 mt-2">
+                            <i class="fa fa-info-circle mr-1"></i>
+                            Be specific about layout, colors, components, and content placeholders
+                        </p>
+                    @else
+                        <textarea wire:model="aiInput"
+                                  rows="12"
+                                  class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 font-mono text-sm"
+                                  placeholder='<div class="container">
+  <div class="row">
+    <div class="col-md-6">
+      <h2>Heading</h2>
+      <p>Description text</p>
+      <a href="#" class="btn btn-primary">Click Me</a>
+    </div>
+  </div>
+</div>'></textarea>
+                        <p class="text-xs text-gray-500 mt-2">
+                            <i class="fa fa-info-circle mr-1"></i>
+                            Paste any HTML (Bootstrap, Foundation, plain HTML, etc.)
+                        </p>
+                    @endif
+
+                    @error('aiInput') <span class="text-red-600 text-sm">{{ $message }}</span> @enderror
+                </div>
+
+                <!-- Generate Button -->
+                <div class="flex justify-end">
+                    <button wire:click="generateWithAI"
+                            wire:loading.attr="disabled"
+                            class="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium rounded-lg shadow-sm transition disabled:opacity-50">
+                        <span wire:loading.remove wire:target="generateWithAI">
+                            <i class="fa fa-magic mr-2"></i>Generate with AI
+                        </span>
+                        <span wire:loading wire:target="generateWithAI">
+                            <i class="fa fa-spinner fa-spin mr-2"></i>Generating... (this may take 10-30 seconds)
+                        </span>
+                    </button>
+                </div>
+            </div>
+            @endif
+
+            <!-- Manual Tab -->
+            @if($activeTab === 'manual')
             <div class="p-6 space-y-4">
                 <!-- Name -->
                 <div>
@@ -175,20 +289,47 @@
                 <!-- HTML Template -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">HTML Template *</label>
-                    <p class="text-xs text-gray-500 mb-2">Use &#123;&#123;variable&#125;&#125; for placeholders. Example: &#123;&#123;heading&#125;&#125;, &#123;&#123;image&#125;&#125;, etc.</p>
-                    <textarea wire:model="html_template" rows="10" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 font-mono text-sm"></textarea>
+                    <p class="text-xs text-gray-500 mb-2">
+                        <i class="fa fa-info-circle mr-1"></i>
+                        Use &#123;&#123;variable&#125;&#125; for placeholders. Example: &#123;&#123;heading&#125;&#125;, &#123;&#123;image&#125;&#125;, etc.
+                    </p>
+                    <textarea wire:model="html_template" rows="12" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 font-mono text-sm"></textarea>
                     @error('html_template') <span class="text-red-600 text-sm">{{ $message }}</span> @enderror
+
+                    @if($html_template && preg_match_all('/\{\{(\w+)\}\}/', $html_template, $matches))
+                        <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <p class="text-xs font-medium text-blue-900 mb-2">
+                                <i class="fa fa-magic mr-1"></i>Detected {{ count(array_unique($matches[1])) }} placeholders:
+                            </p>
+                            <div class="flex flex-wrap gap-1">
+                                @foreach(array_unique($matches[1]) as $field)
+                                    <span class="text-xs bg-white px-2 py-1 rounded border border-blue-200 text-blue-700">
+                                        &#123;&#123;{{ $field }}&#125;&#125;
+                                    </span>
+                                @endforeach
+                            </div>
+                            <p class="text-xs text-blue-600 mt-2">Fields will be auto-generated when you save</p>
+                        </div>
+                    @endif
                 </div>
             </div>
 
-            <div class="p-6 border-t border-gray-200 flex justify-end space-x-3">
+            <div class="p-6 border-t border-gray-200 flex justify-between">
                 <button wire:click="closeCreateModal" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg">
                     Cancel
                 </button>
-                <button wire:click="createTemplate" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
-                    Create Template
-                </button>
+                <div class="flex gap-3">
+                    @if($activeTab === 'manual' && $aiPreview)
+                        <button wire:click="switchTab('ai')" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg">
+                            <i class="fa fa-arrow-left mr-2"></i>Back to AI
+                        </button>
+                    @endif
+                    <button wire:click="createTemplate" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">
+                        <i class="fa fa-save mr-2"></i>Create Template
+                    </button>
+                </div>
             </div>
+            @endif
         </div>
     </div>
     @endif

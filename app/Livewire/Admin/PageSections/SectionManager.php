@@ -3,72 +3,146 @@
 namespace App\Livewire\Admin\PageSections;
 
 use App\Models\PageSection;
+use App\Models\SectionTemplate;
 use Livewire\Component;
-use Illuminate\Support\Facades\Log;
 
 class SectionManager extends Component
 {
-    public $pageType = 'home';
+    public $sectionableType;
+
+    public $sectionableId;
+
+    public $pageTitle = '';
+
     public $sections = [];
+
+    public $availableTemplates = [];
+
     public $availableSectionTypes = [];
 
     public $showAddModal = false;
+
     public $editingSection = null;
+
+    public $selectedTemplateId = null;
+
     public $selectedSectionType = '';
 
     // UI State
     public $selectedSectionId = null;
-    public $showJsonFor = []; // Array of section IDs showing JSON
+
+    public $showJsonFor = [];
 
     // Form fields
     public $sectionName = '';
+
     public $sectionContent = [];
+
     public $sectionSettings = [];
 
-    public function mount(?string $pageType = 'home')
+    public function mount(string $sectionableType, int $sectionableId): void
     {
-        $this->pageType = $pageType;
+        // Convert URL-safe format back to FQCN (App-Models-Home → App\Models\Home)
+        $this->sectionableType = str_replace('-', '\\', $sectionableType);
+        $this->sectionableId = $sectionableId;
+        $this->pageTitle = $this->resolveTitle();
         $this->loadSections();
+        $this->availableTemplates = SectionTemplate::where('is_active', true)
+            ->orderBy('category')
+            ->orderBy('order')
+            ->get()
+            ->toArray();
         $this->availableSectionTypes = PageSection::getSectionTypes();
     }
 
-    public function loadSections()
+    protected function resolveTitle(): string
     {
-        $this->sections = PageSection::getPageSections($this->pageType, false);
+        if (class_exists($this->sectionableType)) {
+            $model = $this->sectionableType::find($this->sectionableId);
+            if ($model) {
+                return $model->title ?? $model->name ?? class_basename($this->sectionableType).' #'.$this->sectionableId;
+            }
+        }
+
+        return class_basename($this->sectionableType).' #'.$this->sectionableId;
     }
 
-    public function openAddModal()
+    public function loadSections(): void
+    {
+        $this->sections = PageSection::getForModel($this->sectionableType, $this->sectionableId, false);
+    }
+
+    public function openAddModal(): void
     {
         $this->showAddModal = true;
         $this->editingSection = null;
+        $this->selectedTemplateId = null;
         $this->selectedSectionType = '';
         $this->sectionName = '';
         $this->sectionContent = [];
         $this->sectionSettings = [];
     }
 
-    public function selectSectionType($type)
+    public function selectTemplate($templateId): void
     {
-        $this->selectedSectionType = $type;
+        $this->selectedTemplateId = $templateId;
+        $template = SectionTemplate::with('fields')->find($templateId);
 
-        // Load default content and settings
-        $typeInfo = $this->availableSectionTypes[$type];
-        $this->sectionContent = $typeInfo['default_content'];
-        $this->sectionSettings = $typeInfo['default_settings'];
+        if ($template) {
+            $this->selectedSectionType = str_replace('-', '_', $template->slug);
+            $this->sectionName = $template->name;
+
+            // Build default content from template fields
+            $defaultContent = [];
+            foreach ($template->fields as $field) {
+                $defaultContent[$field->name] = $field->default_value ?? '';
+            }
+            $this->sectionContent = $defaultContent;
+            $this->sectionSettings = $template->default_settings ?? [];
+        }
     }
 
-    public function saveSection()
+    public function selectSectionType($type): void
     {
-        if (empty($this->selectedSectionType)) {
+        $this->selectedSectionType = $type;
+        $this->selectedTemplateId = null;
+
+        $typeInfo = $this->availableSectionTypes[$type] ?? null;
+        if ($typeInfo) {
+            $this->sectionContent = $typeInfo['default_content'];
+            $this->sectionSettings = $typeInfo['default_settings'];
+        }
+    }
+
+    public function saveSection(): void
+    {
+        if (empty($this->selectedSectionType) && empty($this->selectedTemplateId)) {
             return;
         }
 
-        $maxOrder = PageSection::where('page_type', $this->pageType)->max('order') ?? 0;
+        $maxOrder = PageSection::where('sectionable_type', $this->sectionableType)
+            ->where('sectionable_id', $this->sectionableId)
+            ->max('order') ?? 0;
+
+        $sectionType = $this->selectedSectionType;
+        if (! $sectionType && $this->selectedTemplateId) {
+            $template = SectionTemplate::find($this->selectedTemplateId);
+            $sectionType = $template ? str_replace('-', '_', $template->slug) : 'custom';
+        }
+
+        $name = $this->sectionName;
+        if (! $name) {
+            $name = $this->availableSectionTypes[$sectionType]['name']
+                ?? SectionTemplate::find($this->selectedTemplateId)?->name
+                ?? 'Section';
+        }
 
         PageSection::create([
-            'page_type' => $this->pageType,
-            'section_type' => $this->selectedSectionType,
-            'name' => $this->sectionName ?: $this->availableSectionTypes[$this->selectedSectionType]['name'],
+            'sectionable_type' => $this->sectionableType,
+            'sectionable_id' => $this->sectionableId,
+            'section_template_id' => $this->selectedTemplateId,
+            'section_type' => $sectionType,
+            'name' => $name,
             'order' => $maxOrder + 1,
             'is_active' => true,
             'content' => $this->sectionContent,
@@ -81,23 +155,24 @@ class SectionManager extends Component
         session()->flash('message', 'Section added successfully!');
     }
 
-    public function editSection($sectionId)
+    public function editSection($sectionId): void
     {
         $section = PageSection::find($sectionId);
 
         if ($section) {
             $this->editingSection = $section->id;
             $this->selectedSectionType = $section->section_type;
+            $this->selectedTemplateId = $section->section_template_id;
             $this->sectionName = $section->name;
-            $this->sectionContent = $section->content;
-            $this->sectionSettings = $section->settings;
+            $this->sectionContent = $section->content ?? [];
+            $this->sectionSettings = $section->settings ?? [];
             $this->showAddModal = true;
         }
     }
 
-    public function updateSection()
+    public function updateSection(): void
     {
-        if (!$this->editingSection) {
+        if (! $this->editingSection) {
             return;
         }
 
@@ -117,7 +192,7 @@ class SectionManager extends Component
         }
     }
 
-    public function deleteSection($sectionId)
+    public function deleteSection($sectionId): void
     {
         PageSection::destroy($sectionId);
         $this->loadSections();
@@ -125,22 +200,23 @@ class SectionManager extends Component
         session()->flash('message', 'Section deleted successfully!');
     }
 
-    public function toggleActive($sectionId)
+    public function toggleActive($sectionId): void
     {
         $section = PageSection::find($sectionId);
 
         if ($section) {
-            $section->update(['is_active' => !$section->is_active]);
+            $section->update(['is_active' => ! $section->is_active]);
             $this->loadSections();
         }
     }
 
-    public function moveUp($sectionId)
+    public function moveUp($sectionId): void
     {
         $section = PageSection::find($sectionId);
 
         if ($section && $section->order > 0) {
-            $previousSection = PageSection::where('page_type', $this->pageType)
+            $previousSection = PageSection::where('sectionable_type', $this->sectionableType)
+                ->where('sectionable_id', $this->sectionableId)
                 ->where('order', '<', $section->order)
                 ->orderBy('order', 'desc')
                 ->first();
@@ -155,12 +231,13 @@ class SectionManager extends Component
         }
     }
 
-    public function moveDown($sectionId)
+    public function moveDown($sectionId): void
     {
         $section = PageSection::find($sectionId);
 
         if ($section) {
-            $nextSection = PageSection::where('page_type', $this->pageType)
+            $nextSection = PageSection::where('sectionable_type', $this->sectionableType)
+                ->where('sectionable_id', $this->sectionableId)
                 ->where('order', '>', $section->order)
                 ->orderBy('order', 'asc')
                 ->first();
@@ -175,13 +252,13 @@ class SectionManager extends Component
         }
     }
 
-    public function selectSection($sectionId)
+    public function selectSection($sectionId): void
     {
         $this->selectedSectionId = $sectionId;
         $this->dispatch('section-selected', sectionId: $sectionId);
     }
 
-    public function toggleJson($sectionId)
+    public function toggleJson($sectionId): void
     {
         if (in_array($sectionId, $this->showJsonFor)) {
             $this->showJsonFor = array_diff($this->showJsonFor, [$sectionId]);

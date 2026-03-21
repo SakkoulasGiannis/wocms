@@ -465,8 +465,8 @@
                 {{-- Main Content Area (2/3 width on large screens) --}}
                 <div class="lg:col-span-2 space-y-6">
 
-                        {{-- Show Template Fields (if any exist in 'main' column) --}}
-                        @if($template->fields->where('column_position', 'main')->count() > 0)
+                        {{-- Show Template Fields ONLY if NOT in sections mode --}}
+                        @if($template->render_mode !== 'sections' && $template->fields->where('column_position', 'main')->count() > 0)
                             <div class="bg-white rounded-lg shadow p-6">
                                 <div class="space-y-6">
                                     @foreach($template->fields->where('column_position', 'main') as $field)
@@ -482,19 +482,57 @@
 
                         {{-- Sections Mode - Show Sections UI --}}
                         @if($template->render_mode === 'sections')
+                            <!-- Warning: Generated Blade File Exists -->
+                            @if($entryId && $this->hasGeneratedBladeFile())
+                                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+                                    <div class="flex items-start">
+                                        <div class="flex-shrink-0">
+                                            <svg class="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                                            </svg>
+                                        </div>
+                                        <div class="ml-3 flex-1">
+                                            <p class="text-sm text-yellow-700">
+                                                <strong>Warning:</strong> A generated blade file exists for this page:
+                                                <code class="bg-yellow-100 px-2 py-1 rounded text-xs">{{ $this->getGeneratedBladeFilePath() }}</code>
+                                            </p>
+                                            <p class="mt-2 text-xs text-yellow-600">
+                                                This file will override the sections below. You should delete it to use sections.
+                                            </p>
+                                            <button type="button"
+                                                    wire:click="deleteGeneratedBladeFile"
+                                                    wire:confirm="Are you sure you want to delete the generated blade file?"
+                                                    class="mt-3 inline-flex items-center px-3 py-1.5 border border-yellow-600 text-xs font-medium rounded text-yellow-700 bg-yellow-50 hover:bg-yellow-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500">
+                                                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                </svg>
+                                                Delete Generated File
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
+
                             <!-- Page Sections Management -->
                             <div class="bg-white rounded-lg shadow p-6" wire:key="sections-management">
                                 <div class="flex items-center justify-between mb-6">
                                     <h3 class="text-lg font-semibold text-gray-900">Page Sections</h3>
-                                    <button type="button"
-                                            wire:click="addSection"
-                                            class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm">
-                                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
-                                        </svg>
-                                        Add Section
-                                    </button>
+                                    <div class="flex gap-2">
+                                        <!-- Debug Info -->
+                                        <div class="text-xs text-gray-500 flex items-center mr-4">
+                                            showForm: {{ $showSectionForm ? 'true' : 'false' }} |
+                                            Templates: {{ $availableSectionTemplates->count() }}
+                                        </div>
+                                        <button type="button"
+                                                onclick="@this.call('addSection')"
+                                                class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm">
+                                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                            </svg>
+                                            Add Section
+                                        </button>
+                                    </div>
                                 </div>
 
                                 @if(session()->has('section-success'))
@@ -538,7 +576,7 @@
                                                 </div>
                                                 <div class="mt-4">
                                                     <button type="button"
-                                                            wire:click="cancelSectionEdit"
+                                                            onclick="@this.call('cancelSectionEdit')"
                                                             class="text-sm text-gray-600 hover:text-gray-900">
                                                         Cancel
                                                     </button>
@@ -563,7 +601,7 @@
                                                             </div>
                                                             @if($editingSectionIndex === null)
                                                                 <button type="button"
-                                                                        wire:click="addSection"
+                                                                        onclick="@this.call('addSection')"
                                                                         class="text-xs text-blue-600 hover:text-blue-800">
                                                                     Change Template
                                                                 </button>
@@ -668,7 +706,7 @@
                                                     <!-- Actions -->
                                                     <div class="flex items-center space-x-3 pt-4 border-t">
                                                         <button type="button"
-                                                                wire:click="saveSection"
+                                                                onclick="@this.call('saveSection')"
                                                                 class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm">
                                                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor"
                                                                  viewBox="0 0 24 24">
@@ -678,7 +716,7 @@
                                                             Save Section
                                                         </button>
                                                         <button type="button"
-                                                                wire:click="cancelSectionEdit"
+                                                                onclick="@this.call('cancelSectionEdit')"
                                                                 class="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition text-sm">
                                                             Cancel
                                                         </button>
@@ -691,13 +729,20 @@
 
                                 <!-- Sections List -->
                                 @if(count($sections) > 0)
-                                    <div class="space-y-3">
+                                    <div id="sections-list" class="space-y-3">
                                         @foreach($sections as $index => $section)
-                                            <div
+                                            <div data-section-index="{{ $index }}"
                                                 class="border rounded-lg p-4 {{ $section['is_active'] ? 'bg-white' : 'bg-gray-100' }}">
                                                 <div class="flex items-start justify-between">
                                                     <div class="flex-1">
                                                         <div class="flex items-center space-x-3">
+                                                            <!-- Drag Handle -->
+                                                            <div class="section-drag-handle cursor-move text-gray-400 hover:text-gray-600"
+                                                                 title="Drag to reorder">
+                                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"/>
+                                                                </svg>
+                                                            </div>
                                                             <span
                                                                 class="text-xs font-mono bg-gray-200 px-2 py-1 rounded">#{{ $index + 1 }}</span>
                                                             <h4 class="font-semibold text-gray-900">
@@ -734,7 +779,7 @@
                                                         <!-- Move Up -->
                                                         @if($index > 0)
                                                             <button type="button"
-                                                                    wire:click="moveSectionUp({{ $index }})"
+                                                                    onclick="@this.call('moveSectionUp', {{ $index }})"
                                                                     class="p-1 text-gray-500 hover:text-blue-600"
                                                                     title="Move Up">
                                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor"
@@ -748,7 +793,7 @@
                                                         <!-- Move Down -->
                                                         @if($index < count($sections) - 1)
                                                             <button type="button"
-                                                                    wire:click="moveSectionDown({{ $index }})"
+                                                                    onclick="@this.call('moveSectionDown', {{ $index }})"
                                                                     class="p-1 text-gray-500 hover:text-blue-600"
                                                                     title="Move Down">
                                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor"
@@ -761,7 +806,7 @@
 
                                                         <!-- Toggle Active -->
                                                         <button type="button"
-                                                                wire:click="toggleSection({{ $index }})"
+                                                                onclick="@this.call('toggleSection', {{ $index }})"
                                                                 class="p-1 text-gray-500 hover:text-yellow-600"
                                                                 title="{{ $section['is_active'] ? 'Deactivate' : 'Activate' }}">
                                                             <svg class="w-5 h-5" fill="none" stroke="currentColor"
@@ -783,7 +828,7 @@
 
                                                         <!-- Edit -->
                                                         <button type="button"
-                                                                wire:click="editSection({{ $index }})"
+                                                                onclick="@this.call('editSection', {{ $index }})"
                                                                 class="p-1 text-gray-500 hover:text-blue-600"
                                                                 title="Edit">
                                                             <svg class="w-5 h-5" fill="none" stroke="currentColor"
@@ -796,8 +841,7 @@
 
                                                         <!-- Delete -->
                                                         <button type="button"
-                                                                wire:click="deleteSection({{ $index }})"
-                                                                onclick="return confirm('Are you sure you want to delete this section?')"
+                                                                onclick="if(confirm('Are you sure you want to delete this section?')) { @this.call('deleteSection', {{ $index }}) }"
                                                                 class="p-1 text-gray-500 hover:text-red-600"
                                                                 title="Delete">
                                                             <svg class="w-5 h-5" fill="none" stroke="currentColor"

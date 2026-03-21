@@ -2,6 +2,184 @@
     <script type="text/javascript" src="https://unpkg.com/trix@2.0.8/dist/trix.umd.min.js"></script>
     <script src="https://unpkg.com/grapesjs"></script>
     <script src="https://unpkg.com/grapesjs-blocks-basic"></script>
+    <!-- SortableJS for drag & drop -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
+    <!-- Extended Trix Toolbar -->
+    <script>
+        // Extend Trix with custom buttons
+        document.addEventListener('trix-before-initialize', function() {
+            // Text alignment using block attributes (works better than text attributes)
+            Trix.config.blockAttributes.alignLeft = {
+                tagName: 'div',
+                parse: false,
+                nestable: false,
+                terminal: true
+            };
+            Trix.config.blockAttributes.alignCenter = {
+                tagName: 'div',
+                parse: false,
+                nestable: false,
+                terminal: true
+            };
+            Trix.config.blockAttributes.alignRight = {
+                tagName: 'div',
+                parse: false,
+                nestable: false,
+                terminal: true
+            };
+            Trix.config.blockAttributes.alignJustify = {
+                tagName: 'div',
+                parse: false,
+                nestable: false,
+                terminal: true
+            };
+
+            // Add heading levels
+            Trix.config.blockAttributes.heading2 = {
+                tagName: 'h2',
+                terminal: true,
+                breakOnReturn: true,
+                group: false
+            };
+            Trix.config.blockAttributes.heading3 = {
+                tagName: 'h3',
+                terminal: true,
+                breakOnReturn: true,
+                group: false
+            };
+            Trix.config.blockAttributes.heading4 = {
+                tagName: 'h4',
+                terminal: true,
+                breakOnReturn: true,
+                group: false
+            };
+
+            // Add subscript and superscript
+            Trix.config.textAttributes.sub = {
+                tagName: 'sub',
+                inheritable: true
+            };
+            Trix.config.textAttributes.sup = {
+                tagName: 'sup',
+                inheritable: true
+            };
+        });
+
+        // Customize toolbar after Trix initializes
+        document.addEventListener('trix-initialize', function(event) {
+            const editor = event.target;
+            const toolbar = editor.toolbarElement;
+
+            if (!toolbar || toolbar.dataset.extended) {
+                return; // Already extended
+            }
+            toolbar.dataset.extended = 'true';
+
+            // Find the formatting group
+            const formattingGroup = toolbar.querySelector('.trix-button-group--text-tools');
+
+            if (formattingGroup) {
+                // Add subscript/superscript buttons
+                const scriptHTML = `
+                    <button type="button" class="trix-button trix-button--icon"
+                            data-trix-attribute="sub" title="Subscript" tabindex="-1">
+                        X<sub>2</sub>
+                    </button>
+                    <button type="button" class="trix-button trix-button--icon"
+                            data-trix-attribute="sup" title="Superscript" tabindex="-1">
+                        X<sup>2</sup>
+                    </button>
+                `;
+
+                // Insert the new buttons
+                formattingGroup.insertAdjacentHTML('beforeend', scriptHTML);
+            }
+
+            // Add alignment and heading buttons to block tools
+            const blockGroup = toolbar.querySelector('.trix-button-group--block-tools');
+            if (blockGroup) {
+                const alignmentHTML = `
+                    <button type="button" class="trix-button trix-button--icon trix-button--icon-align-left"
+                            data-trix-attribute="alignLeft" title="Align Left" tabindex="-1">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M2 3h12v2H2V3zm0 4h8v2H2V7zm0 4h12v2H2v-2z"/>
+                        </svg>
+                    </button>
+                    <button type="button" class="trix-button trix-button--icon trix-button--icon-align-center"
+                            data-trix-attribute="alignCenter" title="Align Center" tabindex="-1">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M2 3h12v2H2V3zm2 4h8v2H4V7zm-2 4h12v2H2v-2z"/>
+                        </svg>
+                    </button>
+                    <button type="button" class="trix-button trix-button--icon trix-button--icon-align-right"
+                            data-trix-attribute="alignRight" title="Align Right" tabindex="-1">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M2 3h12v2H2V3zm4 4h8v2H6V7zm-4 4h12v2H2v-2z"/>
+                        </svg>
+                    </button>
+                    <button type="button" class="trix-button trix-button--icon trix-button--icon-align-justify"
+                            data-trix-attribute="alignJustify" title="Justify" tabindex="-1">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M2 3h12v2H2V3zm0 4h12v2H2V7zm0 4h12v2H2v-2z"/>
+                        </svg>
+                    </button>
+                `;
+
+                const headingHTML = `
+                    <button type="button" class="trix-button trix-button--icon"
+                            data-trix-attribute="heading2" title="Heading 2" tabindex="-1">
+                        <strong>H2</strong>
+                    </button>
+                    <button type="button" class="trix-button trix-button--icon"
+                            data-trix-attribute="heading3" title="Heading 3" tabindex="-1">
+                        <strong>H3</strong>
+                    </button>
+                    <button type="button" class="trix-button trix-button--icon"
+                            data-trix-attribute="heading4" title="Heading 4" tabindex="-1">
+                        <strong>H4</strong>
+                    </button>
+                `;
+
+                blockGroup.insertAdjacentHTML('beforeend', alignmentHTML);
+                blockGroup.insertAdjacentHTML('beforeend', headingHTML);
+            }
+
+            // Add clear formatting button
+            const dialogsGroup = toolbar.querySelector('.trix-button-group--file-tools');
+            if (dialogsGroup) {
+                const clearFormatHTML = `
+                    <button type="button" class="trix-button trix-button--icon trix-button--icon-clear"
+                            data-trix-action="removeFo rmatting" title="Clear Formatting" tabindex="-1">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M3.5 0a.5.5 0 0 0-.5.5V1h-.5A1.5 1.5 0 0 0 1 2.5v11A1.5 1.5 0 0 0 2.5 15h6.086a1.5 1.5 0 0 0 1.06-.44l4.915-4.914A1.5 1.5 0 0 0 15 8.586V2.5A1.5 1.5 0 0 0 13.5 1H13V.5a.5.5 0 0 0-1 0V1H4V.5a.5.5 0 0 0-.5-.5zM2 2.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 .5.5V8H9.5A1.5 1.5 0 0 0 8 9.5V14H2.5a.5.5 0 0 1-.5-.5v-11zm7 11.293V9.5a.5.5 0 0 1 .5-.5h4.293L9 13.793z"/>
+                        </svg>
+                    </button>
+                `;
+                dialogsGroup.insertAdjacentHTML('afterbegin', clearFormatHTML);
+
+                // Add event listener for clear formatting
+                const clearBtn = dialogsGroup.querySelector('[data-trix-action="removeFormatting"]');
+                if (clearBtn) {
+                    clearBtn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        const trixEditor = editor.editor;
+                        if (trixEditor) {
+                            // Remove all attributes from selection
+                            const attributes = ['bold', 'italic', 'strike', 'underline', 'href',
+                                              'alignLeft', 'alignCenter', 'alignRight', 'alignJustify',
+                                              'red', 'blue', 'green', 'sub', 'sup'];
+                            attributes.forEach(attr => {
+                                if (trixEditor.attributeIsActive(attr)) {
+                                    trixEditor.deactivateAttribute(attr);
+                                }
+                            });
+                        }
+                    });
+                }
+            }
+        });
+    </script>
     <!-- CodeMirror JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
     <!-- CodeMirror Modes -->
@@ -1296,5 +1474,53 @@
 
             return editor;
         };
+    </script>
+
+    <script>
+        // Initialize SortableJS for sections drag & drop
+        document.addEventListener('livewire:init', () => {
+            initializeSectionsSortable();
+
+            // Reinitialize after Livewire updates
+            Livewire.hook('morph.updated', ({el, component}) => {
+                initializeSectionsSortable();
+            });
+        });
+
+        function initializeSectionsSortable() {
+            const sectionsList = document.getElementById('sections-list');
+
+            if (!sectionsList) {
+                console.log('Sections list not found');
+                return;
+            }
+
+            // Destroy existing sortable instance if it exists
+            if (sectionsList.sortableInstance) {
+                sectionsList.sortableInstance.destroy();
+            }
+
+            // Create new sortable instance
+            sectionsList.sortableInstance = Sortable.create(sectionsList, {
+                animation: 150,
+                handle: '.section-drag-handle',
+                ghostClass: 'section-ghost',
+                dragClass: 'section-drag',
+                onEnd: function(evt) {
+                    // Get all section items in new order
+                    const items = Array.from(sectionsList.children);
+                    const newOrder = items.map((item, index) => {
+                        return index;
+                    });
+
+                    console.log('New section order:', newOrder);
+
+                    // Call Livewire method to update order
+                    @this.call('reorderSections', newOrder);
+                }
+            });
+
+            console.log('SortableJS initialized for sections');
+        }
     </script>
 @endpush

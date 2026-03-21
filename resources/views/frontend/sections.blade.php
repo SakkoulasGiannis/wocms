@@ -6,12 +6,37 @@
     {{-- Render all active sections --}}
     @if(isset($sections) && $sections->count() > 0)
         @foreach($sections as $section)
-            {{-- Use rendered_html if available (template-based), otherwise fallback to old method --}}
+            {{-- 1. Pre-rendered HTML (cached from template) --}}
             @if(!empty($section->rendered_html))
                 {!! $section->rendered_html !!}
+
+            {{-- 2. Template blade_file --}}
+            @elseif($section->sectionTemplate?->blade_file && view()->exists($section->sectionTemplate->blade_file))
+                @include($section->sectionTemplate->blade_file, ['section' => $section, 'content' => $section->content, 'settings' => $section->settings])
+
+            {{-- 3. Legacy blade partial (frontend.sections.{section_type}) --}}
             @elseif(view()->exists('frontend.sections.' . $section->section_type))
                 @include('frontend.sections.' . $section->section_type, ['section' => $section])
-            @else
+
+            {{-- 4. Component (section-{type}) --}}
+            @elseif(view()->exists('components.sections.' . str_replace('_', '-', $section->section_type)))
+                @php
+                    try {
+                        echo view('components.sections.' . str_replace('_', '-', $section->section_type), [
+                            'content' => $section->content,
+                            'settings' => $section->settings,
+                        ])->render();
+                    } catch (\Throwable $e) {
+                        // Silently skip render errors on frontend
+                    }
+                @endphp
+
+            {{-- 5. Template render() inline --}}
+            @elseif($section->sectionTemplate?->html_template)
+                {!! $section->sectionTemplate->render($section->content ?? []) !!}
+
+            {{-- 6. Error fallback (only in debug mode) --}}
+            @elseif(config('app.debug'))
                 <div class="container mx-auto px-4 py-8">
                     <div class="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
                         <p>Section type "{{ $section->section_type }}" not found.</p>

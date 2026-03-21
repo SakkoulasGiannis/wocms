@@ -10,7 +10,7 @@
     </div>
 
     <div class="flex justify-between items-center mb-6">
-        <h1 class="text-3xl font-bold">Page Sections - {{ ucfirst($pageType) }}</h1>
+        <h1 class="text-3xl font-bold">Page Sections - {{ $pageTitle }}</h1>
         <button wire:click="openAddModal" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
             + Add Section
         </button>
@@ -25,7 +25,8 @@
     <!-- Sections List -->
     <div class="space-y-6">
         @forelse($sections as $section)
-            <div class="bg-white shadow-md rounded-lg overflow-hidden border-2 transition-all
+            <div wire:key="section-{{ $section->id }}"
+                 class="bg-white shadow-md rounded-lg overflow-hidden border-2 transition-all
                         {{ $selectedSectionId === $section->id ? 'border-blue-500 ring-2 ring-blue-200' : ($section->is_active ? 'border-gray-200' : 'border-red-300') }}"
                  wire:click="selectSection({{ $section->id }})"
                  style="cursor: pointer;">
@@ -35,7 +36,7 @@
                     <div class="flex items-center gap-3">
                         <h3 class="text-lg font-semibold">{{ $section->name }}</h3>
                         <span class="text-xs bg-gray-200 px-2 py-1 rounded">
-                            {{ $availableSectionTypes[$section->section_type]['name'] ?? $section->section_type }}
+                            {{ $section->sectionTemplate?->name ?? ($availableSectionTypes[$section->section_type]['name'] ?? $section->section_type) }}
                         </span>
                         @if(!$section->is_active)
                             <span class="text-xs bg-red-100 text-red-600 px-2 py-1 rounded">Inactive</span>
@@ -144,25 +145,37 @@
 
     <!-- Add/Edit Modal -->
     @if($showAddModal)
-        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto m-4">
                 <div class="p-6 border-b">
                     <h2 class="text-2xl font-bold">{{ $editingSection ? 'Edit Section' : 'Add New Section' }}</h2>
                 </div>
 
                 <div class="p-6">
-                    @if(!$selectedSectionType)
-                        <!-- Section Type Selection -->
-                        <h3 class="text-lg font-semibold mb-4">Select Section Type</h3>
-                        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            @foreach($availableSectionTypes as $type => $info)
-                                <button wire:click="selectSectionType('{{ $type }}')"
-                                        class="border border-gray-300 rounded-lg p-4 hover:border-blue-500 hover:bg-blue-50 text-left transition">
-                                    <h4 class="font-semibold mb-1">{{ $info['name'] }}</h4>
-                                    <p class="text-sm text-gray-600">{{ $info['description'] }}</p>
-                                </button>
+                    @if(!$selectedSectionType && !$selectedTemplateId)
+                        <!-- Template Selection -->
+                        <h3 class="text-lg font-semibold mb-4">Select Section Template</h3>
+
+                        @if(count($availableTemplates) > 0)
+                            @php
+                                $categories = collect($availableTemplates)->groupBy('category');
+                            @endphp
+
+                            @foreach($categories as $category => $templates)
+                                <h4 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mt-6 mb-3">{{ ucfirst($category) }}</h4>
+                                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                    @foreach($templates as $tpl)
+                                        <button wire:click="selectTemplate({{ $tpl['id'] }})"
+                                                class="border border-gray-300 rounded-lg p-4 hover:border-blue-500 hover:bg-blue-50 text-left transition">
+                                            <h4 class="font-semibold mb-1">{{ $tpl['name'] }}</h4>
+                                            <p class="text-sm text-gray-600">{{ $tpl['description'] }}</p>
+                                        </button>
+                                    @endforeach
+                                </div>
                             @endforeach
-                        </div>
+                        @else
+                            <p class="text-gray-500">No templates available.</p>
+                        @endif
                     @else
                         <!-- Section Form -->
                         <div class="space-y-4">
@@ -171,7 +184,7 @@
                                 <input type="text"
                                        wire:model="sectionName"
                                        class="w-full border border-gray-300 rounded px-3 py-2"
-                                       placeholder="{{ $availableSectionTypes[$selectedSectionType]['name'] }}">
+                                       placeholder="Section name">
                             </div>
 
                             <div>
@@ -198,7 +211,7 @@
                             class="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50">
                         Cancel
                     </button>
-                    @if($selectedSectionType)
+                    @if($selectedSectionType || $selectedTemplateId)
                         <button wire:click="{{ $editingSection ? 'updateSection' : 'saveSection' }}"
                                 class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded">
                             {{ $editingSection ? 'Update' : 'Add' }} Section

@@ -3,18 +3,23 @@
 namespace App\Livewire\Admin\AIChat;
 
 use App\Models\AIChatMessage;
-use App\Services\AI\AIManager;
 use App\Services\AI\AIContentHandler;
-use Livewire\Component;
+use App\Services\AI\AIManager;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Component;
 
 class ChatWidget extends Component
 {
     public $isOpen = false;
+
     public $message = '';
+
     public $messages = [];
+
     public $isLoading = false;
+
     public $currentUrl = '';
+
     public $currentContext = [];
 
     public function mount()
@@ -28,7 +33,7 @@ class ChatWidget extends Component
             ->orderBy('created_at', 'asc')
             ->take(50) // Last 50 messages
             ->get()
-            ->map(fn($msg) => [
+            ->map(fn ($msg) => [
                 'id' => $msg->id,
                 'role' => $msg->role,
                 'message' => $msg->message,
@@ -40,7 +45,7 @@ class ChatWidget extends Component
 
     public function toggleChat()
     {
-        $this->isOpen = !$this->isOpen;
+        $this->isOpen = ! $this->isOpen;
 
         if ($this->isOpen) {
             $this->dispatch('chat-opened');
@@ -77,11 +82,11 @@ class ChatWidget extends Component
                     $context['template_name'] = $template->name;
 
                     // Get the dynamic model
-                    $modelClass = "App\\Models\\" . str_replace(' ', '', ucwords(str_replace('-', ' ', $templateSlug)));
+                    $modelClass = 'App\\Models\\'.str_replace(' ', '', ucwords(str_replace('-', ' ', $templateSlug)));
                     if (class_exists($modelClass)) {
                         $entry = $modelClass::find($entryId);
                         if ($entry) {
-                            $context['entry_title'] = $entry->title ?? $entry->name ?? 'Entry #' . $entryId;
+                            $context['entry_title'] = $entry->title ?? $entry->name ?? 'Entry #'.$entryId;
                             $context['entry_data'] = $entry->toArray();
                         }
                     }
@@ -130,7 +135,7 @@ class ChatWidget extends Component
 
         try {
             // Get AI response
-            $aiManager = new AIManager();
+            $aiManager = new AIManager;
 
             // Detect intent
             $intent = $aiManager->detectIntent($userMessage);
@@ -138,7 +143,7 @@ class ChatWidget extends Component
             // Handle based on intent
             if ($intent === 'create_content') {
                 // Use content handler for content generation
-                $contentHandler = new AIContentHandler();
+                $contentHandler = new AIContentHandler;
                 $result = $contentHandler->handleContentGeneration($userMessage);
 
                 if ($result['success']) {
@@ -149,12 +154,12 @@ class ChatWidget extends Component
                         $message .= "\nΘέλεις να κάνω αλλαγές ή να δημιουργήσω κάτι άλλο;";
                     } else {
                         // Single entry response
-                        $message = $result['message'] . "\n\n";
-                        $message .= "📝 **Τίτλος**: " . ($result['data']['title'] ?? 'N/A') . "\n";
-                        $message .= "🔗 [Επεξεργασία του entry](" . $result['preview_url'] . ")\n";
+                        $message = $result['message']."\n\n";
+                        $message .= '📝 **Τίτλος**: '.($result['data']['title'] ?? 'N/A')."\n";
+                        $message .= '🔗 [Επεξεργασία του entry]('.$result['preview_url'].")\n";
 
-                        if (!empty($result['frontend_url'])) {
-                            $message .= "🌐 [Προβολή στο frontend](" . $result['frontend_url'] . ")\n";
+                        if (! empty($result['frontend_url'])) {
+                            $message .= '🌐 [Προβολή στο frontend]('.$result['frontend_url'].")\n";
                         }
 
                         $message .= "\nΘέλεις να κάνω αλλαγές ή να δημιουργήσω κάτι άλλο;";
@@ -187,14 +192,14 @@ class ChatWidget extends Component
                 }
             } elseif ($intent === 'update_content') {
                 // Use content handler for content updates
-                $contentHandler = new AIContentHandler();
+                $contentHandler = new AIContentHandler;
                 $context = $this->buildContext();
                 $result = $contentHandler->handleContentUpdate($userMessage, $context);
 
                 if ($result['success']) {
                     // Update response
-                    $message = $result['message'] . "\n\n";
-                    $message .= "🔗 [Επεξεργασία του entry](" . $result['preview_url'] . ")\n";
+                    $message = $result['message']."\n\n";
+                    $message .= '🔗 [Επεξεργασία του entry]('.$result['preview_url'].")\n";
                     $message .= "\nΘέλεις να κάνω άλλες αλλαγές;";
 
                     $aiMsg = AIChatMessage::create([
@@ -223,11 +228,11 @@ class ChatWidget extends Component
                 }
             } elseif ($intent === 'create_template') {
                 // Use content handler for template creation
-                $contentHandler = new AIContentHandler();
+                $contentHandler = new AIContentHandler;
                 $result = $contentHandler->handleTemplateCreation($userMessage);
 
                 $message = $result['message'];
-                if (!$result['success']) {
+                if (! $result['success']) {
                     $message .= "\n\nΘέλεις να δοκιμάσω ξανά με διαφορετική προσέγγιση;";
                 } else {
                     $message .= "\n\nΜπορώ να σου δημιουργήσω και περιεχόμενο για αυτό το template;";
@@ -250,12 +255,12 @@ class ChatWidget extends Component
                 ];
             } elseif ($intent === 'modify_template') {
                 // Use content handler for template modification
-                $contentHandler = new AIContentHandler();
+                $contentHandler = new AIContentHandler;
                 $context = $this->buildContext();
                 $result = $contentHandler->handleTemplateModification($userMessage, $context);
 
                 $message = $result['message'];
-                if (!$result['success']) {
+                if (! $result['success']) {
                     $message .= "\n\nΘέλεις να δοκιμάσω με διαφορετικό τρόπο;";
                 } else {
                     $message .= "\n\nΘέλεις να κάνω και άλλες αλλαγές;";
@@ -278,11 +283,11 @@ class ChatWidget extends Component
                 ];
             } elseif ($intent === 'modify_frontend') {
                 // Use content handler for frontend modification
-                $contentHandler = new AIContentHandler();
+                $contentHandler = new AIContentHandler;
                 $result = $contentHandler->handleFrontendModification($userMessage);
 
                 $message = $result['message'];
-                if (!$result['success']) {
+                if (! $result['success']) {
                     $message .= "\n\nΘέλεις να δοκιμάσω με διαφορετικό τρόπο;";
                 } else {
                     $message .= "\n\nΘέλεις να κάνω και άλλες αλλαγές;";
@@ -305,12 +310,14 @@ class ChatWidget extends Component
                 ];
             } elseif ($intent === 'create_page_section') {
                 // Use content handler for page section creation
-                $contentHandler = new AIContentHandler();
+                $contentHandler = new AIContentHandler;
                 $result = $contentHandler->handlePageSectionCreation($userMessage);
 
                 $message = $result['message'];
                 if ($result['success']) {
-                    $message .= "\n\n🔗 [Δες όλα τα sections](/admin/page-sections/{$result['page_type']})";
+                    $sectionableRoute = str_replace('\\', '-', $result['sectionable_type'] ?? 'App\Models\Home');
+                    $sectionableId = $result['sectionable_id'] ?? 1;
+                    $message .= "\n\n🔗 [Δες όλα τα sections](/admin/page-sections/manage/{$sectionableRoute}/{$sectionableId})";
                     $message .= "\n\nΘέλεις να κάνω αλλαγές ή να προσθέσω κάτι άλλο;";
                 }
 
@@ -331,7 +338,7 @@ class ChatWidget extends Component
                 ];
             } elseif ($intent === 'modify_page_section') {
                 // Use content handler for page section modification
-                $contentHandler = new AIContentHandler();
+                $contentHandler = new AIContentHandler;
                 $context = $this->buildContext();
                 $result = $contentHandler->handlePageSectionModification($userMessage, $context);
 
@@ -357,7 +364,7 @@ class ChatWidget extends Component
                 ];
             } elseif ($intent === 'reorder_page_section') {
                 // Use content handler for page section reordering
-                $contentHandler = new AIContentHandler();
+                $contentHandler = new AIContentHandler;
                 $result = $contentHandler->handlePageSectionReordering($userMessage);
 
                 $message = $result['message'];
@@ -406,7 +413,7 @@ class ChatWidget extends Component
                     $this->messages[] = [
                         'id' => null,
                         'role' => 'assistant',
-                        'message' => '❌ Error: ' . $response->error,
+                        'message' => '❌ Error: '.$response->error,
                         'created_at' => 'Just now',
                     ];
                 }
@@ -416,7 +423,7 @@ class ChatWidget extends Component
             $this->messages[] = [
                 'id' => null,
                 'role' => 'assistant',
-                'message' => '❌ Error: ' . $e->getMessage(),
+                'message' => '❌ Error: '.$e->getMessage(),
                 'created_at' => 'Just now',
             ];
         }
@@ -436,14 +443,14 @@ class ChatWidget extends Component
         $recentMessages = array_slice($this->messages, -5);
 
         $context = [
-            'conversation_history' => array_map(fn($msg) => [
+            'conversation_history' => array_map(fn ($msg) => [
                 'role' => $msg['role'],
-                'message' => $msg['message']
-            ], $recentMessages)
+                'message' => $msg['message'],
+            ], $recentMessages),
         ];
 
         // Add page context if available
-        if (!empty($this->currentContext)) {
+        if (! empty($this->currentContext)) {
             $context['page'] = $this->currentContext;
         }
 
