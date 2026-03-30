@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Blog;
 use App\Models\Template;
+use App\Services\ThemeManager;
 use Illuminate\Http\Request;
 
 class BlogController extends Controller
@@ -16,7 +17,7 @@ class BlogController extends Controller
         $template = Template::where('slug', 'blog')->firstOrFail();
 
         // Check if template is publicly accessible
-        if (!$template->is_public) {
+        if (! $template->is_public) {
             abort(403, 'This content is not publicly accessible');
         }
 
@@ -24,19 +25,19 @@ class BlogController extends Controller
         $query = Blog::query();
 
         // Only filter by active status if user is not admin/editor
-        if (!auth()->check() || !auth()->user()->canViewDrafts()) {
+        if (! auth()->check() || ! auth()->user()->canViewDrafts()) {
             $query->active();
         }
 
-        $posts = $query->when($request->search, function($query, $search) {
-                $query->where('title', 'like', "%{$search}%")
-                      ->orWhere('excerpt', 'like', "%{$search}%")
-                      ->orWhere('tags', 'like', "%{$search}%");
-            })
-            ->when($request->tag, function($query, $tag) {
+        $posts = $query->when($request->search, function ($query, $search) {
+            $query->where('title', 'like', "%{$search}%")
+                ->orWhere('excerpt', 'like', "%{$search}%")
+                ->orWhere('tags', 'like', "%{$search}%");
+        })
+            ->when($request->tag, function ($query, $tag) {
                 $query->where('tags', 'like', "%{$tag}%");
             })
-            ->when($request->author, function($query, $author) {
+            ->when($request->author, function ($query, $author) {
                 $query->where('author', $author);
             })
             ->whereNotNull('published_at')
@@ -47,7 +48,7 @@ class BlogController extends Controller
         $allTags = Blog::active()
             ->whereNotNull('tags')
             ->pluck('tags')
-            ->flatMap(fn($tags) => array_map('trim', explode(',', $tags)))
+            ->flatMap(fn ($tags) => array_map('trim', explode(',', $tags)))
             ->unique()
             ->sort()
             ->values();
@@ -59,7 +60,10 @@ class BlogController extends Controller
             ->sort()
             ->values();
 
-        return view('frontend.blog.index', compact('posts', 'template', 'allTags', 'allAuthors'));
+        $themeManager = app(ThemeManager::class);
+        $view = $themeManager->getTemplateView('blog.index') ?? 'frontend.blog.index';
+
+        return view($view, compact('posts', 'template', 'allTags', 'allAuthors'));
     }
 
     /**
@@ -72,7 +76,7 @@ class BlogController extends Controller
         $template = Template::where('slug', 'blog')->firstOrFail();
 
         // Check if template is publicly accessible
-        if (!$template->is_public) {
+        if (! $template->is_public) {
             abort(403, 'This content is not publicly accessible');
         }
 
@@ -84,6 +88,7 @@ class BlogController extends Controller
             // Check if cache exists
             if (\Cache::has($cacheKey)) {
                 \Log::info("✅ CACHE HIT: /blog/{$slug} (serving from cache)");
+
                 return response(\Cache::get($cacheKey));
             }
 
@@ -94,7 +99,7 @@ class BlogController extends Controller
         $query = Blog::query();
 
         // Only filter by active status if user is not admin/editor
-        if (!auth()->check() || !auth()->user()->canViewDrafts()) {
+        if (! auth()->check() || ! auth()->user()->canViewDrafts()) {
             $query->active();
         }
 
@@ -109,7 +114,7 @@ class BlogController extends Controller
             $relatedPosts = Blog::active()
                 ->where('id', '!=', $post->id)
                 ->whereNotNull('published_at')
-                ->where(function($query) use ($tags) {
+                ->where(function ($query) use ($tags) {
                     foreach ($tags as $tag) {
                         $query->orWhere('tags', 'like', "%{$tag}%");
                     }
@@ -119,7 +124,9 @@ class BlogController extends Controller
                 ->get();
         }
 
-        $view = view('frontend.blog.show', compact('post', 'template', 'relatedPosts'));
+        $themeManager = app(ThemeManager::class);
+        $viewName = $themeManager->getTemplateView('blog.show') ?? 'frontend.blog.show';
+        $view = view($viewName, compact('post', 'template', 'relatedPosts'));
 
         // Cache the rendered HTML if caching is enabled
         if ($template->enable_full_page_cache) {

@@ -59,6 +59,55 @@ class EntryForm extends Component
 
     public $showSectionForm = false;
 
+    public $sectionImageUploads = [];
+
+    /**
+     * Handle section image upload for a specific field
+     */
+    public function updatedSectionImageUploads($value, $key): void
+    {
+        if (! $value) {
+            return;
+        }
+
+        // Store the uploaded file to public storage
+        $path = $value->store('sections', 'public');
+        $url = asset('storage/'.$path);
+
+        // Parse the key to determine if it's a regular field or a repeater sub-field
+        // Key formats: "fieldName" or "fieldName.index.subFieldName"
+        $parts = explode('.', $key);
+
+        if (count($parts) === 1) {
+            // Simple image field
+            $this->sectionForm['field_data'][$parts[0]] = $url;
+        } elseif (count($parts) === 3) {
+            // Repeater sub-field: fieldName.index.subFieldName
+            $this->sectionForm['field_data'][$parts[0]][$parts[1]][$parts[2]] = $url;
+        }
+
+        // Also update the sections array directly so syncSections() picks up the change
+        if ($this->editingSectionIndex !== null && isset($this->sections[$this->editingSectionIndex])) {
+            if (count($parts) === 1) {
+                $this->sections[$this->editingSectionIndex]['field_data'][$parts[0]] = $url;
+                $this->sections[$this->editingSectionIndex]['content'][$parts[0]] = $url;
+            } elseif (count($parts) === 3) {
+                $this->sections[$this->editingSectionIndex]['field_data'][$parts[0]][$parts[1]][$parts[2]] = $url;
+                $this->sections[$this->editingSectionIndex]['content'][$parts[0]][$parts[1]][$parts[2]] = $url;
+            }
+        }
+
+        // Clear the temp upload
+        $this->sectionImageUploads[$key] = null;
+    }
+
+    protected function resolveModelClass(): string
+    {
+        $mc = $this->template->model_class;
+
+        return str_contains($mc, '\\') ? $mc : "App\\Models\\{$mc}";
+    }
+
     public function mount($templateSlug, $entryId = null)
     {
         $this->templateSlug = $templateSlug;
@@ -73,14 +122,14 @@ class EntryForm extends Component
         });
 
         // Check if dynamic model exists
-        if (! $this->template->model_class || ! class_exists("App\\Models\\{$this->template->model_class}")) {
+        if (! $this->template->model_class || ! class_exists($this->resolveModelClass())) {
             abort(500, 'Template model not found. Please save the template again to generate the model.');
         }
 
         $this->entryId = $entryId;
 
-        // Load section templates if template uses sections
-        if ($this->template->render_mode === 'sections') {
+        // Load section templates if template or entry uses sections
+        if ($this->template->render_mode === 'sections' || ($entryId && ($this->resolveModelClass()::find($entryId)?->render_mode ?? null) === 'sections')) {
             $this->sectionTypes = PageSection::getSectionTypes();
             $this->availableSectionTemplates = SectionTemplate::where('is_active', true)
                 ->with('fields')
@@ -91,7 +140,7 @@ class EntryForm extends Component
 
         if ($entryId) {
             // Edit mode
-            $modelClass = "App\\Models\\{$this->template->model_class}";
+            $modelClass = $this->resolveModelClass();
             $this->entry = $modelClass::findOrFail($entryId);
 
             // Load existing values
@@ -147,8 +196,8 @@ class EntryForm extends Component
                 ];
             }
 
-            // Load sections if template uses sections
-            if ($this->template->render_mode === 'sections' && method_exists($this->entry, 'sections')) {
+            // Load sections if template or entry uses sections
+            if (($this->template->render_mode === 'sections' || ($this->entry->render_mode ?? null) === 'sections') && method_exists($this->entry, 'sections')) {
                 $this->sections = $this->entry->sections()->with('sectionTemplate')->orderBy('order')->get()->map(function ($section) {
                     return [
                         'id' => $section->id,
@@ -234,7 +283,7 @@ class EntryForm extends Component
 
         // If editing, exclude the current entry from parent options (can't be its own parent)
         if ($this->entryId) {
-            $modelClass = "App\\Models\\{$this->template->model_class}";
+            $modelClass = $this->resolveModelClass();
             $query->where(function ($q) use ($modelClass) {
                 $q->where('content_type', '!=', $modelClass)
                     ->orWhere('content_id', '!=', $this->entryId);
@@ -436,7 +485,7 @@ class EntryForm extends Component
             }
         } else {
             // Create new entry
-            $modelClass = "App\\Models\\{$this->template->model_class}";
+            $modelClass = $this->resolveModelClass();
             $createData = $this->fieldValues;
 
             // Add SEO fields if template has SEO
@@ -578,7 +627,7 @@ class EntryForm extends Component
     protected function generateBladeTemplate($entry)
     {
         // Don't generate blade templates for sections render mode
-        if ($this->template->render_mode === 'sections') {
+        if ($this->template->render_mode === 'sections' || ($this->entry?->render_mode ?? null) === 'sections') {
             return;
         }
 
@@ -739,6 +788,33 @@ class EntryForm extends Component
 
     public function addRepeaterItem($fieldName)
     {
+        // Check if we're in section form context
+        if (! empty($this->sectionForm['section_template_id'])) {
+            $template = \App\Models\SectionTemplate::with('fields')->find($this->sectionForm['section_template_id']);
+            $field = $template?->fields->where('name', $fieldName)->first();
+
+            $settings = $field?->settings;
+            if (is_string($settings)) {
+                $settings = json_decode($settings, true);
+            }
+            $subFields = $settings['sub_fields'] ?? [];
+
+            $newItem = [];
+            foreach ($subFields as $sf) {
+                $newItem[$sf['name']] = '';
+            }
+
+            $items = $this->sectionForm['field_data'][$fieldName] ?? [];
+            if (! is_array($items)) {
+                $items = [];
+            }
+            $items[] = $newItem;
+            $this->sectionForm['field_data'][$fieldName] = $items;
+
+            return;
+        }
+
+        // Fallback: fieldValues context
         if (! isset($this->fieldValues[$fieldName])) {
             $this->fieldValues[$fieldName] = [];
         }
@@ -747,15 +823,23 @@ class EntryForm extends Component
             $this->fieldValues[$fieldName] = [];
         }
 
-        // Add empty item
         $this->fieldValues[$fieldName][] = '{}';
     }
 
     public function removeRepeaterItem($fieldName, $index)
     {
+        // Check if we're in section form context
+        if (! empty($this->sectionForm['field_data'][$fieldName])) {
+            $items = $this->sectionForm['field_data'][$fieldName];
+            unset($items[$index]);
+            $this->sectionForm['field_data'][$fieldName] = array_values($items);
+
+            return;
+        }
+
+        // Fallback: fieldValues context
         if (isset($this->fieldValues[$fieldName]) && is_array($this->fieldValues[$fieldName])) {
             array_splice($this->fieldValues[$fieldName], $index, 1);
-            // Re-index array
             $this->fieldValues[$fieldName] = array_values($this->fieldValues[$fieldName]);
         }
     }
@@ -888,11 +972,36 @@ class EntryForm extends Component
             'sections' => $this->sections,
         ]);
 
+        // Auto-save section to database immediately
+        if ($this->entry && method_exists($this->entry, 'sections')) {
+            $dbData = [
+                'section_template_id' => $sectionData['section_template_id'] ?? null,
+                'section_type' => $sectionData['section_type'],
+                'name' => $sectionData['name'],
+                'content' => $sectionData['field_data'] ?? $sectionData['content'] ?? [],
+                'rendered_html' => $sectionData['rendered_html'] ?? '',
+                'css' => $sectionData['css'] ?? '',
+                'is_active' => $sectionData['is_active'] ?? true,
+                'order' => $sectionData['order'] ?? 0,
+            ];
+
+            if (! empty($sectionData['id'])) {
+                $this->entry->sections()->where('id', $sectionData['id'])->update($dbData);
+            } else {
+                $newSection = $this->entry->sections()->create($dbData);
+                // Update the local array with the new ID
+                $idx = $this->editingSectionIndex ?? (count($this->sections) - 1);
+                if (isset($this->sections[$idx])) {
+                    $this->sections[$idx]['id'] = $newSection->id;
+                }
+            }
+        }
+
         // Reset form
         $this->editingSectionIndex = null;
         $this->selectedTemplateId = null;
         $this->sectionForm = [];
-        $this->showSectionForm = false; // Hide the form
+        $this->showSectionForm = false;
 
         session()->flash('section-success', 'Section saved!');
     }
@@ -993,7 +1102,7 @@ class EntryForm extends Component
             'sections_data' => $this->sections,
         ]);
 
-        if ($this->template->render_mode !== 'sections' || ! method_exists($entry, 'sections')) {
+        if (($this->template->render_mode !== 'sections' && ($entry->render_mode ?? null) !== 'sections') || ! method_exists($entry, 'sections')) {
             \Log::warning('⚠️ syncSections() skipped - conditions not met', [
                 'render_mode' => $this->template->render_mode,
                 'has_sections_method' => method_exists($entry, 'sections'),
@@ -1090,7 +1199,9 @@ class EntryForm extends Component
             }
             // For simple templates without ContentNode, construct URL from identifier
             elseif ($urlValue) {
-                return '/'.$this->template->slug.'/'.$urlValue;
+                return $this->template->use_slug_prefix
+                    ? '/'.$this->template->slug.'/'.$urlValue
+                    : '/'.$urlValue;
             }
         }
 

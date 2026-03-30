@@ -5,9 +5,12 @@ namespace App\Livewire\Admin\PageSections;
 use App\Models\PageSection;
 use App\Models\SectionTemplate;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 class SectionManager extends Component
 {
+    use WithFileUploads;
+
     public $sectionableType;
 
     public $sectionableId;
@@ -39,6 +42,28 @@ class SectionManager extends Component
     public $sectionContent = [];
 
     public $sectionSettings = [];
+
+    public $sectionImageUploads = [];
+
+    public function updatedSectionImageUploads($value, $key): void
+    {
+        if (! $value) {
+            return;
+        }
+
+        $path = $value->store('sections', 'public');
+        $url = asset('storage/'.$path);
+
+        // Parse key: "fieldName" or "fieldName.index.subFieldName"
+        $parts = explode('.', $key);
+        if (count($parts) === 1) {
+            $this->sectionContent[$parts[0]] = $url;
+        } elseif (count($parts) === 3) {
+            $this->sectionContent[$parts[0]][$parts[1]][$parts[2]] = $url;
+        }
+
+        $this->sectionImageUploads[$key] = null;
+    }
 
     public function mount(string $sectionableType, int $sectionableId): void
     {
@@ -250,6 +275,42 @@ class SectionManager extends Component
                 $this->loadSections();
             }
         }
+    }
+
+    /**
+     * Add an empty item to a repeater field
+     */
+    public function addRepeaterItem(string $fieldName): void
+    {
+        $template = SectionTemplate::with('fields')->find($this->selectedTemplateId);
+        if (! $template) {
+            return;
+        }
+
+        $field = $template->fields->where('name', $fieldName)->first();
+        if (! $field) {
+            return;
+        }
+
+        $subFields = json_decode($field->settings ?? '{}', true)['sub_fields'] ?? [];
+        $newItem = [];
+        foreach ($subFields as $sf) {
+            $newItem[$sf['name']] = '';
+        }
+
+        $items = $this->sectionContent[$fieldName] ?? [];
+        $items[] = $newItem;
+        $this->sectionContent[$fieldName] = $items;
+    }
+
+    /**
+     * Remove an item from a repeater field
+     */
+    public function removeRepeaterItem(string $fieldName, int $index): void
+    {
+        $items = $this->sectionContent[$fieldName] ?? [];
+        unset($items[$index]);
+        $this->sectionContent[$fieldName] = array_values($items);
     }
 
     public function selectSection($sectionId): void

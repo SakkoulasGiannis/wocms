@@ -5,10 +5,14 @@ namespace App\Livewire\Admin\SectionTemplates;
 use App\Models\SectionTemplate;
 use App\Models\SectionTemplateField;
 use App\Services\AISectionGenerator;
+use App\Services\SectionTemplateExporter;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 class SectionTemplateList extends Component
 {
+    use WithFileUploads;
+
     public $templates;
 
     public $categories;
@@ -185,6 +189,63 @@ class SectionTemplateList extends Component
         $this->loadTemplates();
         $this->closeCreateModal();
         session()->flash('success', "Section template '{$template->name}' created successfully with ".count($fields ?? $this->aiPreview['fields']).' fields.');
+    }
+
+    public $importFile;
+
+    public $showImportModal = false;
+
+    public $importOverwrite = false;
+
+    /**
+     * Export all section templates as JSON download
+     */
+    public function exportAll(): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $exporter = new SectionTemplateExporter;
+        $data = $exporter->exportAll();
+        $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        $filename = 'section-templates-'.date('Y-m-d-His').'.json';
+
+        return response()->streamDownload(function () use ($json) {
+            echo $json;
+        }, $filename, [
+            'Content-Type' => 'application/json',
+        ]);
+    }
+
+    public function openImportModal(): void
+    {
+        $this->reset(['importFile', 'importOverwrite']);
+        $this->showImportModal = true;
+    }
+
+    public function importTemplates(): void
+    {
+        $this->validate([
+            'importFile' => 'required|file|mimes:json,txt|max:10240',
+        ]);
+
+        try {
+            $json = file_get_contents($this->importFile->getRealPath());
+            $data = json_decode($json, true);
+
+            if (! is_array($data)) {
+                session()->flash('error', 'Invalid JSON file format.');
+
+                return;
+            }
+
+            $exporter = new SectionTemplateExporter;
+            $stats = $exporter->import($data, $this->importOverwrite);
+
+            $this->loadTemplates();
+            $this->showImportModal = false;
+
+            session()->flash('success', "Import complete: {$stats['created']} created, {$stats['updated']} updated, {$stats['skipped']} skipped.");
+        } catch (\Exception $e) {
+            session()->flash('error', 'Import failed: '.$e->getMessage());
+        }
     }
 
     public function render()

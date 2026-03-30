@@ -54,6 +54,14 @@
                     Image Sizes
                 </button>
 
+                <button wire:click="$set('activeTab', 'integrations')"
+                        class="px-6 py-4 text-sm font-medium border-b-2 transition {{ $activeTab === 'integrations' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
+                    <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                    </svg>
+                    Integrations
+                </button>
+
                 <button wire:click="$set('activeTab', 'theme')"
                         class="px-6 py-4 text-sm font-medium border-b-2 transition {{ $activeTab === 'theme' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
                     <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -664,6 +672,190 @@
     @endif
 
     <!-- Theme Tab -->
+    <!-- Integrations Tab -->
+    @if($activeTab === 'integrations')
+        <div class="space-y-6">
+            <form wire:submit.prevent="saveIntegrations">
+                <!-- Analytics & Tracking -->
+                <div class="bg-white rounded-lg shadow p-6 mb-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-1">Analytics & Tracking</h2>
+                    <p class="text-sm text-gray-500 mb-4">Connect your analytics and tracking services</p>
+
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Google Analytics ID</label>
+                                <input type="text" wire:model="google_analytics_id"
+                                       class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
+                                       placeholder="G-XXXXXXXXXX">
+                                <p class="mt-1 text-xs text-gray-500">Google Analytics 4 Measurement ID</p>
+                                @error('google_analytics_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Google Tag Manager ID</label>
+                                <input type="text" wire:model="google_tag_manager_id"
+                                       class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
+                                       placeholder="GTM-XXXXXXX">
+                                <p class="mt-1 text-xs text-gray-500">Container ID from Google Tag Manager</p>
+                                @error('google_tag_manager_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Facebook Pixel ID</label>
+                            <input type="text" wire:model="facebook_pixel_id"
+                                   class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
+                                   placeholder="XXXXXXXXXXXXXXXX">
+                            <p class="mt-1 text-xs text-gray-500">Facebook/Meta Pixel tracking ID</p>
+                            @error('facebook_pixel_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                    </div>
+                </div>
+
+                <!-- API Keys -->
+                <div class="bg-white rounded-lg shadow p-6 mb-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-1">API Keys</h2>
+                    <p class="text-sm text-gray-500 mb-4">Third-party service API keys (stored encrypted)</p>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Google Maps API Key</label>
+                            <input type="password" wire:model="google_maps_api_key"
+                                   class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 font-mono"
+                                   placeholder="AIza...">
+                            <p class="mt-1 text-xs text-gray-500">Required for Google Maps embeds</p>
+                            @error('google_maps_api_key') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">reCAPTCHA Site Key</label>
+                                <input type="text" wire:model="recaptcha_site_key"
+                                       class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 font-mono text-sm"
+                                       placeholder="6Le...">
+                                @error('recaptcha_site_key') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">reCAPTCHA Secret Key</label>
+                                <input type="password" wire:model="recaptcha_secret_key"
+                                       class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 font-mono text-sm"
+                                       placeholder="6Le...">
+                                @error('recaptcha_secret_key') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Custom Scripts -->
+                <div class="bg-white rounded-lg shadow p-6 mb-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-1">Custom Scripts</h2>
+                    <p class="text-sm text-gray-500 mb-4">Add custom code to your website's head or body</p>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Head Scripts
+                                <span class="text-xs text-gray-400 font-normal ml-1">(injected before &lt;/head&gt;)</span>
+                            </label>
+                            <textarea wire:model="custom_head_scripts" rows="5"
+                                      class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 font-mono text-sm"
+                                      placeholder="<!-- Google Analytics, custom CSS, meta tags, etc. -->"></textarea>
+                            @error('custom_head_scripts') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Body Scripts
+                                <span class="text-xs text-gray-400 font-normal ml-1">(injected before &lt;/body&gt;)</span>
+                            </label>
+                            <textarea wire:model="custom_body_scripts" rows="5"
+                                      class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 font-mono text-sm"
+                                      placeholder="<!-- Chat widgets, tracking scripts, etc. -->"></textarea>
+                            @error('custom_body_scripts') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Social Media Links -->
+                <div class="bg-white rounded-lg shadow p-6 mb-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-1">Social Media</h2>
+                    <p class="text-sm text-gray-500 mb-4">Your social media profile URLs</p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fab fa-facebook text-blue-600 mr-1"></i> Facebook
+                            </label>
+                            <input type="url" wire:model="social_facebook"
+                                   class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
+                                   placeholder="https://facebook.com/yourpage">
+                            @error('social_facebook') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fab fa-instagram text-pink-600 mr-1"></i> Instagram
+                            </label>
+                            <input type="url" wire:model="social_instagram"
+                                   class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
+                                   placeholder="https://instagram.com/yourprofile">
+                            @error('social_instagram') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fab fa-twitter text-sky-500 mr-1"></i> X (Twitter)
+                            </label>
+                            <input type="url" wire:model="social_twitter"
+                                   class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
+                                   placeholder="https://x.com/yourhandle">
+                            @error('social_twitter') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fab fa-linkedin text-blue-700 mr-1"></i> LinkedIn
+                            </label>
+                            <input type="url" wire:model="social_linkedin"
+                                   class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
+                                   placeholder="https://linkedin.com/company/yourcompany">
+                            @error('social_linkedin') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fab fa-youtube text-red-600 mr-1"></i> YouTube
+                            </label>
+                            <input type="url" wire:model="social_youtube"
+                                   class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
+                                   placeholder="https://youtube.com/@yourchannel">
+                            @error('social_youtube') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fab fa-tiktok mr-1"></i> TikTok
+                            </label>
+                            <input type="url" wire:model="social_tiktok"
+                                   class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
+                                   placeholder="https://tiktok.com/@yourprofile">
+                            @error('social_tiktok') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Save Button -->
+                <div class="flex justify-end">
+                    <button type="submit"
+                            class="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg shadow-sm hover:bg-blue-700 transition">
+                        Save Integration Settings
+                    </button>
+                </div>
+            </form>
+        </div>
+    @endif
+
     @if($activeTab === 'theme')
         <div class="space-y-6">
             <!-- Asset Build Section -->

@@ -11,6 +11,16 @@ Route::get('/', [FrontendController::class, 'home'])->name('home');
 Route::get('/blog', [\App\Http\Controllers\BlogController::class, 'index'])->name('blog.index');
 Route::get('/blog/{slug}', [\App\Http\Controllers\BlogController::class, 'show'])->name('blog.show');
 
+// Properties routes
+Route::get('/properties', [FrontendController::class, 'properties'])->name('properties.index');
+Route::get('/properties/{slug}', [FrontendController::class, 'propertyShow'])->name('properties.show');
+
+// Rental Properties routes
+Route::get('/rental-properties', [FrontendController::class, 'rentalProperties'])->name('rental-properties.index');
+Route::get('/rental-properties/{slug}', [FrontendController::class, 'rentalPropertyShow'])->name('rental-properties.show');
+
+// Contact page
+Route::get('/contact', [FrontendController::class, 'contact'])->name('contact');
 // CSRF token refresh route
 Route::get('/csrf-token', function () {
     return response()->json([
@@ -80,6 +90,17 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     // Code Editor Route
     Route::get('/code-editor', \App\Livewire\Admin\CodeEditor\FileEditor::class)->name('code-editor');
 
+    // Menu Manager Route
+    Route::get('/menus', \App\Livewire\Admin\Menus\MenuManager::class)->name('menus.index');
+
+    // Auto-load module admin routes (must be before the wildcard {templateSlug} catch-all)
+    foreach (\Nwidart\Modules\Facades\Module::allEnabled() as $module) {
+        $adminRoutes = $module->getPath().'/routes/admin.php';
+        if (file_exists($adminRoutes)) {
+            require $adminRoutes;
+        }
+    }
+
     // Dynamic Template Entries Routes (must be last to not conflict with other routes)
     Route::get('/{templateSlug}', \App\Livewire\Admin\TemplateEntries\EntryList::class)->name('template-entries.index');
     Route::get('/{templateSlug}/create', \App\Livewire\Admin\TemplateEntries\EntryForm::class)->name('template-entries.create');
@@ -88,6 +109,14 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
 
 // Auth routes
 require __DIR__.'/auth.php';
+
+// Auto-load module frontend routes (must be before catch-all wildcards)
+foreach (\Nwidart\Modules\Facades\Module::allEnabled() as $module) {
+    $frontRoutes = $module->getPath().'/routes/front.php';
+    if (file_exists($frontRoutes)) {
+        require $frontRoutes;
+    }
+}
 
 // Template index routes (e.g., /services, /blog)
 Route::match(['get', 'post'], '/{templateSlug}', [FrontendController::class, 'handleTemplateIndex'])

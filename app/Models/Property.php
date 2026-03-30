@@ -9,23 +9,30 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 
 class Property extends Model implements HasMedia
 {
-    use SoftDeletes, InteractsWithMedia;
+    use InteractsWithMedia, SoftDeletes;
 
     protected $table = 'properties';
 
     protected $fillable = [
-        'title', 'slug', 'body', 'body_css', 'image', 'code', 'render_mode', 'status', 'created_at'
+        'title', 'slug', 'body', 'body_css', 'description', 'image', 'property_type', 'code', 'status', 'price', 'city', 'bedrooms', 'bathrooms', 'area', 'active', 'featured', 'render_mode', 'status', 'created_at',
     ];
 
     protected $casts = [
         'image' => 'array',
+        'price' => 'integer',
+        'bedrooms' => 'integer',
+        'bathrooms' => 'integer',
+        'area' => 'integer',
+        'active' => 'boolean',
+        'featured' => 'boolean',
     ];
+
     /**
      * Get URLs for image
      */
     public function getImageUrls(): array
     {
-        if (!is_array($this->image)) {
+        if (! is_array($this->image)) {
             return [];
         }
 
@@ -33,7 +40,8 @@ class Property extends Model implements HasMedia
             if (filter_var($image, FILTER_VALIDATE_URL)) {
                 return $image;
             }
-            return asset('storage/' . $image);
+
+            return asset('storage/'.$image);
         }, $this->image);
     }
 
@@ -43,7 +51,8 @@ class Property extends Model implements HasMedia
     public function getFirstImageUrl(): ?string
     {
         $urls = $this->getImageUrls();
-        return !empty($urls) ? $urls[0] : null;
+
+        return ! empty($urls) ? $urls[0] : null;
     }
 
     /**
@@ -61,16 +70,55 @@ class Property extends Model implements HasMedia
     {
         return is_array($this->image) ? count($this->image) : 0;
     }
+
+    /**
+     * Check if Active is true
+     */
+    public function isActive(): bool
+    {
+        return (bool) $this->active;
+    }
+
+    /**
+     * Toggle Active
+     */
+    public function toggleActive(): bool
+    {
+        $this->active = ! $this->active;
+        $this->save();
+
+        return $this->active;
+    }
+
+    /**
+     * Check if Featured is true
+     */
+    public function isFeatured(): bool
+    {
+        return (bool) $this->featured;
+    }
+
+    /**
+     * Toggle Featured
+     */
+    public function toggleFeatured(): bool
+    {
+        $this->featured = ! $this->featured;
+        $this->save();
+
+        return $this->featured;
+    }
+
     /**
      * Scope a query to only include active (published) entries
      */
     public function scopeActive($query)
     {
         return $query->whereNotNull('published_at')
-                     ->where('published_at', '<=', now())
-                     ->where(function ($q) {
-                         $q->where('status', 'published')
-                           ->orWhereNull('status');
-                     });
+            ->where('published_at', '<=', now())
+            ->where(function ($q) {
+                $q->where('status', 'published')
+                    ->orWhereNull('status');
+            });
     }
 }

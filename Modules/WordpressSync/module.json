@@ -1,0 +1,11 @@
+{
+    "name": "WordpressSync",
+    "alias": "wordpresssync",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\WordpressSync\\Providers\\WordpressSyncServiceProvider"
+    ],
+    "files": []
+}

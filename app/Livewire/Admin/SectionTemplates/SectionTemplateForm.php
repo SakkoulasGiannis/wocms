@@ -3,27 +3,35 @@
 namespace App\Livewire\Admin\SectionTemplates;
 
 use App\Models\SectionTemplate;
-use App\Models\SectionTemplateField;
-use Livewire\Component;
 use Illuminate\Support\Str;
+use Livewire\Component;
 
 class SectionTemplateForm extends Component
 {
     public $templateId;
+
     public $template;
 
     // Template fields
     public $name = '';
+
     public $slug = '';
+
     public $category = 'custom';
+
     public $description = '';
+
     public $html_template = '';
+
     public $is_active = true;
+
     public $order = 0;
 
     // Fields
     public $fields = [];
+
     public $showAddFieldModal = false;
+
     public $editingFieldIndex = null;
 
     // Field form
@@ -35,9 +43,11 @@ class SectionTemplateForm extends Component
         'is_required' => false,
         'options' => '',
         'order' => 0,
+        'sub_fields' => [],
     ];
 
     public $categories;
+
     public $fieldTypes;
 
     public function mount($templateId = null)
@@ -54,6 +64,8 @@ class SectionTemplateForm extends Component
             'number' => 'Number',
             'checkbox' => 'Checkbox',
             'select' => 'Select Dropdown',
+            'color' => 'Color Picker',
+            'repeater' => 'Repeater (Multiple Items)',
         ];
 
         if ($templateId) {
@@ -74,7 +86,12 @@ class SectionTemplateForm extends Component
         $this->order = $this->template->order;
 
         // Load fields
-        $this->fields = $this->template->fields->map(function($field) {
+        $this->fields = $this->template->fields->map(function ($field) {
+            $settings = $field->settings;
+            if (is_string($settings)) {
+                $settings = json_decode($settings, true);
+            }
+
             return [
                 'id' => $field->id,
                 'name' => $field->name,
@@ -84,13 +101,15 @@ class SectionTemplateForm extends Component
                 'is_required' => $field->is_required,
                 'options' => $field->options ?? '',
                 'order' => $field->order,
+                'settings' => $field->settings,
+                'sub_fields' => $settings['sub_fields'] ?? [],
             ];
         })->toArray();
     }
 
     public function updatedName()
     {
-        if (!$this->templateId) {
+        if (! $this->templateId) {
             // Auto-generate slug for new templates
             $this->slug = Str::slug($this->name);
         }
@@ -100,7 +119,7 @@ class SectionTemplateForm extends Component
     {
         $this->validate([
             'name' => 'required|string|max:255',
-            'slug' => 'required|string|max:255|unique:section_templates,slug,' . ($this->templateId ?? 'NULL'),
+            'slug' => 'required|string|max:255|unique:section_templates,slug,'.($this->templateId ?? 'NULL'),
             'category' => 'required|string',
             'html_template' => 'required|string',
         ]);
@@ -132,7 +151,7 @@ class SectionTemplateForm extends Component
 
         session()->flash('success', 'Section template saved successfully.');
 
-        if (!$this->templateId) {
+        if (! $this->templateId) {
             return redirect()->route('admin.section-templates.edit', $template->id);
         }
     }
@@ -151,8 +170,11 @@ class SectionTemplateForm extends Component
                 'type' => $fieldData['type'],
                 'default_value' => $fieldData['default_value'] ?: null,
                 'is_required' => $fieldData['is_required'],
-                'options' => $fieldData['options'] ?: null, // Convert empty string to null
+                'options' => $fieldData['options'] ?: null,
                 'order' => $order,
+                'settings' => ! empty($fieldData['sub_fields'])
+                    ? json_encode(['sub_fields' => array_values(array_filter($fieldData['sub_fields'], fn ($sf) => ! empty($sf['name'])))])
+                    : null,
             ];
 
             if (isset($fieldData['id']) && $fieldData['id']) {
@@ -176,6 +198,20 @@ class SectionTemplateForm extends Component
     {
         $this->editingFieldIndex = $index;
         $this->fieldForm = $this->fields[$index];
+
+        // Load sub_fields from settings if it's a repeater
+        if (($this->fieldForm['type'] ?? '') === 'repeater' && empty($this->fieldForm['sub_fields'])) {
+            $settings = $this->fieldForm['settings'] ?? null;
+            if (is_string($settings)) {
+                $settings = json_decode($settings, true);
+            }
+            $this->fieldForm['sub_fields'] = $settings['sub_fields'] ?? [];
+        }
+
+        if (! isset($this->fieldForm['sub_fields'])) {
+            $this->fieldForm['sub_fields'] = [];
+        }
+
         $this->showAddFieldModal = true;
     }
 
@@ -201,6 +237,21 @@ class SectionTemplateForm extends Component
         }
 
         $this->closeAddFieldModal();
+    }
+
+    public function addSubField(): void
+    {
+        $this->fieldForm['sub_fields'][] = [
+            'name' => '',
+            'label' => '',
+            'type' => 'text',
+        ];
+    }
+
+    public function removeSubField(int $index): void
+    {
+        unset($this->fieldForm['sub_fields'][$index]);
+        $this->fieldForm['sub_fields'] = array_values($this->fieldForm['sub_fields']);
     }
 
     public function deleteField($index)

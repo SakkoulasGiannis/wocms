@@ -1,0 +1,11 @@
+{
+    "name": "ImageMaps",
+    "alias": "imagemaps",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\ImageMaps\\Providers\\ImageMapsServiceProvider"
+    ],
+    "files": []
+}

@@ -6,6 +6,12 @@
             <p class="mt-1 text-sm text-gray-600">Manage reusable section templates for your pages</p>
         </div>
         <div class="flex gap-3">
+            <button wire:click="exportAll" class="px-3 py-2 bg-green-50 hover:bg-green-100 text-green-700 font-medium rounded-lg border border-green-200 text-sm transition">
+                <i class="fa fa-download mr-1"></i> Export All
+            </button>
+            <button wire:click="openImportModal" class="px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 font-medium rounded-lg border border-amber-200 text-sm transition">
+                <i class="fa fa-upload mr-1"></i> Import
+            </button>
             <button wire:click="openCreateModal" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg shadow-sm transition">
                 <i class="fa fa-plus mr-2"></i>
                 Quick Create
@@ -330,6 +336,36 @@
                 </div>
             </div>
             @endif
+        </div>
+    </div>
+    @endif
+
+    {{-- Import Modal --}}
+    @if($showImportModal)
+    <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" wire:click.self="$set('showImportModal', false)">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div class="p-6 border-b border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-900"><i class="fa fa-upload mr-2 text-amber-500"></i>Import Section Templates</h2>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">JSON Export File</label>
+                    <input type="file" wire:model="importFile" accept=".json,.txt" class="w-full border border-gray-300 rounded-lg p-2 text-sm">
+                    @error('importFile') <span class="text-red-600 text-sm">{{ $message }}</span> @enderror
+                    <div wire:loading wire:target="importFile" class="text-xs text-blue-600 mt-1"><i class="fa fa-spinner fa-spin"></i> Uploading...</div>
+                </div>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" wire:model="importOverwrite" class="rounded border-gray-300 text-blue-600">
+                    <span class="text-sm text-gray-700">Overwrite existing templates with same slug</span>
+                </label>
+                <p class="text-xs text-gray-500">Templates with the same slug will be skipped unless overwrite is enabled.</p>
+            </div>
+            <div class="p-6 border-t border-gray-200 flex justify-end gap-3">
+                <button wire:click="$set('showImportModal', false)" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm">Cancel</button>
+                <button wire:click="importTemplates" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm" @if(!$importFile) disabled @endif>
+                    <i class="fa fa-upload mr-1"></i> Import
+                </button>
+            </div>
         </div>
     </div>
     @endif

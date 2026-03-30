@@ -31,6 +31,31 @@
                     </svg>
                     Save
                 </button>
+
+                <div class="border-l border-gray-300 pl-3 flex items-center gap-2">
+                    <button wire:click="openCreateModal('file')"
+                            class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                        <svg class="inline-block w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        New File
+                    </button>
+                    <button wire:click="openCreateModal('folder')"
+                            class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                        <svg class="inline-block w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+                        </svg>
+                        New Folder
+                    </button>
+                    <button wire:click="deleteCurrentFile"
+                            wire:confirm="Are you sure you want to delete this file? This cannot be undone."
+                            class="px-3 py-2 text-sm font-medium text-red-700 bg-white border border-red-300 rounded-md hover:bg-red-50">
+                        <svg class="inline-block w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                        Delete
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -137,6 +162,68 @@
         </div>
     </div>
 </div>
+
+    {{-- Create File/Folder Modal --}}
+    @if($showCreateModal)
+    <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" wire:click.self="closeCreateModal">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div class="p-6 border-b border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-900">
+                    {{ $createType === 'folder' ? 'Create New Folder' : 'Create New File' }}
+                </h2>
+            </div>
+
+            <form wire:submit.prevent="createFileOrFolder">
+                <div class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            {{ $createType === 'folder' ? 'Folder Name' : 'File Name' }}
+                        </label>
+                        <input type="text" wire:model="createName"
+                               class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
+                               placeholder="{{ $createType === 'folder' ? 'my-folder' : 'my-template.blade.php' }}"
+                               autofocus>
+                        @if($createType === 'file')
+                            <p class="mt-1 text-xs text-gray-500">.blade.php extension will be added automatically if none provided</p>
+                        @endif
+                        @error('createName') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Directory</label>
+                        <select wire:model="createDirectory"
+                                class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2">
+                            @foreach($availableDirectories as $path => $label)
+                                <option value="{{ $path }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        @error('createDirectory') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    </div>
+
+                    @if($createType === 'file')
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Initial Content (optional)</label>
+                        <textarea wire:model="createContent" rows="4"
+                                  class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 font-mono text-sm"
+                                  placeholder="<!-- Your template content here -->"></textarea>
+                    </div>
+                    @endif
+                </div>
+
+                <div class="p-6 border-t border-gray-200 flex justify-end gap-3">
+                    <button type="button" wire:click="closeCreateModal"
+                            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700">
+                        {{ $createType === 'folder' ? 'Create Folder' : 'Create File' }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    @endif
 
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>

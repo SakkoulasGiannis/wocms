@@ -409,7 +409,8 @@
                             Update & Return
                         </button>
                     @else
-                        <button type="submit"
+                        <button type="button"
+                                onclick="saveEntry(false)"
                                 class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -465,11 +466,20 @@
                 {{-- Main Content Area (2/3 width on large screens) --}}
                 <div class="lg:col-span-2 space-y-6">
 
-                        {{-- Show Template Fields ONLY if NOT in sections mode --}}
-                        @if($template->render_mode !== 'sections' && $template->fields->where('column_position', 'main')->count() > 0)
+                        {{-- Template Fields --}}
+                        @php
+                            $mainFields = $template->fields->where('column_position', 'main');
+                            // In sections mode, only show basic fields (text, email, url, image, select, checkbox, date, number)
+                            // Hide heavy content fields (grapejs, wysiwyg, markdown) since content comes from sections
+                            if ($template->render_mode === 'sections' || ($entry?->render_mode ?? null) === 'sections') {
+                                $hiddenInSections = ['grapejs', 'wysiwyg', 'markdown', 'code'];
+                                $mainFields = $mainFields->whereNotIn('type', $hiddenInSections);
+                            }
+                        @endphp
+                        @if($mainFields->count() > 0)
                             <div class="bg-white rounded-lg shadow p-6">
                                 <div class="space-y-6">
-                                    @foreach($template->fields->where('column_position', 'main') as $field)
+                                    @foreach($mainFields as $field)
                                         @include('livewire.admin.template-entries.partials.dynamic-field', [
                                             'field' => $field,
                                             'entryId' => $entryId,
@@ -481,7 +491,7 @@
                         @endif
 
                         {{-- Sections Mode - Show Sections UI --}}
-                        @if($template->render_mode === 'sections')
+                        @if($template->render_mode === 'sections' || ($entry?->render_mode ?? null) === 'sections')
                             <!-- Warning: Generated Blade File Exists -->
                             @if($entryId && $this->hasGeneratedBladeFile())
                                 <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
@@ -647,32 +657,122 @@
                                                                     @break
 
                                                                 @case('image')
-                                                                    <input type="text"
-                                                                           wire:model="sectionForm.field_data.{{ $field->name }}"
-                                                                           class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
-                                                                           placeholder="Enter image URL">
-                                                                    <p class="mt-1 text-xs text-gray-500">Enter full
-                                                                        image URL or path</p>
+                                                                    <div class="space-y-2">
+                                                                        @if(!empty($sectionForm['field_data'][$field->name]))
+                                                                            <div class="relative inline-block">
+                                                                                <img src="{{ $sectionForm['field_data'][$field->name] }}" alt="Preview" class="h-24 rounded-lg border border-gray-200 object-cover">
+                                                                                <button type="button" wire:click="$set('sectionForm.field_data.{{ $field->name }}', '')" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600">&times;</button>
+                                                                            </div>
+                                                                        @endif
+                                                                        <div class="flex items-center gap-2">
+                                                                            <label class="cursor-pointer inline-flex items-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg border border-blue-200 text-sm transition">
+                                                                                <i class="fa fa-upload"></i> Upload Image
+                                                                                <input type="file" wire:model="sectionImageUploads.{{ $field->name }}" accept="image/*" class="hidden">
+                                                                            </label>
+                                                                            <span class="text-gray-400 text-xs">or</span>
+                                                                            <input type="text"
+                                                                                   wire:model="sectionForm.field_data.{{ $field->name }}"
+                                                                                   class="flex-1 rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 text-sm"
+                                                                                   placeholder="Enter image URL">
+                                                                        </div>
+                                                                        <div wire:loading wire:target="sectionImageUploads.{{ $field->name }}" class="text-xs text-blue-600">
+                                                                            <i class="fa fa-spinner fa-spin"></i> Uploading...
+                                                                        </div>
+                                                                    </div>
                                                                     @break
 
                                                                 @case('wysiwyg')
-                                                                    <textarea
-                                                                        wire:model="sectionForm.field_data.{{ $field->name }}"
-                                                                        rows="6"
-                                                                        class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 font-mono text-xs"
-                                                                        placeholder="Enter HTML content"></textarea>
+                                                                    <div x-data="{
+                                                                        value: $wire.entangle('sectionForm.field_data.{{ $field->name }}'),
+                                                                        init() {
+                                                                            const editor = this.$refs.trixEditor;
+                                                                            if (editor && this.value) {
+                                                                                editor.editor?.loadHTML(this.value || '');
+                                                                            }
+                                                                            this.$watch('value', (val) => {
+                                                                                if (editor && editor.editor && editor.editor.getDocument().toString().trim() === '' && val) {
+                                                                                    editor.editor.loadHTML(val);
+                                                                                }
+                                                                            });
+                                                                        }
+                                                                    }" x-init="init()">
+                                                                        <input type="hidden" id="section-wysiwyg-{{ $field->name }}" x-model="value">
+                                                                        <trix-editor
+                                                                            x-ref="trixEditor"
+                                                                            input="section-wysiwyg-{{ $field->name }}"
+                                                                            class="trix-content rounded-lg border-gray-300"
+                                                                            style="min-height:150px;"
+                                                                            x-on:trix-change="value = $event.target.value"
+                                                                        ></trix-editor>
+                                                                    </div>
                                                                     @break
 
                                                                 @case('repeater')
-                                                                    <div
-                                                                        class="text-sm text-gray-600 p-3 bg-yellow-50 rounded border border-yellow-200">
-                                                                        ⚠️ Repeater field - Use JSON format for now.
-                                                                        <textarea
-                                                                            wire:model="sectionForm.field_data.{{ $field->name }}"
-                                                                            rows="4"
-                                                                            class="w-full rounded-lg border-gray-300 shadow-sm mt-2 p-2 font-mono text-xs"
-                                                                            placeholder='[{"key": "value"}]'></textarea>
+                                                                    @php
+                                                                        $rfSettings = $field->settings;
+                                                                        if (is_string($rfSettings)) $rfSettings = json_decode($rfSettings, true);
+                                                                        $rfSubFields = $rfSettings['sub_fields'] ?? [];
+                                                                        $rfItems = $sectionForm['field_data'][$field->name] ?? [];
+                                                                        if (!is_array($rfItems)) $rfItems = [];
+                                                                    @endphp
+
+                                                                    <div class="space-y-3">
+                                                                        @foreach($rfItems as $rfIdx => $rfItem)
+                                                                            <div class="border border-gray-300 rounded-lg p-3 bg-white relative">
+                                                                                <button type="button"
+                                                                                        wire:click="removeRepeaterItem('{{ $field->name }}', {{ $rfIdx }})"
+                                                                                        class="absolute top-2 right-2 text-red-400 hover:text-red-600 text-xs font-bold"
+                                                                                        title="Remove">✕</button>
+                                                                                <div class="text-xs text-gray-400 mb-2 font-semibold">#{{ $rfIdx + 1 }}</div>
+                                                                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                                                    @foreach($rfSubFields as $sf)
+                                                                                        <div>
+                                                                                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ $sf['label'] ?? $sf['name'] }}</label>
+                                                                                            @if(($sf['type'] ?? 'text') === 'textarea')
+                                                                                                <textarea wire:model="sectionForm.field_data.{{ $field->name }}.{{ $rfIdx }}.{{ $sf['name'] }}"
+                                                                                                          class="w-full border border-gray-300 rounded px-2 py-1 text-sm" rows="2"></textarea>
+                                                                                            @elseif(($sf['type'] ?? 'text') === 'image')
+                                                                                                <div class="space-y-1">
+                                                                                                    @if(!empty($sectionForm['field_data'][$field->name][$rfIdx][$sf['name']]))
+                                                                                                        <div class="relative inline-block">
+                                                                                                            <img src="{{ $sectionForm['field_data'][$field->name][$rfIdx][$sf['name']] }}" alt="" class="h-16 rounded border object-cover">
+                                                                                                            <button type="button" wire:click="$set('sectionForm.field_data.{{ $field->name }}.{{ $rfIdx }}.{{ $sf['name'] }}', '')" class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs">&times;</button>
+                                                                                                        </div>
+                                                                                                    @endif
+                                                                                                    <div class="flex items-center gap-1">
+                                                                                                        <label class="cursor-pointer inline-flex items-center gap-1 px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded border border-blue-200 text-xs transition">
+                                                                                                            <i class="fa fa-upload"></i> Upload
+                                                                                                            <input type="file" wire:model="sectionImageUploads.{{ $field->name }}.{{ $rfIdx }}.{{ $sf['name'] }}" accept="image/*" class="hidden">
+                                                                                                        </label>
+                                                                                                        <input type="text"
+                                                                                                               wire:model="sectionForm.field_data.{{ $field->name }}.{{ $rfIdx }}.{{ $sf['name'] }}"
+                                                                                                               class="flex-1 border border-gray-300 rounded px-2 py-1 text-xs"
+                                                                                                               placeholder="Image URL">
+                                                                                                    </div>
+                                                                                                    <div wire:loading wire:target="sectionImageUploads.{{ $field->name }}.{{ $rfIdx }}.{{ $sf['name'] }}" class="text-xs text-blue-600"><i class="fa fa-spinner fa-spin"></i></div>
+                                                                                                </div>
+                                                                                            @else
+                                                                                                <input type="{{ $sf['type'] ?? 'text' }}"
+                                                                                                       wire:model="sectionForm.field_data.{{ $field->name }}.{{ $rfIdx }}.{{ $sf['name'] }}"
+                                                                                                       class="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                                                                                                       placeholder="{{ $sf['label'] ?? $sf['name'] }}">
+                                                                                            @endif
+                                                                                        </div>
+                                                                                    @endforeach
+                                                                                </div>
+                                                                            </div>
+                                                                        @endforeach
+
+                                                                        <button type="button"
+                                                                                wire:click="addRepeaterItem('{{ $field->name }}')"
+                                                                                class="text-sm text-blue-600 hover:text-blue-800 font-medium inline-flex items-center gap-1">
+                                                                            + Add Item
+                                                                        </button>
                                                                     </div>
+
+                                                                    @if(empty($rfSubFields))
+                                                                        <p class="text-xs text-amber-600 mt-2">No sub-fields defined. Edit this field in the Section Template to add sub-fields.</p>
+                                                                    @endif
                                                                     @break
 
                                                                 @default
@@ -682,6 +782,26 @@
                                                             @endswitch
                                                         </div>
                                                     @endforeach
+
+                                                    {{-- Dynamic Slider Picker for hero-slider-home5 --}}
+                                                    @if($selectedTemplate && in_array($selectedTemplate->slug, ['hero-slider-home5', 'hero-slider']))
+                                                        @php
+                                                            $availableSliders = \Modules\Slider\Models\Slider::where('is_active', true)->withCount('slides')->orderBy('name')->get();
+                                                        @endphp
+                                                        <div>
+                                                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                                                <i class="fa fa-images mr-1 text-blue-500"></i> Select Slider
+                                                            </label>
+                                                            <p class="text-xs text-gray-500 mb-2">Choose a slider from the Sliders module. Its slides will be used as the background images/videos.</p>
+                                                            <select wire:model="sectionForm.field_data.slider_id"
+                                                                    class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2">
+                                                                <option value="">-- Use default images --</option>
+                                                                @foreach($availableSliders as $sl)
+                                                                    <option value="{{ $sl->id }}">{{ $sl->name }} ({{ $sl->slides_count }} slides)</option>
+                                                                @endforeach
+                                                            </select>
+                                                        </div>
+                                                    @endif
 
                                                     <!-- Section Name Override -->
                                                     <div>

@@ -12,9 +12,21 @@
     @endif
 
     <script src="https://cdn.tailwindcss.com"></script>
+    <style type="text/tailwindcss">
+        @layer base {
+            input[type="text"], input[type="email"], input[type="url"], input[type="password"],
+            input[type="number"], input[type="date"], input[type="datetime-local"], input[type="time"],
+            input[type="search"], input[type="tel"], input[type="color"],
+            select, textarea {
+                @apply px-3 py-2.5 border border-gray-300 text-sm;
+            }
+        }
+    </style>
 
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    @stack('head-scripts')
 
     <!-- Alpine.js - Load only once -->
     <script>
@@ -93,22 +105,20 @@
 
                 @if(count($moduleMenus) > 0)
                     @foreach($moduleMenus as $index => $moduleMenu)
-                        <div class="pt-6 border-t border-gray-200" x-data="{ open: true }">
+                        <div class="pt-6 border-t border-gray-200" x-data="{ open: localStorage.getItem('menu_module_{{ $index }}') === 'open' }" x-init="$watch('open', val => localStorage.setItem('menu_module_{{ $index }}', val ? 'open' : 'closed'))">
                             <button @click="open = !open" class="w-full flex items-center justify-between text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4 hover:text-gray-600 transition">
                                 <span>{{ $moduleMenu['section'] }}</span>
-                                <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': !open }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg class="w-4 h-4 transition-transform duration-200" :class="{ 'rotate-180': !open }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                                 </svg>
                             </button>
-                            <nav class="space-y-1" x-show="open" x-collapse>
+                            <nav class="space-y-1" x-show="open" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 -translate-y-1" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 -translate-y-1">
                                 @foreach($moduleMenu['items'] as $item)
                                     <a href="{{ route($item['route']) }}"
                                        class="flex items-center px-3 py-2 text-sm font-medium rounded-lg transition
                                               {{ request()->routeIs($item['route'] . '*') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50' }}">
                                         @if(isset($item['icon']))
-                                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                                            </svg>
+                                            <i class="fa fa-{{ $item['icon'] }} w-5 h-5 mr-3 text-center leading-5"></i>
                                         @endif
                                         {{ $item['label'] }}
                                     </a>
@@ -146,6 +156,15 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                             </svg>
                             Forms
+                        </a>
+
+                        <a href="{{ route('admin.menus.index') }}"
+                           class="flex items-center px-3 py-2 text-sm font-medium rounded-lg transition
+                                  {{ request()->routeIs('admin.menus.*') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50' }}">
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                            </svg>
+                            Menus
                         </a>
 
                         <a href="{{ route('admin.media') }}"

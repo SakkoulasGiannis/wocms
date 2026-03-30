@@ -10,7 +10,6 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 
 class Page extends Model implements HasMedia
 {
-    // IMPORTANT: DO NOT REMOVE HasSections trait - needed for page sections functionality
     use HasSections, InteractsWithMedia, SoftDeletes;
 
     protected $table = 'pages';

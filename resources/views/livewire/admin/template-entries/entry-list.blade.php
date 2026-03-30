@@ -164,7 +164,9 @@
                                         }
                                         // For simple templates without ContentNode, construct URL from identifier
                                         elseif($urlValue) {
-                                            $viewUrl = '/' . $template->slug . '/' . $urlValue;
+                                            $viewUrl = $template->use_slug_prefix
+                                                ? '/' . $template->slug . '/' . $urlValue
+                                                : '/' . $urlValue;
                                         }
                                     }
                                 @endphp

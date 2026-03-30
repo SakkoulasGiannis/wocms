@@ -2,8 +2,8 @@
 
 namespace App\Livewire\Admin\Settings;
 
-use App\Models\Setting;
 use App\Models\ImageSize;
+use App\Models\Setting;
 use App\Services\ThemeManager;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -16,34 +16,80 @@ class SettingsPage extends Component
 
     // General Settings
     public $site_name = '';
+
     public $site_logo = '';
+
     public $site_logo_upload = null; // For file upload
+
     public $site_favicon = '';
+
     public $site_favicon_upload = null; // For favicon upload
+
     public $site_description = '';
+
     public $under_construction = false;
+
     public $active_theme = 'tailwind';
+
     public $availableThemes = [];
 
     // AI Settings
     public $ai_provider = 'claude'; // claude, chatgpt, ollama
+
     public $ai_claude_api_key = '';
+
     public $ai_chatgpt_api_key = '';
+
     public $ai_ollama_url = '';
+
     public $ai_model = '';
 
     // AI Prompts
     public $prompt_structured_html = '';
+
     public $prompt_content_generation = '';
+
     public $prompt_template_generation = '';
+
+    // Integrations Settings
+    public $google_analytics_id = '';
+
+    public $google_tag_manager_id = '';
+
+    public $facebook_pixel_id = '';
+
+    public $custom_head_scripts = '';
+
+    public $custom_body_scripts = '';
+
+    public $google_maps_api_key = '';
+
+    public $recaptcha_site_key = '';
+
+    public $recaptcha_secret_key = '';
+
+    public $social_facebook = '';
+
+    public $social_instagram = '';
+
+    public $social_twitter = '';
+
+    public $social_linkedin = '';
+
+    public $social_youtube = '';
+
+    public $social_tiktok = '';
 
     // GrapeJS Settings
     public $grapejs_include_css_in_blade = true;
 
     // Image Sizes
     public $imageSizes = [];
+
     public $editingImageSize = null;
+
     public $showImageSizeForm = false;
+
     public $imageSizeForm = [
         'label' => '',
         'width' => '',
@@ -85,11 +131,27 @@ class SettingsPage extends Component
 
         // GrapeJS Settings
         $this->grapejs_include_css_in_blade = Setting::get('grapejs_include_css_in_blade', true);
+
+        // Integrations settings
+        $this->google_analytics_id = Setting::get('google_analytics_id', '');
+        $this->google_tag_manager_id = Setting::get('google_tag_manager_id', '');
+        $this->facebook_pixel_id = Setting::get('facebook_pixel_id', '');
+        $this->custom_head_scripts = Setting::get('custom_head_scripts', '');
+        $this->custom_body_scripts = Setting::get('custom_body_scripts', '');
+        $this->google_maps_api_key = Setting::get('google_maps_api_key', '');
+        $this->recaptcha_site_key = Setting::get('recaptcha_site_key', '');
+        $this->recaptcha_secret_key = Setting::get('recaptcha_secret_key', '');
+        $this->social_facebook = Setting::get('social_facebook', '');
+        $this->social_instagram = Setting::get('social_instagram', '');
+        $this->social_twitter = Setting::get('social_twitter', '');
+        $this->social_linkedin = Setting::get('social_linkedin', '');
+        $this->social_youtube = Setting::get('social_youtube', '');
+        $this->social_tiktok = Setting::get('social_tiktok', '');
     }
 
     protected function getDefaultModel(): string
     {
-        return match($this->ai_provider) {
+        return match ($this->ai_provider) {
             'claude' => 'claude-3-5-sonnet-20241022',
             'chatgpt' => 'gpt-4-turbo-preview',
             'ollama' => 'llama2',
@@ -118,7 +180,7 @@ class SettingsPage extends Component
         if ($this->site_logo_upload) {
             // Store in public/storage/settings
             $path = $this->site_logo_upload->store('settings', 'public');
-            $this->site_logo = '/storage/' . $path;
+            $this->site_logo = '/storage/'.$path;
             Setting::set('site_logo', $this->site_logo, 'general');
             $this->site_logo_upload = null; // Reset upload field
         } elseif ($this->site_logo) {
@@ -130,7 +192,7 @@ class SettingsPage extends Component
         if ($this->site_favicon_upload) {
             // Store in public/storage/settings
             $path = $this->site_favicon_upload->store('settings', 'public');
-            $this->site_favicon = '/storage/' . $path;
+            $this->site_favicon = '/storage/'.$path;
             Setting::set('site_favicon', $this->site_favicon, 'general');
             $this->site_favicon_upload = null; // Reset upload field
         } elseif ($this->site_favicon) {
@@ -185,12 +247,12 @@ class SettingsPage extends Component
 
     public function resetPrompt($promptName)
     {
-        $configKey = 'ai-prompts.' . $promptName;
+        $configKey = 'ai-prompts.'.$promptName;
         $default = config($configKey);
 
         if ($default) {
             $this->{"prompt_{$promptName}"} = $default;
-            session()->flash('success', ucfirst(str_replace('_', ' ', $promptName)) . ' reset to default!');
+            session()->flash('success', ucfirst(str_replace('_', ' ', $promptName)).' reset to default!');
         }
     }
 
@@ -282,7 +344,7 @@ class SettingsPage extends Component
     {
         $imageSize = ImageSize::find($id);
         if ($imageSize) {
-            $imageSize->is_active = !$imageSize->is_active;
+            $imageSize->is_active = ! $imageSize->is_active;
             $imageSize->save();
             $this->loadImageSizes();
         }
@@ -308,9 +370,9 @@ class SettingsPage extends Component
 
             $output = \Artisan::output();
 
-            session()->flash('success', 'Image regeneration started! Check the output: ' . $output);
+            session()->flash('success', 'Image regeneration started! Check the output: '.$output);
         } catch (\Exception $e) {
-            session()->flash('error', 'Failed to regenerate images: ' . $e->getMessage());
+            session()->flash('error', 'Failed to regenerate images: '.$e->getMessage());
         }
     }
 
@@ -321,7 +383,7 @@ class SettingsPage extends Component
 
             // Run npm build in background
             $process = proc_open(
-                'cd ' . base_path() . ' && npm run build 2>&1',
+                'cd '.base_path().' && npm run build 2>&1',
                 [
                     0 => ['pipe', 'r'], // stdin
                     1 => ['pipe', 'w'], // stdout
@@ -346,15 +408,52 @@ class SettingsPage extends Component
                     session()->flash('success', 'Assets built successfully! The frontend has been updated.');
                 } else {
                     \Log::error('❌ npm build failed', ['error' => $error, 'output' => $output]);
-                    session()->flash('error', 'Build failed: ' . ($error ?: $output));
+                    session()->flash('error', 'Build failed: '.($error ?: $output));
                 }
             } else {
                 throw new \Exception('Failed to start build process');
             }
         } catch (\Exception $e) {
-            \Log::error('❌ Build error: ' . $e->getMessage());
-            session()->flash('error', 'Failed to build assets: ' . $e->getMessage());
+            \Log::error('❌ Build error: '.$e->getMessage());
+            session()->flash('error', 'Failed to build assets: '.$e->getMessage());
         }
+    }
+
+    public function saveIntegrations(): void
+    {
+        $this->validate([
+            'google_analytics_id' => 'nullable|string|max:50',
+            'google_tag_manager_id' => 'nullable|string|max:50',
+            'facebook_pixel_id' => 'nullable|string|max:50',
+            'custom_head_scripts' => 'nullable|string',
+            'custom_body_scripts' => 'nullable|string',
+            'google_maps_api_key' => 'nullable|string|max:255',
+            'recaptcha_site_key' => 'nullable|string|max:255',
+            'recaptcha_secret_key' => 'nullable|string|max:255',
+            'social_facebook' => 'nullable|url|max:255',
+            'social_instagram' => 'nullable|url|max:255',
+            'social_twitter' => 'nullable|url|max:255',
+            'social_linkedin' => 'nullable|url|max:255',
+            'social_youtube' => 'nullable|url|max:255',
+            'social_tiktok' => 'nullable|url|max:255',
+        ]);
+
+        Setting::set('google_analytics_id', $this->google_analytics_id, 'integrations');
+        Setting::set('google_tag_manager_id', $this->google_tag_manager_id, 'integrations');
+        Setting::set('facebook_pixel_id', $this->facebook_pixel_id, 'integrations');
+        Setting::set('custom_head_scripts', $this->custom_head_scripts, 'integrations');
+        Setting::set('custom_body_scripts', $this->custom_body_scripts, 'integrations');
+        Setting::set('google_maps_api_key', $this->google_maps_api_key, 'integrations', encrypt: true);
+        Setting::set('recaptcha_site_key', $this->recaptcha_site_key, 'integrations');
+        Setting::set('recaptcha_secret_key', $this->recaptcha_secret_key, 'integrations', encrypt: true);
+        Setting::set('social_facebook', $this->social_facebook, 'integrations');
+        Setting::set('social_instagram', $this->social_instagram, 'integrations');
+        Setting::set('social_twitter', $this->social_twitter, 'integrations');
+        Setting::set('social_linkedin', $this->social_linkedin, 'integrations');
+        Setting::set('social_youtube', $this->social_youtube, 'integrations');
+        Setting::set('social_tiktok', $this->social_tiktok, 'integrations');
+
+        session()->flash('success', 'Integration settings saved successfully!');
     }
 
     public function render()

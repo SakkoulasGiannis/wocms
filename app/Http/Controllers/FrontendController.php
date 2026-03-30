@@ -33,6 +33,167 @@ class FrontendController extends Controller
     }
 
     /**
+     * Contact page
+     */
+    public function contact()
+    {
+        return view('frontend.contact');
+    }
+
+    /**
+     * Properties listing page with filters and map
+     */
+    public function properties(Request $request)
+    {
+        $query = \Modules\Properties\Models\Property::query()->active();
+
+        // Filters
+        if ($request->filled('type')) {
+            $query->where('property_type', $request->type);
+        }
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+        if ($request->filled('city')) {
+            $query->where('city', 'like', '%'.$request->city.'%');
+        }
+        if ($request->filled('min_price')) {
+            $query->where('price', '>=', $request->min_price);
+        }
+        if ($request->filled('max_price')) {
+            $query->where('price', '<=', $request->max_price);
+        }
+        if ($request->filled('bedrooms')) {
+            $query->where('bedrooms', '>=', $request->bedrooms);
+        }
+        if ($request->filled('bathrooms')) {
+            $query->where('bathrooms', '>=', $request->bathrooms);
+        }
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                    ->orWhere('address', 'like', "%{$search}%")
+                    ->orWhere('city', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        $sort = $request->get('sort', 'newest');
+        $query = match ($sort) {
+            'oldest' => $query->oldest(),
+            'price_asc' => $query->orderBy('price', 'asc'),
+            'price_desc' => $query->orderBy('price', 'desc'),
+            default => $query->latest(),
+        };
+
+        $properties = $query->paginate(12)->withQueryString();
+        $propertyTypes = \Modules\Properties\Models\Property::getPropertyTypes();
+        $statuses = \Modules\Properties\Models\Property::getStatuses();
+
+        return view('frontend.properties.index', [
+            'properties' => $properties,
+            'propertyTypes' => $propertyTypes,
+            'statuses' => $statuses,
+            'title' => 'Properties',
+            'filters' => $request->only(['type', 'status', 'city', 'min_price', 'max_price', 'bedrooms', 'bathrooms', 'search', 'sort']),
+        ]);
+    }
+
+    /**
+     * Rental properties listing page
+     */
+    public function rentalProperties(Request $request)
+    {
+        $query = \Modules\RentalProperties\Models\RentalProperty::query()->active();
+
+        if ($request->filled('type')) {
+            $query->where('property_type', $request->type);
+        }
+        if ($request->filled('city')) {
+            $query->where('city', 'like', '%'.$request->city.'%');
+        }
+        if ($request->filled('min_price')) {
+            $query->where('price', '>=', $request->min_price);
+        }
+        if ($request->filled('max_price')) {
+            $query->where('price', '<=', $request->max_price);
+        }
+        if ($request->filled('bedrooms')) {
+            $query->where('bedrooms', '>=', $request->bedrooms);
+        }
+        if ($request->filled('bathrooms')) {
+            $query->where('bathrooms', '>=', $request->bathrooms);
+        }
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                    ->orWhere('address', 'like', "%{$search}%")
+                    ->orWhere('city', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        $sort = $request->get('sort', 'newest');
+        $query = match ($sort) {
+            'oldest' => $query->oldest(),
+            'price_asc' => $query->orderBy('price', 'asc'),
+            'price_desc' => $query->orderBy('price', 'desc'),
+            default => $query->latest(),
+        };
+
+        $properties = $query->paginate(12)->withQueryString();
+
+        return view('frontend.rental-properties.index', [
+            'properties' => $properties,
+            'propertyTypes' => \Modules\RentalProperties\Models\RentalProperty::getPropertyTypes(),
+            'statuses' => \Modules\RentalProperties\Models\RentalProperty::getStatuses(),
+            'title' => 'Rental Properties',
+            'filters' => $request->only(['type', 'status', 'city', 'min_price', 'max_price', 'bedrooms', 'bathrooms', 'search', 'sort']),
+        ]);
+    }
+
+    /**
+     * Single rental property detail page
+     */
+    public function rentalPropertyShow(string $slug)
+    {
+        $property = \Modules\RentalProperties\Models\RentalProperty::where('slug', $slug)->active()->firstOrFail();
+
+        $related = \Modules\RentalProperties\Models\RentalProperty::active()
+            ->where('id', '!=', $property->id)
+            ->where('city', $property->city)
+            ->limit(3)->get();
+
+        return view('frontend.rental-properties.show', [
+            'property' => $property,
+            'related' => $related,
+            'title' => $property->title,
+        ]);
+    }
+
+    /**
+     * Single property detail page
+     */
+    public function propertyShow(string $slug)
+    {
+        $property = \Modules\Properties\Models\Property::where('slug', $slug)->active()->firstOrFail();
+        $property->increment('views');
+
+        $related = \Modules\Properties\Models\Property::active()
+            ->where('id', '!=', $property->id)
+            ->where('property_type', $property->property_type)
+            ->limit(3)->get();
+
+        return view('frontend.properties.show', [
+            'property' => $property,
+            'related' => $related,
+            'title' => $property->title,
+        ]);
+    }
+
+    /**
      * Handle template index pages (e.g., /services, /blog)
      */
     public function handleTemplateIndex(Request $request, $templateSlug)

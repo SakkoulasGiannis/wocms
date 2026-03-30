@@ -27,7 +27,9 @@
                             'settings' => $section->settings,
                         ])->render();
                     } catch (\Throwable $e) {
-                        // Silently skip render errors on frontend
+                        if (config('app.debug')) {
+                            echo '<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded m-4"><strong>' . e($section->section_type) . ':</strong> ' . e($e->getMessage()) . '</div>';
+                        }
                     }
                 @endphp
 
