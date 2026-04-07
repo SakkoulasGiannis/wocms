@@ -1,0 +1,41 @@
+{
+  "name": "Kreta Eiendom",
+  "slug": "kretaeiendom",
+  "description": "Premium real estate theme based on Homelengo - designed for Kreta Eiendom",
+  "version": "1.0.0",
+  "author": "WebOrange",
+  "screenshot": "screenshot.png",
+  "supports": {
+    "layouts": ["layout"],
+    "partials": ["header", "footer"],
+    "css_framework": "bootstrap"
+  },
+  "assets": {
+    "css": [
+      "/themes/kretaeiendom/fonts/fonts.css",
+      "/themes/kretaeiendom/fonts/font-icons.css",
+      "/themes/kretaeiendom/css/bootstrap.min.css",
+      "/themes/kretaeiendom/css/swiper-bundle.min.css",
+      "/themes/kretaeiendom/css/animate.css",
+      "/themes/kretaeiendom/css/jquery.fancybox.min.css",
+      "/themes/kretaeiendom/css/styles.css"
+    ],
+    "js": [
+      "/themes/kretaeiendom/js/jquery.min.js",
+      "/themes/kretaeiendom/js/bootstrap.min.js",
+      "/themes/kretaeiendom/js/swiper-bundle.min.js",
+      "/themes/kretaeiendom/js/carousel.js",
+      "/themes/kretaeiendom/js/plugin.js",
+      "/themes/kretaeiendom/js/jquery.nice-select.min.js",
+      "/themes/kretaeiendom/js/rangle-slider.js",
+      "/themes/kretaeiendom/js/countto.js",
+      "/themes/kretaeiendom/js/shortcodes.js",
+      "/themes/kretaeiendom/js/animation_heading.js",
+      "/themes/kretaeiendom/js/wow.min.js",
+      "/themes/kretaeiendom/js/jquery.fancybox.js",
+      "/themes/kretaeiendom/js/lazysize.min.js",
+      "/themes/kretaeiendom/js/main.js"
+    ]
+  },
+  "vite": false
+}

@@ -152,6 +152,13 @@
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div class="flex items-center justify-end space-x-2">
+                                @if(!empty($module['settings_route']) && $module['enabled'])
+                                    <a href="{{ $module['settings_route'] }}"
+                                       class="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-md transition duration-150 ease-in-out"
+                                       title="Module settings">
+                                        <i class="fa fa-cog mr-1"></i> Settings
+                                    </a>
+                                @endif
                                 @if($module['enabled'])
                                     <form action="{{ route('admin.modules.disable', $module['name']) }}" method="POST" class="inline">
                                         @csrf

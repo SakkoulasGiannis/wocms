@@ -4,7 +4,7 @@
         <div class="px-6 py-4">
             <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-4">
-                    <a href="{{ route('admin.page-sections', ['pageType' => $section->page_type]) }}"
+                    <a href="{{ route('admin.page-sections', ['sectionableType' => str_replace('\\', '-', $section->sectionable_type ?? ''), 'sectionableId' => $section->sectionable_id ?? 0]) }}"
                        class="text-gray-500 hover:text-gray-700 transition">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
@@ -13,9 +13,9 @@
                     <div>
                         <h1 class="text-2xl font-bold text-gray-900">{{ $section->name }}</h1>
                         <p class="text-sm text-gray-500 mt-1">
-                            {{ $availableSectionTypes[$section->section_type]['name'] }}
+                            {{ $section->sectionTemplate?->name ?? ($availableSectionTypes[$section->section_type]['name'] ?? $section->section_type) }}
                             <span class="mx-2">•</span>
-                            Page: {{ ucfirst($section->page_type) }}
+                            {{ class_basename($section->sectionable_type ?? 'Unknown') }}
                         </p>
                     </div>
                 </div>

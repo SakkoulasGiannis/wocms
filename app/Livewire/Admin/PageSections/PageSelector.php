@@ -2,57 +2,70 @@
 
 namespace App\Livewire\Admin\PageSections;
 
-use App\Models\PageSection;
 use App\Models\ContentNode;
+use App\Models\PageSection;
 use Livewire\Component;
-use Illuminate\Support\Facades\DB;
 
 class PageSelector extends Component
 {
     public $pages = [];
 
-    public function mount()
+    public function mount(): void
     {
         $this->loadPages();
     }
 
-    public function loadPages()
+    public function loadPages(): void
     {
-        // Get all unique page_types from page_sections
-        $sectionPages = PageSection::select('page_type')
-            ->groupBy('page_type')
+        // Get distinct sectionable entities from page_sections
+        $sectionPages = PageSection::select('sectionable_type', 'sectionable_id')
+            ->whereNotNull('sectionable_type')
+            ->whereNotNull('sectionable_id')
+            ->groupBy('sectionable_type', 'sectionable_id')
             ->get()
-            ->map(function ($section) {
-                $sectionsCount = PageSection::where('page_type', $section->page_type)
+            ->map(function ($row) {
+                $sectionsCount = PageSection::where('sectionable_type', $row->sectionable_type)
+                    ->where('sectionable_id', $row->sectionable_id)
                     ->count();
 
-                $title = $this->getPageTitle($section->page_type);
+                $title = $this->getEntityTitle($row->sectionable_type, $row->sectionable_id);
+                $shortType = class_basename($row->sectionable_type);
 
                 return [
-                    'page_type' => $section->page_type,
+                    'sectionable_type' => $row->sectionable_type,
+                    'sectionable_id' => $row->sectionable_id,
+                    'short_type' => $shortType,
                     'title' => $title,
                     'sections_count' => $sectionsCount,
-                    'is_home' => $section->page_type === 'home',
+                    'is_home' => $shortType === 'Home',
                 ];
             });
 
         $this->pages = $sectionPages->sortBy(function ($page) {
-            // Sort: home first, then alphabetically
-            return $page['is_home'] ? '0' : '1' . $page['title'];
+            return $page['is_home'] ? '0' : '1'.$page['title'];
         })->values()->toArray();
     }
 
-    protected function getPageTitle(string $pageType): string
+    protected function getEntityTitle(string $type, int $id): string
     {
-        // Attempt to get a friendly title from ContentNode if it exists
-        $node = ContentNode::where('slug', $pageType)->first();
+        // Try to resolve the actual model
+        if (class_exists($type)) {
+            $model = $type::find($id);
+            if ($model) {
+                return $model->title ?? $model->name ?? class_basename($type).' #'.$id;
+            }
+        }
+
+        // Fallback: check ContentNode
+        $node = ContentNode::where('content_type', $type)
+            ->where('content_id', $id)
+            ->first();
 
         if ($node) {
             return $node->title;
         }
 
-        // Otherwise, just capitalize the page_type
-        return ucfirst(str_replace('_', ' ', $pageType));
+        return class_basename($type).' #'.$id;
     }
 
     public function render()

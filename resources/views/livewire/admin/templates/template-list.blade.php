@@ -10,13 +10,23 @@
                    placeholder="Search templates..."
                    class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
         </div>
-        <a href="{{ route('admin.templates.create') }}"
-           class="ml-4 inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-            </svg>
-            New Template
-        </a>
+        <div class="ml-4 flex items-center gap-2">
+            <button wire:click="exportAll" class="inline-flex items-center px-3 py-2 bg-green-50 hover:bg-green-100 text-green-700 font-medium rounded-lg border border-green-200 text-sm transition">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                Export
+            </button>
+            <button wire:click="openImportModal" class="inline-flex items-center px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 font-medium rounded-lg border border-amber-200 text-sm transition">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                Import
+            </button>
+            <a href="{{ route('admin.templates.create') }}"
+               class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                New Template
+            </a>
+        </div>
     </div>
 
     @if(session('success'))
@@ -183,4 +193,35 @@
         @endif
 
     </div>
+
+    {{-- Import Modal --}}
+    @if($showImportModal)
+    <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" wire:click.self="$set('showImportModal', false)">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">
+                <svg class="w-5 h-5 inline mr-1 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                Import Templates
+            </h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">JSON File</label>
+                    <input type="file" wire:model="importFile" accept=".json,.txt" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100">
+                    @error('importFile') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                    <div wire:loading wire:target="importFile" class="text-xs text-blue-600 mt-1">Uploading...</div>
+                </div>
+                <label class="flex items-center gap-2 text-sm">
+                    <input type="checkbox" wire:model="importOverwrite" class="rounded border-gray-300 text-amber-600 focus:ring-amber-500">
+                    <span class="text-gray-700">Overwrite existing templates</span>
+                </label>
+            </div>
+            <div class="flex justify-end gap-2 mt-6">
+                <button wire:click="$set('showImportModal', false)" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm">Cancel</button>
+                <button wire:click="importTemplates" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm" @if(!$importFile) disabled @endif>
+                    <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                    Import
+                </button>
+            </div>
+        </div>
+    </div>
+    @endif
 </div>

@@ -409,7 +409,8 @@
                             Update & Return
                         </button>
                     @else
-                        <button type="submit"
+                        <button type="button"
+                                onclick="saveEntry(false)"
                                 class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -465,11 +466,20 @@
                 {{-- Main Content Area (2/3 width on large screens) --}}
                 <div class="lg:col-span-2 space-y-6">
 
-                        {{-- Show Template Fields (if any exist in 'main' column) --}}
-                        @if($template->fields->where('column_position', 'main')->count() > 0)
+                        {{-- Template Fields --}}
+                        @php
+                            $mainFields = $template->fields->where('column_position', 'main');
+                            // In sections mode, only show basic fields (text, email, url, image, select, checkbox, date, number)
+                            // Hide heavy content fields (grapejs, wysiwyg, markdown) since content comes from sections
+                            if ($template->render_mode === 'sections' || ($entry?->render_mode ?? null) === 'sections') {
+                                $hiddenInSections = ['grapejs', 'wysiwyg', 'markdown', 'code'];
+                                $mainFields = $mainFields->whereNotIn('type', $hiddenInSections);
+                            }
+                        @endphp
+                        @if($mainFields->count() > 0)
                             <div class="bg-white rounded-lg shadow p-6">
                                 <div class="space-y-6">
-                                    @foreach($template->fields->where('column_position', 'main') as $field)
+                                    @foreach($mainFields as $field)
                                         @include('livewire.admin.template-entries.partials.dynamic-field', [
                                             'field' => $field,
                                             'entryId' => $entryId,
@@ -481,20 +491,58 @@
                         @endif
 
                         {{-- Sections Mode - Show Sections UI --}}
-                        @if($template->render_mode === 'sections')
+                        @if($template->render_mode === 'sections' || ($entry?->render_mode ?? null) === 'sections')
+                            <!-- Warning: Generated Blade File Exists -->
+                            @if($entryId && $this->hasGeneratedBladeFile())
+                                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+                                    <div class="flex items-start">
+                                        <div class="flex-shrink-0">
+                                            <svg class="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                                            </svg>
+                                        </div>
+                                        <div class="ml-3 flex-1">
+                                            <p class="text-sm text-yellow-700">
+                                                <strong>Warning:</strong> A generated blade file exists for this page:
+                                                <code class="bg-yellow-100 px-2 py-1 rounded text-xs">{{ $this->getGeneratedBladeFilePath() }}</code>
+                                            </p>
+                                            <p class="mt-2 text-xs text-yellow-600">
+                                                This file will override the sections below. You should delete it to use sections.
+                                            </p>
+                                            <button type="button"
+                                                    wire:click="deleteGeneratedBladeFile"
+                                                    wire:confirm="Are you sure you want to delete the generated blade file?"
+                                                    class="mt-3 inline-flex items-center px-3 py-1.5 border border-yellow-600 text-xs font-medium rounded text-yellow-700 bg-yellow-50 hover:bg-yellow-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500">
+                                                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                </svg>
+                                                Delete Generated File
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
+
                             <!-- Page Sections Management -->
                             <div class="bg-white rounded-lg shadow p-6" wire:key="sections-management">
                                 <div class="flex items-center justify-between mb-6">
                                     <h3 class="text-lg font-semibold text-gray-900">Page Sections</h3>
-                                    <button type="button"
-                                            wire:click="addSection"
-                                            class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm">
-                                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
-                                        </svg>
-                                        Add Section
-                                    </button>
+                                    <div class="flex gap-2">
+                                        <!-- Debug Info -->
+                                        <div class="text-xs text-gray-500 flex items-center mr-4">
+                                            showForm: {{ $showSectionForm ? 'true' : 'false' }} |
+                                            Templates: {{ $availableSectionTemplates->count() }}
+                                        </div>
+                                        <button type="button"
+                                                onclick="@this.call('addSection')"
+                                                class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm">
+                                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                            </svg>
+                                            Add Section
+                                        </button>
+                                    </div>
                                 </div>
 
                                 @if(session()->has('section-success'))
@@ -538,7 +586,7 @@
                                                 </div>
                                                 <div class="mt-4">
                                                     <button type="button"
-                                                            wire:click="cancelSectionEdit"
+                                                            onclick="@this.call('cancelSectionEdit')"
                                                             class="text-sm text-gray-600 hover:text-gray-900">
                                                         Cancel
                                                     </button>
@@ -563,7 +611,7 @@
                                                             </div>
                                                             @if($editingSectionIndex === null)
                                                                 <button type="button"
-                                                                        wire:click="addSection"
+                                                                        onclick="@this.call('addSection')"
                                                                         class="text-xs text-blue-600 hover:text-blue-800">
                                                                     Change Template
                                                                 </button>
@@ -609,32 +657,105 @@
                                                                     @break
 
                                                                 @case('image')
-                                                                    <input type="text"
-                                                                           wire:model="sectionForm.field_data.{{ $field->name }}"
-                                                                           class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
-                                                                           placeholder="Enter image URL">
-                                                                    <p class="mt-1 text-xs text-gray-500">Enter full
-                                                                        image URL or path</p>
+                                                                    <div class="space-y-2">
+                                                                        @if(!empty($sectionForm['field_data'][$field->name]))
+                                                                            <div class="relative inline-block">
+                                                                                <img src="{{ $sectionForm['field_data'][$field->name] }}" alt="Preview" class="h-24 rounded-lg border border-gray-200 object-cover">
+                                                                                <button type="button" wire:click="$set('sectionForm.field_data.{{ $field->name }}', '')" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600">&times;</button>
+                                                                            </div>
+                                                                        @endif
+                                                                        <div class="flex items-center gap-2">
+                                                                            <label class="cursor-pointer inline-flex items-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg border border-blue-200 text-sm transition">
+                                                                                <i class="fa fa-upload"></i> Upload Image
+                                                                                <input type="file" wire:model="sectionImageUploads.{{ $field->name }}" accept="image/*" class="hidden">
+                                                                            </label>
+                                                                            <span class="text-gray-400 text-xs">or</span>
+                                                                            <input type="text"
+                                                                                   wire:model="sectionForm.field_data.{{ $field->name }}"
+                                                                                   class="flex-1 rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 text-sm"
+                                                                                   placeholder="Enter image URL">
+                                                                        </div>
+                                                                        <div wire:loading wire:target="sectionImageUploads.{{ $field->name }}" class="text-xs text-blue-600">
+                                                                            <i class="fa fa-spinner fa-spin"></i> Uploading...
+                                                                        </div>
+                                                                    </div>
                                                                     @break
 
                                                                 @case('wysiwyg')
-                                                                    <textarea
-                                                                        wire:model="sectionForm.field_data.{{ $field->name }}"
-                                                                        rows="6"
-                                                                        class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 font-mono text-xs"
-                                                                        placeholder="Enter HTML content"></textarea>
+                                                                    <x-editorjs-field
+                                                                        :name="'section.' . $field->name"
+                                                                        :value="$sectionForm['field_data'][$field->name] ?? ''"
+                                                                        wire-model="sectionForm.field_data.{{ $field->name }}"
+                                                                        :uid="'ejs-section-' . $field->name . ($editingSectionIndex ?? 'new')"
+                                                                    />
                                                                     @break
 
                                                                 @case('repeater')
-                                                                    <div
-                                                                        class="text-sm text-gray-600 p-3 bg-yellow-50 rounded border border-yellow-200">
-                                                                        ⚠️ Repeater field - Use JSON format for now.
-                                                                        <textarea
-                                                                            wire:model="sectionForm.field_data.{{ $field->name }}"
-                                                                            rows="4"
-                                                                            class="w-full rounded-lg border-gray-300 shadow-sm mt-2 p-2 font-mono text-xs"
-                                                                            placeholder='[{"key": "value"}]'></textarea>
+                                                                    @php
+                                                                        $rfSettings = $field->settings;
+                                                                        if (is_string($rfSettings)) $rfSettings = json_decode($rfSettings, true);
+                                                                        $rfSubFields = $rfSettings['sub_fields'] ?? [];
+                                                                        $rfItems = $sectionForm['field_data'][$field->name] ?? [];
+                                                                        if (!is_array($rfItems)) $rfItems = [];
+                                                                    @endphp
+
+                                                                    <div class="space-y-3">
+                                                                        @foreach($rfItems as $rfIdx => $rfItem)
+                                                                            <div class="border border-gray-300 rounded-lg p-3 bg-white relative">
+                                                                                <button type="button"
+                                                                                        wire:click="removeRepeaterItem('{{ $field->name }}', {{ $rfIdx }})"
+                                                                                        class="absolute top-2 right-2 text-red-400 hover:text-red-600 text-xs font-bold"
+                                                                                        title="Remove">✕</button>
+                                                                                <div class="text-xs text-gray-400 mb-2 font-semibold">#{{ $rfIdx + 1 }}</div>
+                                                                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                                                    @foreach($rfSubFields as $sf)
+                                                                                        <div>
+                                                                                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ $sf['label'] ?? $sf['name'] }}</label>
+                                                                                            @if(($sf['type'] ?? 'text') === 'textarea')
+                                                                                                <textarea wire:model="sectionForm.field_data.{{ $field->name }}.{{ $rfIdx }}.{{ $sf['name'] }}"
+                                                                                                          class="w-full border border-gray-300 rounded px-2 py-1 text-sm" rows="2"></textarea>
+                                                                                            @elseif(($sf['type'] ?? 'text') === 'image')
+                                                                                                <div class="space-y-1">
+                                                                                                    @if(!empty($sectionForm['field_data'][$field->name][$rfIdx][$sf['name']]))
+                                                                                                        <div class="relative inline-block">
+                                                                                                            <img src="{{ $sectionForm['field_data'][$field->name][$rfIdx][$sf['name']] }}" alt="" class="h-16 rounded border object-cover">
+                                                                                                            <button type="button" wire:click="$set('sectionForm.field_data.{{ $field->name }}.{{ $rfIdx }}.{{ $sf['name'] }}', '')" class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs">&times;</button>
+                                                                                                        </div>
+                                                                                                    @endif
+                                                                                                    <div class="flex items-center gap-1">
+                                                                                                        <label class="cursor-pointer inline-flex items-center gap-1 px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded border border-blue-200 text-xs transition">
+                                                                                                            <i class="fa fa-upload"></i> Upload
+                                                                                                            <input type="file" wire:model="sectionImageUploads.{{ $field->name }}.{{ $rfIdx }}.{{ $sf['name'] }}" accept="image/*" class="hidden">
+                                                                                                        </label>
+                                                                                                        <input type="text"
+                                                                                                               wire:model="sectionForm.field_data.{{ $field->name }}.{{ $rfIdx }}.{{ $sf['name'] }}"
+                                                                                                               class="flex-1 border border-gray-300 rounded px-2 py-1 text-xs"
+                                                                                                               placeholder="Image URL">
+                                                                                                    </div>
+                                                                                                    <div wire:loading wire:target="sectionImageUploads.{{ $field->name }}.{{ $rfIdx }}.{{ $sf['name'] }}" class="text-xs text-blue-600"><i class="fa fa-spinner fa-spin"></i></div>
+                                                                                                </div>
+                                                                                            @else
+                                                                                                <input type="{{ $sf['type'] ?? 'text' }}"
+                                                                                                       wire:model="sectionForm.field_data.{{ $field->name }}.{{ $rfIdx }}.{{ $sf['name'] }}"
+                                                                                                       class="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                                                                                                       placeholder="{{ $sf['label'] ?? $sf['name'] }}">
+                                                                                            @endif
+                                                                                        </div>
+                                                                                    @endforeach
+                                                                                </div>
+                                                                            </div>
+                                                                        @endforeach
+
+                                                                        <button type="button"
+                                                                                wire:click="addRepeaterItem('{{ $field->name }}')"
+                                                                                class="text-sm text-blue-600 hover:text-blue-800 font-medium inline-flex items-center gap-1">
+                                                                            + Add Item
+                                                                        </button>
                                                                     </div>
+
+                                                                    @if(empty($rfSubFields))
+                                                                        <p class="text-xs text-amber-600 mt-2">No sub-fields defined. Edit this field in the Section Template to add sub-fields.</p>
+                                                                    @endif
                                                                     @break
 
                                                                 @default
@@ -644,6 +765,26 @@
                                                             @endswitch
                                                         </div>
                                                     @endforeach
+
+                                                    {{-- Dynamic Slider Picker for hero-slider-home5 --}}
+                                                    @if($selectedTemplate && in_array($selectedTemplate->slug, ['hero-slider-home5', 'hero-slider']))
+                                                        @php
+                                                            $availableSliders = \Modules\Slider\Models\Slider::where('is_active', true)->withCount('slides')->orderBy('name')->get();
+                                                        @endphp
+                                                        <div>
+                                                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                                                <i class="fa fa-images mr-1 text-blue-500"></i> Select Slider
+                                                            </label>
+                                                            <p class="text-xs text-gray-500 mb-2">Choose a slider from the Sliders module. Its slides will be used as the background images/videos.</p>
+                                                            <select wire:model="sectionForm.field_data.slider_id"
+                                                                    class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2">
+                                                                <option value="">-- Use default images --</option>
+                                                                @foreach($availableSliders as $sl)
+                                                                    <option value="{{ $sl->id }}">{{ $sl->name }} ({{ $sl->slides_count }} slides)</option>
+                                                                @endforeach
+                                                            </select>
+                                                        </div>
+                                                    @endif
 
                                                     <!-- Section Name Override -->
                                                     <div>
@@ -668,7 +809,7 @@
                                                     <!-- Actions -->
                                                     <div class="flex items-center space-x-3 pt-4 border-t">
                                                         <button type="button"
-                                                                wire:click="saveSection"
+                                                                onclick="@this.call('saveSection')"
                                                                 class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm">
                                                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor"
                                                                  viewBox="0 0 24 24">
@@ -678,7 +819,7 @@
                                                             Save Section
                                                         </button>
                                                         <button type="button"
-                                                                wire:click="cancelSectionEdit"
+                                                                onclick="@this.call('cancelSectionEdit')"
                                                                 class="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition text-sm">
                                                             Cancel
                                                         </button>
@@ -691,13 +832,20 @@
 
                                 <!-- Sections List -->
                                 @if(count($sections) > 0)
-                                    <div class="space-y-3">
+                                    <div id="sections-list" class="space-y-3">
                                         @foreach($sections as $index => $section)
-                                            <div
+                                            <div data-section-index="{{ $index }}"
                                                 class="border rounded-lg p-4 {{ $section['is_active'] ? 'bg-white' : 'bg-gray-100' }}">
                                                 <div class="flex items-start justify-between">
                                                     <div class="flex-1">
                                                         <div class="flex items-center space-x-3">
+                                                            <!-- Drag Handle -->
+                                                            <div class="section-drag-handle cursor-move text-gray-400 hover:text-gray-600"
+                                                                 title="Drag to reorder">
+                                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"/>
+                                                                </svg>
+                                                            </div>
                                                             <span
                                                                 class="text-xs font-mono bg-gray-200 px-2 py-1 rounded">#{{ $index + 1 }}</span>
                                                             <h4 class="font-semibold text-gray-900">
@@ -734,7 +882,7 @@
                                                         <!-- Move Up -->
                                                         @if($index > 0)
                                                             <button type="button"
-                                                                    wire:click="moveSectionUp({{ $index }})"
+                                                                    onclick="@this.call('moveSectionUp', {{ $index }})"
                                                                     class="p-1 text-gray-500 hover:text-blue-600"
                                                                     title="Move Up">
                                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor"
@@ -748,7 +896,7 @@
                                                         <!-- Move Down -->
                                                         @if($index < count($sections) - 1)
                                                             <button type="button"
-                                                                    wire:click="moveSectionDown({{ $index }})"
+                                                                    onclick="@this.call('moveSectionDown', {{ $index }})"
                                                                     class="p-1 text-gray-500 hover:text-blue-600"
                                                                     title="Move Down">
                                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor"
@@ -761,7 +909,7 @@
 
                                                         <!-- Toggle Active -->
                                                         <button type="button"
-                                                                wire:click="toggleSection({{ $index }})"
+                                                                onclick="@this.call('toggleSection', {{ $index }})"
                                                                 class="p-1 text-gray-500 hover:text-yellow-600"
                                                                 title="{{ $section['is_active'] ? 'Deactivate' : 'Activate' }}">
                                                             <svg class="w-5 h-5" fill="none" stroke="currentColor"
@@ -783,7 +931,7 @@
 
                                                         <!-- Edit -->
                                                         <button type="button"
-                                                                wire:click="editSection({{ $index }})"
+                                                                onclick="@this.call('editSection', {{ $index }})"
                                                                 class="p-1 text-gray-500 hover:text-blue-600"
                                                                 title="Edit">
                                                             <svg class="w-5 h-5" fill="none" stroke="currentColor"
@@ -796,8 +944,7 @@
 
                                                         <!-- Delete -->
                                                         <button type="button"
-                                                                wire:click="deleteSection({{ $index }})"
-                                                                onclick="return confirm('Are you sure you want to delete this section?')"
+                                                                onclick="if(confirm('Are you sure you want to delete this section?')) { @this.call('deleteSection', {{ $index }}) }"
                                                                 class="p-1 text-gray-500 hover:text-red-600"
                                                                 title="Delete">
                                                             <svg class="w-5 h-5" fill="none" stroke="currentColor"

@@ -1,5 +1,4 @@
 @push('styles')
-    <link rel="stylesheet" type="text/css" href="https://unpkg.com/trix@2.0.8/dist/trix.css">
     <link rel="stylesheet" href="https://unpkg.com/grapesjs/dist/css/grapes.min.css">
     <!-- CodeMirror CSS -->
     <link rel="stylesheet"
@@ -19,23 +18,6 @@
         /* Alpine.js x-cloak */
         [x-cloak] {
             display: none !important;
-        }
-
-        trix-toolbar .trix-button-group button {
-            border: none;
-        }
-
-        trix-editor {
-            min-height: 300px;
-            border: 1px solid #d1d5db;
-            border-radius: 0.5rem;
-            padding: 0.75rem;
-        }
-
-        trix-editor:focus {
-            outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 1px #3b82f6;
         }
 
         .gjs-editor {
@@ -238,6 +220,27 @@
         .cm-searching {
             background: rgba(255, 255, 0, 0.3);
             border-bottom: 2px solid #f39c12;
+        }
+
+        /* SortableJS Drag & Drop Styles */
+        .section-ghost {
+            opacity: 0.4;
+            background: #e5e7eb;
+        }
+
+        .section-drag {
+            opacity: 1;
+            cursor: grabbing !important;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            transform: rotate(2deg);
+        }
+
+        .section-drag-handle {
+            transition: all 0.2s;
+        }
+
+        .section-drag-handle:hover {
+            transform: scale(1.1);
         }
     </style>
 @endpush

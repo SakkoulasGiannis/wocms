@@ -276,6 +276,57 @@
                     </div>
                 @endif
 
+                <!-- Sub-fields (for repeater fields) -->
+                @if($fieldForm['type'] === 'repeater')
+                    <div class="border border-blue-200 rounded-lg p-4 bg-blue-50">
+                        <label class="block text-sm font-semibold text-gray-700 mb-3">
+                            <i class="fa fa-layer-group mr-1"></i> Repeater Sub-Fields
+                        </label>
+                        <p class="text-xs text-gray-500 mb-3">Define the fields that each repeater item will contain.</p>
+
+                        <div class="space-y-2">
+                            @foreach($fieldForm['sub_fields'] ?? [] as $sfIdx => $sf)
+                                <div class="flex gap-2 items-start bg-white rounded-lg p-3 border border-gray-200">
+                                    <div class="flex-1">
+                                        <input type="text"
+                                               wire:model="fieldForm.sub_fields.{{ $sfIdx }}.label"
+                                               class="w-full border border-gray-300 rounded px-2 py-1 text-sm mb-1"
+                                               placeholder="Label (e.g. Title)">
+                                    </div>
+                                    <div class="flex-1">
+                                        <input type="text"
+                                               wire:model="fieldForm.sub_fields.{{ $sfIdx }}.name"
+                                               class="w-full border border-gray-300 rounded px-2 py-1 text-sm font-mono mb-1"
+                                               placeholder="Key (e.g. title)">
+                                    </div>
+                                    <div class="w-32">
+                                        <select wire:model="fieldForm.sub_fields.{{ $sfIdx }}.type"
+                                                class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                            <option value="text">Text</option>
+                                            <option value="textarea">Textarea</option>
+                                            <option value="number">Number</option>
+                                            <option value="url">URL</option>
+                                            <option value="image">Image</option>
+                                            <option value="email">Email</option>
+                                            <option value="color">Color</option>
+                                        </select>
+                                    </div>
+                                    <button type="button" wire:click="removeSubField({{ $sfIdx }})"
+                                            class="text-red-500 hover:text-red-700 p-1" title="Remove">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                    </button>
+                                </div>
+                            @endforeach
+                        </div>
+
+                        <button type="button" wire:click="addSubField"
+                                class="mt-3 text-sm text-blue-600 hover:text-blue-800 font-medium inline-flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                            Add Sub-Field
+                        </button>
+                    </div>
+                @endif
+
                 <!-- Is Required -->
                 <div class="flex items-center">
                     <input type="checkbox" wire:model="fieldForm.is_required" id="field_is_required"

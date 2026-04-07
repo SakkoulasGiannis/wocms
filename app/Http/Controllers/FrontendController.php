@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Home;
 use App\Models\ContentNode;
+use App\Models\Home;
 use App\Models\Template;
 use App\Services\ThemeManager;
 use Illuminate\Http\Request;
@@ -16,6 +16,7 @@ class FrontendController extends Controller
     {
         $this->themeManager = $themeManager;
     }
+
     public function home()
     {
         // Check if home exists in content tree
@@ -27,7 +28,169 @@ class FrontendController extends Controller
 
         // Fallback to old home page
         $home = Home::firstOrFail();
+
         return view('frontend.home', compact('home'));
+    }
+
+    /**
+     * Contact page
+     */
+    public function contact()
+    {
+        return view('frontend.contact');
+    }
+
+    /**
+     * Properties listing page with filters and map
+     */
+    public function properties(Request $request)
+    {
+        $query = \Modules\Properties\Models\Property::query()->active();
+
+        // Filters
+        if ($request->filled('type')) {
+            $query->where('property_type', $request->type);
+        }
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+        if ($request->filled('city')) {
+            $query->where('city', 'like', '%'.$request->city.'%');
+        }
+        if ($request->filled('min_price')) {
+            $query->where('price', '>=', $request->min_price);
+        }
+        if ($request->filled('max_price')) {
+            $query->where('price', '<=', $request->max_price);
+        }
+        if ($request->filled('bedrooms')) {
+            $query->where('bedrooms', '>=', $request->bedrooms);
+        }
+        if ($request->filled('bathrooms')) {
+            $query->where('bathrooms', '>=', $request->bathrooms);
+        }
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                    ->orWhere('address', 'like', "%{$search}%")
+                    ->orWhere('city', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        $sort = $request->get('sort', 'newest');
+        $query = match ($sort) {
+            'oldest' => $query->oldest(),
+            'price_asc' => $query->orderBy('price', 'asc'),
+            'price_desc' => $query->orderBy('price', 'desc'),
+            default => $query->latest(),
+        };
+
+        $properties = $query->paginate(12)->withQueryString();
+        $propertyTypes = \Modules\Properties\Models\Property::getPropertyTypes();
+        $statuses = \Modules\Properties\Models\Property::getStatuses();
+
+        return view('frontend.properties.index', [
+            'properties' => $properties,
+            'propertyTypes' => $propertyTypes,
+            'statuses' => $statuses,
+            'title' => 'Properties',
+            'filters' => $request->only(['type', 'status', 'city', 'min_price', 'max_price', 'bedrooms', 'bathrooms', 'search', 'sort']),
+        ]);
+    }
+
+    /**
+     * Rental properties listing page
+     */
+    public function rentalProperties(Request $request)
+    {
+        $query = \Modules\RentalProperties\Models\RentalProperty::query()->active();
+
+        if ($request->filled('type')) {
+            $query->where('property_type', $request->type);
+        }
+        if ($request->filled('city')) {
+            $query->where('city', 'like', '%'.$request->city.'%');
+        }
+        if ($request->filled('min_price')) {
+            $query->where('price', '>=', $request->min_price);
+        }
+        if ($request->filled('max_price')) {
+            $query->where('price', '<=', $request->max_price);
+        }
+        if ($request->filled('bedrooms')) {
+            $query->where('bedrooms', '>=', $request->bedrooms);
+        }
+        if ($request->filled('bathrooms')) {
+            $query->where('bathrooms', '>=', $request->bathrooms);
+        }
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                    ->orWhere('address', 'like', "%{$search}%")
+                    ->orWhere('city', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        $sort = $request->get('sort', 'newest');
+        $query = match ($sort) {
+            'oldest' => $query->oldest(),
+            'price_asc' => $query->orderBy('price', 'asc'),
+            'price_desc' => $query->orderBy('price', 'desc'),
+            default => $query->latest(),
+        };
+
+        $properties = $query->paginate(12)->withQueryString();
+
+        return view('frontend.rental-properties.index', [
+            'properties' => $properties,
+            'propertyTypes' => \Modules\RentalProperties\Models\RentalProperty::getPropertyTypes(),
+            'statuses' => \Modules\RentalProperties\Models\RentalProperty::getStatuses(),
+            'title' => 'Rental Properties',
+            'filters' => $request->only(['type', 'status', 'city', 'min_price', 'max_price', 'bedrooms', 'bathrooms', 'search', 'sort']),
+        ]);
+    }
+
+    /**
+     * Single rental property detail page
+     */
+    public function rentalPropertyShow(string $slug)
+    {
+        $property = \Modules\RentalProperties\Models\RentalProperty::where('slug', $slug)->active()->firstOrFail();
+
+        $related = \Modules\RentalProperties\Models\RentalProperty::active()
+            ->where('id', '!=', $property->id)
+            ->where('city', $property->city)
+            ->limit(3)->get();
+
+        return view('frontend.rental-properties.show', [
+            'property' => $property,
+            'related' => $related,
+            'title' => $property->title,
+        ]);
+    }
+
+    /**
+     * Single property detail page
+     */
+    public function propertyShow(string $slug)
+    {
+        $property = \Modules\Properties\Models\Property::where('slug', $slug)->active()->firstOrFail();
+        $property->increment('views');
+
+        $related = \Modules\Properties\Models\Property::active()
+            ->where('id', '!=', $property->id)
+            ->where('property_type', $property->property_type)
+            ->limit(3)->get();
+
+        return view('frontend.properties.show', [
+            'property' => $property,
+            'related' => $related,
+            'title' => $property->title,
+        ]);
     }
 
     /**
@@ -43,14 +206,14 @@ class FrontendController extends Controller
             ->first();
 
         // If no template with slug prefix found, pass to dynamic route
-        if (!$template) {
+        if (! $template) {
             return $this->handleDynamicRoute($request, $templateSlug);
         }
 
         // Get all entries for this template
         $modelClass = "App\\Models\\{$template->model_class}";
 
-        if (!class_exists($modelClass)) {
+        if (! class_exists($modelClass)) {
             abort(500, "Model class {$modelClass} not found");
         }
 
@@ -59,7 +222,7 @@ class FrontendController extends Controller
 
         // Use active scope if available, but allow admins/editors to see all
         if (method_exists($modelClass, 'scopeActive')) {
-            if (!auth()->check() || !auth()->user()->canViewDrafts()) {
+            if (! auth()->check() || ! auth()->user()->canViewDrafts()) {
                 $query->active();
             }
         }
@@ -92,7 +255,7 @@ class FrontendController extends Controller
         \Log::info("🔴 FrontendController::handleDynamicRoute() called for path: {$path}");
 
         // Build the full URL path
-        $urlPath = '/' . ltrim($path, '/');
+        $urlPath = '/'.ltrim($path, '/');
 
         // Find the content node by URL path with caching (30 minutes)
         $node = \Cache::remember("content_node.path.{$urlPath}", 1800, function () use ($urlPath) {
@@ -102,7 +265,7 @@ class FrontendController extends Controller
                 ->first();
         });
 
-        if (!$node) {
+        if (! $node) {
             abort(404, "Page not found: {$urlPath}");
         }
 
@@ -117,7 +280,7 @@ class FrontendController extends Controller
         $template = $node->template;
 
         // Check if template is publicly accessible
-        if (!$template->is_public) {
+        if (! $template->is_public) {
             abort(403, 'This content is not publicly accessible');
         }
 
@@ -129,6 +292,7 @@ class FrontendController extends Controller
             // Check if cache exists
             if (\Cache::has($cacheKey)) {
                 \Log::info("✅ CACHE HIT: {$node->url_path} (serving from cache)");
+
                 return response(\Cache::get($cacheKey));
             }
 
@@ -144,6 +308,7 @@ class FrontendController extends Controller
         }
 
         \Log::info("🚫 NO CACHE: {$node->url_path} (caching disabled)");
+
         return $this->renderNodeContent($node, $template);
     }
 
@@ -161,7 +326,7 @@ class FrontendController extends Controller
             // Check if content has status field and is not active
             // Allow admins and editors to view draft/disabled content
             if ($content && isset($content->status) && $content->status !== 'active') {
-                if (!auth()->check() || !auth()->user()->canViewDrafts()) {
+                if (! auth()->check() || ! auth()->user()->canViewDrafts()) {
                     abort(404, 'This content is not available');
                 }
             }
@@ -182,7 +347,7 @@ class FrontendController extends Controller
             : ($template->render_mode ?? 'full_page_grapejs');
 
         if ($renderMode === 'sections' && $content && method_exists($content, 'activeSections')) {
-            $data['sections'] = $content->activeSections()->get();
+            $data['sections'] = $content->activeSections()->with('sectionTemplate')->get();
             \Log::info('📋 Loaded sections for page', [
                 'url' => $node->url_path,
                 'sections_count' => $data['sections']->count(),
@@ -216,18 +381,22 @@ class FrontendController extends Controller
             }
         }
 
-        // PRIORITY 2: Handle different render modes - check entry first, then template, then default
-        $renderMode = ($content && isset($content->render_mode))
-            ? $content->render_mode
-            : ($template->render_mode ?? 'full_page_grapejs');
+        // PRIORITY 2: Handle different render modes - use template render_mode
+        $renderMode = $template->render_mode ?? 'full_page_grapejs';
+
+        // Allow per-entry override if the entry has render_mode field
+        if ($content && isset($content->render_mode)) {
+            $renderMode = $content->render_mode;
+        }
 
         switch ($renderMode) {
             case 'sections':
-                // Render using page sections
-                if ($content && method_exists($content, 'activeSections')) {
-                    $data['sections'] = $content->activeSections()->get();
+                // Render using page sections (eager load sectionTemplate)
+                if ($content && method_exists($content, 'activeSections') && ! isset($data['sections'])) {
+                    $data['sections'] = $content->activeSections()->with('sectionTemplate')->get();
                 }
                 $view = $this->themeManager->getTemplateView('sections') ?? 'frontend.sections';
+
                 return view($view, $data);
 
             case 'simple_content':
@@ -251,11 +420,12 @@ class FrontendController extends Controller
                         $data['html'] = \Illuminate\Support\Facades\Blade::render($rawHtml, $data);
                     } catch (\Exception $e) {
                         // If Blade compilation fails, use raw HTML
-                        \Log::warning('Blade compilation failed for simple_content: ' . $e->getMessage());
+                        \Log::warning('Blade compilation failed for simple_content: '.$e->getMessage());
                         $data['html'] = $rawHtml;
                     }
                 }
                 $view = $this->themeManager->getTemplateView('simple') ?? 'frontend.simple';
+
                 return view($view, $data);
 
             case 'full_page_grapejs':
@@ -265,15 +435,16 @@ class FrontendController extends Controller
 
                 // Final fallback: use default view with raw HTML
                 // Compile Blade syntax if content has HTML
-                if ($content && isset($content->html) && !empty($content->html)) {
+                if ($content && isset($content->html) && ! empty($content->html)) {
                     try {
                         $data['content']->html = \Illuminate\Support\Facades\Blade::render($content->html, $data);
                     } catch (\Exception $e) {
-                        \Log::warning('Blade compilation failed for GrapeJS content: ' . $e->getMessage());
+                        \Log::warning('Blade compilation failed for GrapeJS content: '.$e->getMessage());
                         // Keep original HTML if compilation fails
                     }
                 }
                 $view = $this->themeManager->getTemplateView('default') ?? 'frontend.default';
+
                 return view($view, $data);
         }
     }
@@ -287,10 +458,11 @@ class FrontendController extends Controller
             // For slug-prefixed templates, use the plural form
             $path = str_replace('.blade.php', '', $template->file_path);
             $path = str_replace('/', '.', $path);
+
             return $path; // e.g., "templates.services"
         }
 
-        return 'frontend.templates.' . $template->slug;
+        return 'frontend.templates.'.$template->slug;
     }
 
     /**
@@ -314,17 +486,18 @@ class FrontendController extends Controller
             }
 
             $pathParts[] = $lastPart;
+
             return implode('.', $pathParts);
         }
 
         if ($template->file_path) {
             $path = str_replace('.blade.php', '', $template->file_path);
             $path = str_replace('/', '.', $path);
+
             return $path;
         }
 
         // Default to templates.{slug}
-        return 'frontend.templates.' . $template->slug;
+        return 'frontend.templates.'.$template->slug;
     }
-
 }

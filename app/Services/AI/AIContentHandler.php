@@ -2,12 +2,12 @@
 
 namespace App\Services\AI;
 
-use App\Models\Template;
 use App\Models\ContentNode;
+use App\Models\Template;
 use App\Services\BladeCompiler;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 
 class AIContentHandler
 {
@@ -15,7 +15,7 @@ class AIContentHandler
 
     public function __construct()
     {
-        $this->aiManager = new AIManager();
+        $this->aiManager = new AIManager;
     }
 
     /**
@@ -26,10 +26,10 @@ class AIContentHandler
         // Detect which template to use
         $template = $this->detectTemplate($userMessage);
 
-        if (!$template) {
+        if (! $template) {
             return [
                 'success' => false,
-                'message' => 'Δεν μπόρεσα να βρω κατάλληλο template. Διαθέσιμα templates: ' . $this->getAvailableTemplates(),
+                'message' => 'Δεν μπόρεσα να βρω κατάλληλο template. Διαθέσιμα templates: '.$this->getAvailableTemplates(),
             ];
         }
 
@@ -37,7 +37,7 @@ class AIContentHandler
         $count = $this->detectContentCount($userMessage);
 
         // Get template fields
-        $fields = $template->fields->map(fn($field) => [
+        $fields = $template->fields->map(fn ($field) => [
             'name' => $field->name,
             'label' => $field->label,
             'type' => $field->type,
@@ -65,7 +65,7 @@ class AIContentHandler
             }
 
             // Auto-generate slug if not provided
-            if (!isset($generatedData['slug']) && isset($generatedData['title'])) {
+            if (! isset($generatedData['slug']) && isset($generatedData['title'])) {
                 $generatedData['slug'] = Str::slug($generatedData['title']);
             }
 
@@ -85,7 +85,7 @@ class AIContentHandler
                     'template_slug' => $template->slug,
                     'preview_url' => route('admin.template-entries.edit', [
                         'templateSlug' => $template->slug,
-                        'entryId' => $entry->id
+                        'entryId' => $entry->id,
                     ]),
                     'frontend_url' => $contentNode ? url($contentNode->url_path) : null,
                     'data' => $generatedData,
@@ -100,7 +100,7 @@ class AIContentHandler
         } catch (\Exception $e) {
             return [
                 'success' => false,
-                'message' => '❌ Error: ' . $e->getMessage(),
+                'message' => '❌ Error: '.$e->getMessage(),
             ];
         }
     }
@@ -130,7 +130,7 @@ class AIContentHandler
 
         // Check for digits
         if (preg_match('/(\d+)\s*(άρθρ|post|article|προϊόντ|product)/u', $message, $matches)) {
-            return min((int)$matches[1], 5); // Max 5 items at once
+            return min((int) $matches[1], 5); // Max 5 items at once
         }
 
         return 1;
@@ -144,7 +144,7 @@ class AIContentHandler
         \Log::info('Batch content generation requested', [
             'template' => $template->slug,
             'count' => $count,
-            'message' => $userMessage
+            'message' => $userMessage,
         ]);
 
         $createdEntries = [];
@@ -162,12 +162,13 @@ class AIContentHandler
                 );
 
                 if (empty($generatedData)) {
-                    $errors[] = "Αποτυχία δημιουργίας entry " . ($i + 1);
+                    $errors[] = 'Αποτυχία δημιουργίας entry '.($i + 1);
+
                     continue;
                 }
 
                 // Auto-generate slug
-                if (!isset($generatedData['slug']) && isset($generatedData['title'])) {
+                if (! isset($generatedData['slug']) && isset($generatedData['title'])) {
                     $generatedData['slug'] = Str::slug($generatedData['title']);
                 }
 
@@ -182,20 +183,20 @@ class AIContentHandler
                         'title' => $generatedData['title'] ?? 'Untitled',
                         'preview_url' => route('admin.template-entries.edit', [
                             'templateSlug' => $template->slug,
-                            'entryId' => $entry->id
+                            'entryId' => $entry->id,
                         ]),
                         'frontend_url' => $contentNode ? url($contentNode->url_path) : null,
                     ];
                 } else {
-                    $errors[] = "Αποτυχία αποθήκευσης entry " . ($i + 1);
+                    $errors[] = 'Αποτυχία αποθήκευσης entry '.($i + 1);
                 }
 
             } catch (\Exception $e) {
-                \Log::error("Batch entry creation failed", [
+                \Log::error('Batch entry creation failed', [
                     'index' => $i,
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ]);
-                $errors[] = "Entry " . ($i + 1) . ": " . $e->getMessage();
+                $errors[] = 'Entry '.($i + 1).': '.$e->getMessage();
             }
         }
 
@@ -204,16 +205,16 @@ class AIContentHandler
         $message = "✅ Δημιούργησα {$successCount} από {$count} άρθρα!\n\n";
 
         foreach ($createdEntries as $index => $entry) {
-            $message .= "**" . ($index + 1) . ". " . $entry['title'] . "**\n";
-            $message .= "🔗 [Επεξεργασία](" . $entry['preview_url'] . ")";
+            $message .= '**'.($index + 1).'. '.$entry['title']."**\n";
+            $message .= '🔗 [Επεξεργασία]('.$entry['preview_url'].')';
             if ($entry['frontend_url']) {
-                $message .= " | 🌐 [Frontend](" . $entry['frontend_url'] . ")";
+                $message .= ' | 🌐 [Frontend]('.$entry['frontend_url'].')';
             }
             $message .= "\n\n";
         }
 
-        if (!empty($errors)) {
-            $message .= "\n⚠️ Σφάλματα:\n" . implode("\n", $errors);
+        if (! empty($errors)) {
+            $message .= "\n⚠️ Σφάλματα:\n".implode("\n", $errors);
         }
 
         return [
@@ -231,7 +232,7 @@ class AIContentHandler
     {
         // Extract the topic/subject from the original message
         // For now, just add context about which item this is
-        return $originalMessage . " (Δημιούργησε το άρθρο {$index} από {$total} - κάνε το μοναδικό και διαφορετικό από τα άλλα)";
+        return $originalMessage." (Δημιούργησε το άρθρο {$index} από {$total} - κάνε το μοναδικό και διαφορετικό από τα άλλα)";
     }
 
     /**
@@ -294,7 +295,7 @@ class AIContentHandler
      */
     protected function createEntry(Template $template, array $data): ?object
     {
-        if (!$template->table_name) {
+        if (! $template->table_name) {
             return null;
         }
 
@@ -320,6 +321,7 @@ class AIContentHandler
                 } else {
                     \Log::warning("Invalid JSON detected for field: {$key}", ['value' => $value]);
                 }
+
                 continue;
             }
 
@@ -331,7 +333,7 @@ class AIContentHandler
                 } else {
                     \Log::warning("Failed to encode array/object for field: {$key}", [
                         'value' => $value,
-                        'error' => json_last_error_msg()
+                        'error' => json_last_error_msg(),
                     ]);
                 }
             } else {
@@ -354,7 +356,7 @@ class AIContentHandler
             \Log::error('Entry creation failed', [
                 'template' => $template->name,
                 'error' => $e->getMessage(),
-                'data' => $cleanData
+                'data' => $cleanData,
             ]);
             throw $e;
         }
@@ -384,7 +386,7 @@ class AIContentHandler
             \Log::info('Attempting to create ContentNode', [
                 'template_slug' => $template->slug,
                 'entry_id' => $entry->id,
-                'data_keys' => array_keys($data)
+                'data_keys' => array_keys($data),
             ]);
 
             // Get the content type (model class) for polymorphic relation
@@ -392,14 +394,15 @@ class AIContentHandler
 
             \Log::info('Content type determined', [
                 'template_slug' => $template->slug,
-                'content_type' => $contentType
+                'content_type' => $contentType,
             ]);
 
-            if (!$contentType) {
+            if (! $contentType) {
                 \Log::warning('Could not determine content type for template', [
                     'template' => $template->slug,
-                    'available_slugs' => ['blog-post', 'product', 'service', 'page']
+                    'available_slugs' => ['blog-post', 'product', 'service', 'page'],
                 ]);
+
                 return null;
             }
 
@@ -418,7 +421,7 @@ class AIContentHandler
             \Log::info('ContentNode created', [
                 'node_id' => $node->id,
                 'url_path' => $node->url_path,
-                'entry_id' => $entry->id
+                'entry_id' => $entry->id,
             ]);
 
             return $node;
@@ -427,8 +430,9 @@ class AIContentHandler
             \Log::error('Failed to create ContentNode', [
                 'template' => $template->slug,
                 'entry_id' => $entry->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return null;
         }
     }
@@ -457,7 +461,7 @@ class AIContentHandler
         // Try to detect which entry to update from conversation context
         $entryInfo = $this->detectEntryFromContext($userMessage, $conversationContext);
 
-        if (!$entryInfo) {
+        if (! $entryInfo) {
             return [
                 'success' => false,
                 'message' => '❌ Δεν μπόρεσα να καταλάβω ποιο entry θέλεις να ενημερώσεις. Μπορείς να μου πεις το ID ή τον τίτλο;',
@@ -465,7 +469,7 @@ class AIContentHandler
         }
 
         $template = Template::find($entryInfo['template_id']);
-        if (!$template || !$template->table_name) {
+        if (! $template || ! $template->table_name) {
             return [
                 'success' => false,
                 'message' => '❌ Δεν βρέθηκε το template.',
@@ -477,7 +481,7 @@ class AIContentHandler
             ->where('id', $entryInfo['entry_id'])
             ->first();
 
-        if (!$currentEntry) {
+        if (! $currentEntry) {
             return [
                 'success' => false,
                 'message' => '❌ Δεν βρέθηκε το entry.',
@@ -485,7 +489,7 @@ class AIContentHandler
         }
 
         // Get template fields
-        $fields = $template->fields->map(fn($field) => [
+        $fields = $template->fields->map(fn ($field) => [
             'name' => $field->name,
             'label' => $field->label,
             'type' => $field->type,
@@ -513,7 +517,7 @@ class AIContentHandler
             }
 
             // Update slug if title changed
-            if (isset($updates['title']) && !isset($updates['slug'])) {
+            if (isset($updates['title']) && ! isset($updates['slug'])) {
                 $updates['slug'] = Str::slug($updates['title']);
             }
 
@@ -537,10 +541,10 @@ class AIContentHandler
 
                 // Truncate long values
                 if (is_string($oldValue) && strlen($oldValue) > 50) {
-                    $oldValue = substr($oldValue, 0, 50) . '...';
+                    $oldValue = substr($oldValue, 0, 50).'...';
                 }
                 if (is_string($newValue) && strlen($newValue) > 50) {
-                    $newValue = substr($newValue, 0, 50) . '...';
+                    $newValue = substr($newValue, 0, 50).'...';
                 }
 
                 $message .= "- **{$field}**: {$oldValue} → {$newValue}\n";
@@ -553,7 +557,7 @@ class AIContentHandler
                 'template_slug' => $template->slug,
                 'preview_url' => route('admin.template-entries.edit', [
                     'templateSlug' => $template->slug,
-                    'entryId' => $entryInfo['entry_id']
+                    'entryId' => $entryInfo['entry_id'],
                 ]),
                 'updates' => $updates,
             ];
@@ -561,7 +565,7 @@ class AIContentHandler
         } catch (\Exception $e) {
             return [
                 'success' => false,
-                'message' => '❌ Error: ' . $e->getMessage(),
+                'message' => '❌ Error: '.$e->getMessage(),
             ];
         }
     }
@@ -572,7 +576,7 @@ class AIContentHandler
     protected function detectEntryFromContext(string $message, array $context): ?array
     {
         // Check conversation history for recently created/mentioned entries
-        if (!empty($context['conversation_history'])) {
+        if (! empty($context['conversation_history'])) {
             foreach (array_reverse($context['conversation_history']) as $msg) {
                 if ($msg['role'] === 'assistant' && isset($msg['metadata'])) {
                     $metadata = $msg['metadata'];
@@ -588,11 +592,11 @@ class AIContentHandler
                     }
 
                     // Check for batch entries
-                    if (isset($metadata['entries']) && !empty($metadata['entries'])) {
+                    if (isset($metadata['entries']) && ! empty($metadata['entries'])) {
                         $lastEntry = end($metadata['entries']);
                         if (isset($lastEntry['entry_id'])) {
                             $template = Template::where('slug', $metadata['template_slug'] ?? '')->first();
-                            if (!$template) {
+                            if (! $template) {
                                 // Try to find from message
                                 $template = $this->detectTemplate($message);
                             }
@@ -617,7 +621,7 @@ class AIContentHandler
     protected function updateContentNode(int $entryId, Template $template, array $updates): void
     {
         $contentType = $this->getContentTypeClass($template);
-        if (!$contentType) {
+        if (! $contentType) {
             return;
         }
 
@@ -634,7 +638,7 @@ class AIContentHandler
                 $nodeUpdates['slug'] = $updates['slug'];
             }
 
-            if (!empty($nodeUpdates)) {
+            if (! empty($nodeUpdates)) {
                 $node->update($nodeUpdates);
             }
         }
@@ -649,7 +653,7 @@ class AIContentHandler
             // Generate template structure from AI
             $templateData = $this->aiManager->generateTemplate($userMessage);
 
-            if (empty($templateData) || !isset($templateData['name'])) {
+            if (empty($templateData) || ! isset($templateData['name'])) {
                 return [
                     'success' => false,
                     'message' => '❌ Το AI δεν μπόρεσε να δημιουργήσει template structure. Δοκίμασε με πιο συγκεκριμένες οδηγίες.',
@@ -658,17 +662,17 @@ class AIContentHandler
 
             // Validate template data
             $validation = $this->validateTemplateData($templateData);
-            if (!$validation['valid']) {
+            if (! $validation['valid']) {
                 return [
                     'success' => false,
-                    'message' => '❌ Validation error: ' . $validation['error'],
+                    'message' => '❌ Validation error: '.$validation['error'],
                 ];
             }
 
             // Create the template
             $template = $this->createTemplate($templateData);
 
-            if (!$template) {
+            if (! $template) {
                 return [
                     'success' => false,
                     'message' => '❌ Αποτυχία δημιουργίας template στη βάση.',
@@ -679,11 +683,11 @@ class AIContentHandler
             $tableCreated = $this->createTemplateTable($template);
 
             $message = "✅ Δημιούργησα το template **{$template->name}**!\n\n";
-            $message .= "**Πεδία:** " . count($templateData['fields']) . "\n";
+            $message .= '**Πεδία:** '.count($templateData['fields'])."\n";
             $message .= "**Slug:** {$template->slug}\n";
             $message .= "**Table:** {$template->table_name}\n\n";
 
-            if (!$tableCreated) {
+            if (! $tableCreated) {
                 $message .= "⚠️ Το database table δεν δημιουργήθηκε. Θα χρειαστεί να το φτιάξεις manually.\n\n";
             }
 
@@ -700,12 +704,12 @@ class AIContentHandler
         } catch (\Exception $e) {
             \Log::error('Template creation failed', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return [
                 'success' => false,
-                'message' => '❌ Error: ' . $e->getMessage(),
+                'message' => '❌ Error: '.$e->getMessage(),
             ];
         }
     }
@@ -720,7 +724,7 @@ class AIContentHandler
             return ['valid' => false, 'error' => 'Missing template name'];
         }
 
-        if (empty($data['fields']) || !is_array($data['fields'])) {
+        if (empty($data['fields']) || ! is_array($data['fields'])) {
             return ['valid' => false, 'error' => 'Missing or invalid fields array'];
         }
 
@@ -744,7 +748,7 @@ class AIContentHandler
 
         // Check if slug exists
         if (Template::where('slug', $slug)->exists()) {
-            $slug = $slug . '-' . time();
+            $slug = $slug.'-'.time();
         }
 
         // Create template
@@ -785,7 +789,7 @@ class AIContentHandler
     {
         $tableName = $template->table_name;
 
-        if (!$tableName || DB::getSchemaBuilder()->hasTable($tableName)) {
+        if (! $tableName || DB::getSchemaBuilder()->hasTable($tableName)) {
             return false;
         }
 
@@ -803,13 +807,15 @@ class AIContentHandler
             });
 
             \Log::info('Template table created', ['table' => $tableName]);
+
             return true;
 
         } catch (\Exception $e) {
             \Log::error('Failed to create template table', [
                 'table' => $tableName,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return false;
         }
     }
@@ -821,7 +827,7 @@ class AIContentHandler
     {
         $name = $field->name;
         $type = $field->type;
-        $nullable = !$field->is_required;
+        $nullable = ! $field->is_required;
 
         switch ($type) {
             case 'text':
@@ -892,7 +898,7 @@ class AIContentHandler
             // Detect which template to modify
             $template = $this->detectTemplateToModify($userMessage, $conversationContext);
 
-            if (!$template) {
+            if (! $template) {
                 return [
                     'success' => false,
                     'message' => '❌ Δεν μπόρεσα να καταλάβω ποιο template θέλεις να τροποποιήσεις. Μπορείς να το προσδιορίσεις;',
@@ -902,7 +908,7 @@ class AIContentHandler
             // Get modification instructions from AI
             $modifications = $this->aiManager->modifyTemplate($template, $userMessage);
 
-            if (empty($modifications) || !isset($modifications['action'])) {
+            if (empty($modifications) || ! isset($modifications['action'])) {
                 return [
                     'success' => false,
                     'message' => '❌ Δεν κατάλαβα τι αλλαγές θέλεις να κάνω. Δοκίμασε πιο συγκεκριμένα.',
@@ -917,12 +923,12 @@ class AIContentHandler
         } catch (\Exception $e) {
             \Log::error('Template modification failed', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return [
                 'success' => false,
-                'message' => '❌ Error: ' . $e->getMessage(),
+                'message' => '❌ Error: '.$e->getMessage(),
             ];
         }
     }
@@ -933,7 +939,7 @@ class AIContentHandler
     protected function detectTemplateToModify(string $message, array $context): ?Template
     {
         // Check if a template was just created
-        if (!empty($context['conversation_history'])) {
+        if (! empty($context['conversation_history'])) {
             foreach (array_reverse($context['conversation_history']) as $msg) {
                 if ($msg['role'] === 'assistant' && isset($msg['metadata']['template_slug'])) {
                     $template = Template::where('slug', $msg['metadata']['template_slug'])->first();
@@ -969,17 +975,17 @@ class AIContentHandler
         $changes = [];
 
         try {
-            if ($action === 'add_fields' && !empty($modifications['fields_to_add'])) {
+            if ($action === 'add_fields' && ! empty($modifications['fields_to_add'])) {
                 $added = $this->addFieldsToTemplate($template, $modifications['fields_to_add']);
                 $changes[] = "Προστέθηκαν {$added} νέα πεδία";
             }
 
-            if ($action === 'remove_fields' && !empty($modifications['fields_to_remove'])) {
+            if ($action === 'remove_fields' && ! empty($modifications['fields_to_remove'])) {
                 $removed = $this->removeFieldsFromTemplate($template, $modifications['fields_to_remove']);
                 $changes[] = "Αφαιρέθηκαν {$removed} πεδία";
             }
 
-            if ($action === 'modify_fields' && !empty($modifications['fields_to_modify'])) {
+            if ($action === 'modify_fields' && ! empty($modifications['fields_to_modify'])) {
                 $modified = $this->modifyTemplateFields($template, $modifications['fields_to_modify']);
                 $changes[] = "Τροποποιήθηκαν {$modified} πεδία";
             }
@@ -990,7 +996,7 @@ class AIContentHandler
                 $message .= "- {$change}\n";
             }
 
-            if (!empty($modifications['reason'])) {
+            if (! empty($modifications['reason'])) {
                 $message .= "\n**Λόγος:** {$modifications['reason']}\n";
             }
 
@@ -1007,7 +1013,7 @@ class AIContentHandler
         } catch (\Exception $e) {
             return [
                 'success' => false,
-                'message' => '❌ Αποτυχία εφαρμογής αλλαγών: ' . $e->getMessage(),
+                'message' => '❌ Αποτυχία εφαρμογής αλλαγών: '.$e->getMessage(),
             ];
         }
     }
@@ -1081,12 +1087,20 @@ class AIContentHandler
             if ($field) {
                 $updates = [];
 
-                if (isset($fieldData['label'])) $updates['label'] = $fieldData['label'];
-                if (isset($fieldData['description'])) $updates['description'] = $fieldData['description'];
-                if (isset($fieldData['is_required'])) $updates['is_required'] = $fieldData['is_required'];
-                if (isset($fieldData['show_in_table'])) $updates['show_in_table'] = $fieldData['show_in_table'];
+                if (isset($fieldData['label'])) {
+                    $updates['label'] = $fieldData['label'];
+                }
+                if (isset($fieldData['description'])) {
+                    $updates['description'] = $fieldData['description'];
+                }
+                if (isset($fieldData['is_required'])) {
+                    $updates['is_required'] = $fieldData['is_required'];
+                }
+                if (isset($fieldData['show_in_table'])) {
+                    $updates['show_in_table'] = $fieldData['show_in_table'];
+                }
 
-                if (!empty($updates)) {
+                if (! empty($updates)) {
                     $field->update($updates);
                     $modified++;
                 }
@@ -1108,14 +1122,14 @@ class AIContentHandler
 
             \Log::info('Column added to table', [
                 'table' => $tableName,
-                'column' => $field->name
+                'column' => $field->name,
             ]);
 
         } catch (\Exception $e) {
             \Log::error('Failed to add column', [
                 'table' => $tableName,
                 'column' => $field->name,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
             throw $e;
         }
@@ -1133,14 +1147,14 @@ class AIContentHandler
 
             \Log::info('Column removed from table', [
                 'table' => $tableName,
-                'column' => $columnName
+                'column' => $columnName,
             ]);
 
         } catch (\Exception $e) {
             \Log::error('Failed to remove column', [
                 'table' => $tableName,
                 'column' => $columnName,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
             throw $e;
         }
@@ -1155,7 +1169,7 @@ class AIContentHandler
             // Detect which file to modify
             $filePath = $this->detectFileFromMessage($userMessage);
 
-            if (!$filePath) {
+            if (! $filePath) {
                 return [
                     'success' => false,
                     'message' => '❌ Δεν μπόρεσα να καταλάβω ποιο αρχείο θέλεις να τροποποιήσω. Πες μου (π.χ. "στην αρχική σελίδα", "στο home").',
@@ -1164,7 +1178,7 @@ class AIContentHandler
 
             $fullPath = base_path($filePath);
 
-            if (!File::exists($fullPath)) {
+            if (! File::exists($fullPath)) {
                 return [
                     'success' => false,
                     'message' => "❌ Το αρχείο {$filePath} δεν υπάρχει.",
@@ -1185,15 +1199,15 @@ class AIContentHandler
             }
 
             // Apply operations using BladeCompiler
-            $compiler = new BladeCompiler();
+            $compiler = new BladeCompiler;
             $result = $compiler->apply($operations, $filePath);
 
-            if (!$result['success']) {
+            if (! $result['success']) {
                 return [
                     'success' => false,
-                    'message' => "❌ Αποτυχία: {$result['error']}\n\n" .
-                                "Απέτυχε στο operation #{$result['failed_at_operation']}.\n" .
-                                "Έγινε rollback στην προηγούμενη έκδοση.",
+                    'message' => "❌ Αποτυχία: {$result['error']}\n\n".
+                                "Απέτυχε στο operation #{$result['failed_at_operation']}.\n".
+                                'Έγινε rollback στην προηγούμενη έκδοση.',
                 ];
             }
 
@@ -1204,7 +1218,7 @@ class AIContentHandler
                 $message .= "- {$desc}\n";
             }
             $message .= "\n**Backup:** {$result['backup']}\n\n";
-            $message .= "⚠️ Έλεγξε τη σελίδα για να δεις αν όλα λειτουργούν σωστά!";
+            $message .= '⚠️ Έλεγξε τη σελίδα για να δεις αν όλα λειτουργούν σωστά!';
 
             return [
                 'success' => true,
@@ -1217,12 +1231,12 @@ class AIContentHandler
         } catch (\Exception $e) {
             \Log::error('Frontend modification failed', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return [
                 'success' => false,
-                'message' => '❌ Error: ' . $e->getMessage(),
+                'message' => '❌ Error: '.$e->getMessage(),
             ];
         }
     }
@@ -1262,11 +1276,12 @@ class AIContentHandler
      */
     protected function isJson(string $string): bool
     {
-        if (empty($string) || !is_string($string)) {
+        if (empty($string) || ! is_string($string)) {
             return false;
         }
 
         json_decode($string);
+
         return json_last_error() === JSON_ERROR_NONE;
     }
 
@@ -1275,11 +1290,11 @@ class AIContentHandler
      */
     public function handlePageSectionCreation(string $userMessage, array $context = []): array
     {
-        // Detect page type (home, about, etc.)
-        $pageType = $this->detectPageType($userMessage);
+        // Detect sectionable model (polymorphic)
+        $sectionable = $this->detectSectionableModel($userMessage);
 
         // Detect position (before/after which section)
-        $position = $this->detectSectionPosition($userMessage, $pageType, $context);
+        $position = $this->detectSectionPosition($userMessage, $sectionable, $context);
 
         // Generate structured HTML JSON using AI
         $result = $this->aiManager->getProvider()->generateStructuredHTML($userMessage);
@@ -1287,32 +1302,33 @@ class AIContentHandler
         if (isset($result['error'])) {
             return [
                 'success' => false,
-                'message' => '❌ Σφάλμα: ' . $result['error']
+                'message' => '❌ Σφάλμα: '.$result['error'],
             ];
         }
 
         // Extract section name from the structure (use first heading if available)
         $sectionName = $this->extractSectionName($result['structure']) ?? 'Custom Section';
 
-        // Create the section with structured JSON
+        // Create the section with structured JSON (polymorphic)
         $section = \App\Models\PageSection::create([
-            'page_type' => $pageType,
+            'sectionable_type' => $sectionable['type'],
+            'sectionable_id' => $sectionable['id'],
             'section_type' => 'structured_html',
             'name' => $sectionName,
             'order' => $position['order'],
             'is_active' => true,
             'content' => [
-                'structure' => $result['structure']
+                'structure' => $result['structure'],
             ],
             'settings' => [
-                'container' => false, // Structure defines its own container
-                'padding' => false,   // Structure defines its own padding
+                'container' => false,
+                'padding' => false,
             ],
         ]);
 
         // Reorder other sections if needed
         if ($position['adjust_others']) {
-            $this->adjustSectionOrders($pageType, $position['order'], $section->id);
+            $this->adjustSectionOrders($sectionable, $position['order'], $section->id);
         }
 
         $positionMessage = $position['message'] ?? '';
@@ -1322,7 +1338,8 @@ class AIContentHandler
             'message' => "✅ Δημιούργησα ένα νέο section{$positionMessage}!\n\n💡 Το AI δημιούργησε structured JSON με Tailwind CSS που αποδίδεται δυναμικά σε HTML.",
             'section_id' => $section->id,
             'section_type' => 'structured_html',
-            'page_type' => $pageType,
+            'sectionable_type' => $sectionable['type'],
+            'sectionable_id' => $sectionable['id'],
         ];
     }
 
@@ -1357,19 +1374,19 @@ class AIContentHandler
         // Detect which section to modify from context or message
         $sectionInfo = $this->detectSectionFromContext($userMessage, $context);
 
-        if (!$sectionInfo) {
+        if (! $sectionInfo) {
             return [
                 'success' => false,
-                'message' => 'Δεν μπόρεσα να καταλάβω ποιο section θέλεις να τροποποιήσω. Μπορείς να διευκρινίσεις;'
+                'message' => 'Δεν μπόρεσα να καταλάβω ποιο section θέλεις να τροποποιήσω. Μπορείς να διευκρινίσεις;',
             ];
         }
 
         $section = \App\Models\PageSection::find($sectionInfo['section_id']);
 
-        if (!$section) {
+        if (! $section) {
             return [
                 'success' => false,
-                'message' => 'Δεν βρέθηκε το section.'
+                'message' => 'Δεν βρέθηκε το section.',
             ];
         }
 
@@ -1383,7 +1400,7 @@ class AIContentHandler
             if (isset($result['error'])) {
                 return [
                     'success' => false,
-                    'message' => '❌ Σφάλμα: ' . $result['error']
+                    'message' => '❌ Σφάλμα: '.$result['error'],
                 ];
             }
 
@@ -1411,7 +1428,7 @@ class AIContentHandler
             if (isset($result['error'])) {
                 return [
                     'success' => false,
-                    'message' => '❌ Σφάλμα: ' . $result['error']
+                    'message' => '❌ Σφάλμα: '.$result['error'],
                 ];
             }
 
@@ -1441,8 +1458,8 @@ class AIContentHandler
 
         $description = "Ένα '{$typeName}' section";
 
-        if (!empty($section->content)) {
-            $description .= " με περιεχόμενο: " . json_encode($section->content, JSON_UNESCAPED_UNICODE);
+        if (! empty($section->content)) {
+            $description .= ' με περιεχόμενο: '.json_encode($section->content, JSON_UNESCAPED_UNICODE);
         }
 
         return $description;
@@ -1515,32 +1532,46 @@ class AIContentHandler
     }
 
     /**
-     * Detect page type from message (defaults to 'home')
+     * Detect sectionable model from message. Returns ['type' => FQCN, 'id' => int].
+     * Defaults to the first Home model.
      */
-    protected function detectPageType(string $message): string
+    protected function detectSectionableModel(string $message): array
     {
         $message = mb_strtolower($message);
 
+        // Default: Home model
+        $home = \App\Models\Home::first();
+        $default = [
+            'type' => \App\Models\Home::class,
+            'id' => $home?->id ?? 1,
+        ];
+
         if (preg_match('/(στην αρχική|home page|homepage|αρχική)/u', $message)) {
-            return 'home';
+            return $default;
         }
 
+        // Try to find a Page by keyword
         if (preg_match('/(about|σχετικά)/u', $message)) {
-            return 'about';
+            $page = \App\Models\Page::where('slug', 'like', '%about%')->first();
+            if ($page) {
+                return ['type' => \App\Models\Page::class, 'id' => $page->id];
+            }
         }
 
         if (preg_match('/(contact|επικοινωνία)/u', $message)) {
-            return 'contact';
+            $page = \App\Models\Page::where('slug', 'like', '%contact%')->first();
+            if ($page) {
+                return ['type' => \App\Models\Page::class, 'id' => $page->id];
+            }
         }
 
-        // Default to home
-        return 'home';
+        return $default;
     }
 
     /**
      * Detect section position from message
      */
-    protected function detectSectionPosition(string $message, string $pageType, array $context = []): array
+    protected function detectSectionPosition(string $message, array $sectionable, array $context = []): array
     {
         $message = mb_strtolower($message);
 
@@ -1550,7 +1581,6 @@ class AIContentHandler
             'after' => ['μετά', 'κάτω από', 'below', 'after', 'underneath'],
         ];
 
-        $position = null;
         $positionType = null;
 
         foreach ($patterns as $type => $keywords) {
@@ -1563,8 +1593,7 @@ class AIContentHandler
         }
 
         if ($positionType) {
-            // Try to find the reference section
-            $referenceSection = $this->findReferenceSectionFromMessage($message, $pageType);
+            $referenceSection = $this->findReferenceSectionFromMessage($message, $sectionable);
 
             if ($referenceSection) {
                 $order = $positionType === 'before' ? $referenceSection->order : $referenceSection->order + 1;
@@ -1572,7 +1601,7 @@ class AIContentHandler
                 return [
                     'order' => $order,
                     'adjust_others' => true,
-                    'message' => " {$positionType} '{$referenceSection->name}'"
+                    'message' => " {$positionType} '{$referenceSection->name}'",
                 ];
             }
         }
@@ -1584,27 +1613,31 @@ class AIContentHandler
                 return [
                     'order' => $selectedSection->order + 1,
                     'adjust_others' => true,
-                    'message' => " μετά από '{$selectedSection->name}'"
+                    'message' => " μετά από '{$selectedSection->name}'",
                 ];
             }
         }
 
         // Default: add at the end
-        $maxOrder = \App\Models\PageSection::where('page_type', $pageType)->max('order') ?? 0;
+        $maxOrder = \App\Models\PageSection::where('sectionable_type', $sectionable['type'])
+            ->where('sectionable_id', $sectionable['id'])
+            ->max('order') ?? 0;
 
         return [
             'order' => $maxOrder + 1,
             'adjust_others' => false,
-            'message' => ''
+            'message' => '',
         ];
     }
 
     /**
      * Find reference section from message
      */
-    protected function findReferenceSectionFromMessage(string $message, string $pageType): ?\App\Models\PageSection
+    protected function findReferenceSectionFromMessage(string $message, array $sectionable): ?\App\Models\PageSection
     {
-        $sections = \App\Models\PageSection::where('page_type', $pageType)->get();
+        $sections = \App\Models\PageSection::where('sectionable_type', $sectionable['type'])
+            ->where('sectionable_id', $sectionable['id'])
+            ->get();
 
         foreach ($sections as $section) {
             $sectionName = mb_strtolower($section->name);
@@ -1619,10 +1652,10 @@ class AIContentHandler
     /**
      * Adjust section orders after insertion
      */
-    protected function adjustSectionOrders(string $pageType, int $insertOrder, int $excludeId): void
+    protected function adjustSectionOrders(array $sectionable, int $insertOrder, int $excludeId): void
     {
-        // Move all sections at or after the insert position down by 1
-        \App\Models\PageSection::where('page_type', $pageType)
+        \App\Models\PageSection::where('sectionable_type', $sectionable['type'])
+            ->where('sectionable_id', $sectionable['id'])
             ->where('id', '!=', $excludeId)
             ->where('order', '>=', $insertOrder)
             ->increment('order');
@@ -1636,7 +1669,7 @@ class AIContentHandler
         // PRIORITY 1: Check for explicit section_id in context (from SectionEditor)
         if (isset($context['section_id'])) {
             return [
-                'section_id' => $context['section_id']
+                'section_id' => $context['section_id'],
             ];
         }
 
@@ -1645,7 +1678,7 @@ class AIContentHandler
             foreach (array_reverse($context['conversation_history']) as $msg) {
                 if ($msg['role'] === 'assistant' && isset($msg['metadata']['section_id'])) {
                     return [
-                        'section_id' => $msg['metadata']['section_id']
+                        'section_id' => $msg['metadata']['section_id'],
                     ];
                 }
             }
@@ -1653,10 +1686,11 @@ class AIContentHandler
 
         // PRIORITY 3: Try to find section by type mentioned in message
         $sectionType = $this->detectSectionType($message);
-        $pageType = $this->detectPageType($message);
+        $sectionable = $this->detectSectionableModel($message);
 
         if ($sectionType) {
-            $section = \App\Models\PageSection::where('page_type', $pageType)
+            $section = \App\Models\PageSection::where('sectionable_type', $sectionable['type'])
+                ->where('sectionable_id', $sectionable['id'])
                 ->where('section_type', $sectionType)
                 ->orderBy('created_at', 'desc')
                 ->first();
@@ -1674,45 +1708,44 @@ class AIContentHandler
      */
     public function handlePageSectionReordering(string $userMessage): array
     {
-        $message = mb_strtolower($userMessage);
-
-        // Detect page type
-        $pageType = $this->detectPageType($userMessage);
+        // Detect sectionable model
+        $sectionable = $this->detectSectionableModel($userMessage);
 
         // Detect which section to move
         $sectionType = $this->detectSectionType($userMessage);
 
-        if (!$sectionType) {
+        if (! $sectionType) {
             return [
                 'success' => false,
-                'message' => 'Δεν μπόρεσα να καταλάβω ποιο section θέλεις να μετακινήσω. Μπορείς να διευκρινίσεις;'
+                'message' => 'Δεν μπόρεσα να καταλάβω ποιο section θέλεις να μετακινήσω. Μπορείς να διευκρινίσεις;',
             ];
         }
 
         // Find the section to move
-        $section = \App\Models\PageSection::where('page_type', $pageType)
+        $section = \App\Models\PageSection::where('sectionable_type', $sectionable['type'])
+            ->where('sectionable_id', $sectionable['id'])
             ->where('section_type', $sectionType)
             ->first();
 
-        if (!$section) {
+        if (! $section) {
             return [
                 'success' => false,
-                'message' => "Δεν βρέθηκε {$sectionType} section στη σελίδα {$pageType}."
+                'message' => "Δεν βρέθηκε {$sectionType} section.",
             ];
         }
 
         // Determine the target position
-        $position = $this->detectTargetPosition($userMessage, $pageType, $section);
+        $position = $this->detectTargetPosition($userMessage, $sectionable, $section);
 
         if ($position === null) {
             return [
                 'success' => false,
-                'message' => 'Δεν μπόρεσα να καταλάβω που θέλεις να μετακινήσω το section. Μπορείς να πεις "στην αρχή", "στο τέλος", "πάνω από το features", κλπ;'
+                'message' => 'Δεν μπόρεσα να καταλάβω που θέλεις να μετακινήσω το section. Μπορείς να πεις "στην αρχή", "στο τέλος", "πάνω από το features", κλπ;',
             ];
         }
 
         // Perform the reordering
-        $result = $this->reorderSection($section, $position, $pageType);
+        $result = $this->reorderSection($section, $position, $sectionable);
 
         return $result;
     }
@@ -1720,7 +1753,7 @@ class AIContentHandler
     /**
      * Detect target position for section reordering
      */
-    protected function detectTargetPosition(string $message, string $pageType, $movingSection): ?array
+    protected function detectTargetPosition(string $message, array $sectionable, $movingSection): ?array
     {
         $message = mb_strtolower($message);
 
@@ -1731,7 +1764,10 @@ class AIContentHandler
 
         // Move to bottom/last
         if (preg_match('/(κάτω μεριά|τέλος|τελευταίο|τελευταία|bottom|last|end)/u', $message)) {
-            $maxOrder = \App\Models\PageSection::where('page_type', $pageType)->max('order') ?? 0;
+            $maxOrder = \App\Models\PageSection::where('sectionable_type', $sectionable['type'])
+                ->where('sectionable_id', $sectionable['id'])
+                ->max('order') ?? 0;
+
             return ['type' => 'absolute', 'position' => $maxOrder];
         }
 
@@ -1739,7 +1775,8 @@ class AIContentHandler
         if (preg_match('/(πάνω από|πριν από|before|above)/u', $message)) {
             $targetType = $this->detectTargetSectionType($message, $movingSection->section_type);
             if ($targetType) {
-                $targetSection = \App\Models\PageSection::where('page_type', $pageType)
+                $targetSection = \App\Models\PageSection::where('sectionable_type', $sectionable['type'])
+                    ->where('sectionable_id', $sectionable['id'])
                     ->where('section_type', $targetType)
                     ->first();
                 if ($targetSection) {
@@ -1751,7 +1788,8 @@ class AIContentHandler
         if (preg_match('/(κάτω από|μετά από|after|below)/u', $message)) {
             $targetType = $this->detectTargetSectionType($message, $movingSection->section_type);
             if ($targetType) {
-                $targetSection = \App\Models\PageSection::where('page_type', $pageType)
+                $targetSection = \App\Models\PageSection::where('sectionable_type', $sectionable['type'])
+                    ->where('sectionable_id', $sectionable['id'])
                     ->where('section_type', $targetType)
                     ->first();
                 if ($targetSection) {
@@ -1782,7 +1820,9 @@ class AIContentHandler
         ];
 
         foreach ($patterns as $type => $keywords) {
-            if ($type === $excludeType) continue; // Skip the section we're moving
+            if ($type === $excludeType) {
+                continue;
+            } // Skip the section we're moving
 
             foreach ($keywords as $keyword) {
                 if (str_contains($message, $keyword)) {
@@ -1797,41 +1837,35 @@ class AIContentHandler
     /**
      * Perform the actual section reordering
      */
-    protected function reorderSection($section, array $position, string $pageType): array
+    protected function reorderSection($section, array $position, array $sectionable): array
     {
         $sectionTypes = \App\Models\PageSection::getSectionTypes();
         $sectionName = $sectionTypes[$section->section_type]['name'] ?? $section->section_type;
 
+        $query = \App\Models\PageSection::where('sectionable_type', $sectionable['type'])
+            ->where('sectionable_id', $sectionable['id']);
+
         if ($position['type'] === 'absolute') {
-            // Move to specific position (0 = first, max = last)
             $targetOrder = $position['position'];
 
-            // Get all sections for this page ordered
-            $allSections = \App\Models\PageSection::where('page_type', $pageType)
-                ->orderBy('order')
-                ->get();
+            $allSections = (clone $query)->orderBy('order')->get();
+            $allSections = $allSections->filter(fn ($s) => $s->id !== $section->id);
 
-            // Remove the section from its current position
-            $allSections = $allSections->filter(fn($s) => $s->id !== $section->id);
-
-            // Insert at target position
             $newOrder = [];
             $inserted = false;
 
             foreach ($allSections as $index => $s) {
-                if ($index == $targetOrder && !$inserted) {
+                if ($index == $targetOrder && ! $inserted) {
                     $newOrder[] = $section;
                     $inserted = true;
                 }
                 $newOrder[] = $s;
             }
 
-            // If not inserted yet, add at the end
-            if (!$inserted) {
+            if (! $inserted) {
                 $newOrder[] = $section;
             }
 
-            // Update order for all sections
             foreach ($newOrder as $index => $s) {
                 $s->update(['order' => $index]);
             }
@@ -1845,19 +1879,12 @@ class AIContentHandler
             ];
 
         } elseif ($position['type'] === 'before') {
-            // Move before another section
             $targetSection = $position['target_section'];
             $targetName = $sectionTypes[$targetSection->section_type]['name'] ?? $targetSection->section_type;
 
-            // Get all sections
-            $allSections = \App\Models\PageSection::where('page_type', $pageType)
-                ->orderBy('order')
-                ->get();
+            $allSections = (clone $query)->orderBy('order')->get();
+            $allSections = $allSections->filter(fn ($s) => $s->id !== $section->id);
 
-            // Remove the section from its current position
-            $allSections = $allSections->filter(fn($s) => $s->id !== $section->id);
-
-            // Insert before target
             $newOrder = [];
             foreach ($allSections as $s) {
                 if ($s->id === $targetSection->id) {
@@ -1866,7 +1893,6 @@ class AIContentHandler
                 $newOrder[] = $s;
             }
 
-            // Update order
             foreach ($newOrder as $index => $s) {
                 $s->update(['order' => $index]);
             }
@@ -1878,19 +1904,12 @@ class AIContentHandler
             ];
 
         } elseif ($position['type'] === 'after') {
-            // Move after another section
             $targetSection = $position['target_section'];
             $targetName = $sectionTypes[$targetSection->section_type]['name'] ?? $targetSection->section_type;
 
-            // Get all sections
-            $allSections = \App\Models\PageSection::where('page_type', $pageType)
-                ->orderBy('order')
-                ->get();
+            $allSections = (clone $query)->orderBy('order')->get();
+            $allSections = $allSections->filter(fn ($s) => $s->id !== $section->id);
 
-            // Remove the section from its current position
-            $allSections = $allSections->filter(fn($s) => $s->id !== $section->id);
-
-            // Insert after target
             $newOrder = [];
             foreach ($allSections as $s) {
                 $newOrder[] = $s;
@@ -1899,7 +1918,6 @@ class AIContentHandler
                 }
             }
 
-            // Update order
             foreach ($newOrder as $index => $s) {
                 $s->update(['order' => $index]);
             }
@@ -1913,7 +1931,7 @@ class AIContentHandler
 
         return [
             'success' => false,
-            'message' => 'Κάτι πήγε στραβά με τη μετακίνηση.'
+            'message' => 'Κάτι πήγε στραβά με τη μετακίνηση.',
         ];
     }
 }

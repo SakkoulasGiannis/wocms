@@ -4,9 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Nwidart\Modules\Facades\Module;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
+use Nwidart\Modules\Facades\Module;
 use ZipArchive;
 
 class ModuleController extends Controller
@@ -28,16 +27,17 @@ class ModuleController extends Controller
                 'path' => $module->getPath(),
                 'priority' => $module->get('priority', 0),
                 'has_menu' => $this->moduleHasMenu($module->getName()),
+                'settings_route' => $this->getModuleSettingsRoute($module->getName()),
             ];
         }
 
         // Sort by priority
-        usort($moduleData, function($a, $b) {
+        usort($moduleData, function ($a, $b) {
             return $a['priority'] <=> $b['priority'];
         });
 
         return view('admin.modules.index', [
-            'modules' => $moduleData
+            'modules' => $moduleData,
         ]);
     }
 
@@ -49,7 +49,7 @@ class ModuleController extends Controller
         try {
             $module = Module::find($moduleName);
 
-            if (!$module) {
+            if (! $module) {
                 return redirect()->back()->with('error', 'Module not found.');
             }
 
@@ -57,7 +57,7 @@ class ModuleController extends Controller
 
             return redirect()->back()->with('success', "Module '{$moduleName}' enabled successfully.");
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Failed to enable module: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to enable module: '.$e->getMessage());
         }
     }
 
@@ -69,7 +69,7 @@ class ModuleController extends Controller
         try {
             $module = Module::find($moduleName);
 
-            if (!$module) {
+            if (! $module) {
                 return redirect()->back()->with('error', 'Module not found.');
             }
 
@@ -77,7 +77,7 @@ class ModuleController extends Controller
 
             return redirect()->back()->with('success', "Module '{$moduleName}' disabled successfully.");
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Failed to disable module: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to disable module: '.$e->getMessage());
         }
     }
 
@@ -89,7 +89,7 @@ class ModuleController extends Controller
         try {
             $module = Module::find($moduleName);
 
-            if (!$module) {
+            if (! $module) {
                 return redirect()->back()->with('error', 'Module not found.');
             }
 
@@ -104,7 +104,7 @@ class ModuleController extends Controller
 
             return redirect()->back()->with('success', "Module '{$moduleName}' deleted successfully.");
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Failed to delete module: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to delete module: '.$e->getMessage());
         }
     }
 
@@ -126,29 +126,29 @@ class ModuleController extends Controller
 
             // Extract ZIP
             $zip = new ZipArchive;
-            if ($zip->open($tempPath) === TRUE) {
+            if ($zip->open($tempPath) === true) {
                 // Get the first folder name in the ZIP (module name)
                 $moduleName = null;
                 for ($i = 0; $i < $zip->numFiles; $i++) {
                     $filename = $zip->getNameIndex($i);
                     $parts = explode('/', $filename);
-                    if (count($parts) > 0 && !empty($parts[0])) {
+                    if (count($parts) > 0 && ! empty($parts[0])) {
                         $moduleName = $parts[0];
                         break;
                     }
                 }
 
-                if (!$moduleName) {
+                if (! $moduleName) {
                     throw new \Exception('Invalid module structure. Could not find module name.');
                 }
 
                 // Check if module already exists
                 $modulesPath = base_path('Modules');
-                if (!File::exists($modulesPath)) {
+                if (! File::exists($modulesPath)) {
                     File::makeDirectory($modulesPath, 0755, true);
                 }
 
-                $targetPath = $modulesPath . '/' . $moduleName;
+                $targetPath = $modulesPath.'/'.$moduleName;
                 if (File::exists($targetPath)) {
                     throw new \Exception("Module '{$moduleName}' already exists. Please delete it first.");
                 }
@@ -161,7 +161,7 @@ class ModuleController extends Controller
                 File::delete($tempPath);
 
                 // Verify module.json exists
-                if (!File::exists($targetPath . '/module.json')) {
+                if (! File::exists($targetPath.'/module.json')) {
                     File::deleteDirectory($targetPath);
                     throw new \Exception('Invalid module. Missing module.json file.');
                 }
@@ -176,7 +176,7 @@ class ModuleController extends Controller
                 File::delete($tempPath);
             }
 
-            return redirect()->back()->with('error', 'Failed to install module: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to install module: '.$e->getMessage());
         }
     }
 
@@ -185,19 +185,38 @@ class ModuleController extends Controller
      */
     protected function moduleHasMenu(string $moduleName): bool
     {
-        $module = Module::find($moduleName);
-        if (!$module) {
-            return false;
-        }
-
-        $menuConfigPath = $module->getPath() . '/Config/menu.php';
-
-        if (!file_exists($menuConfigPath)) {
-            return false;
-        }
-
-        $menuConfig = require $menuConfigPath;
+        $menuConfig = $this->getMenuConfig($moduleName);
 
         return isset($menuConfig['show_in_menu']) && $menuConfig['show_in_menu'] === true;
+    }
+
+    protected function getModuleSettingsRoute(string $moduleName): ?string
+    {
+        $menuConfig = $this->getMenuConfig($moduleName);
+        if (isset($menuConfig['settings_route'])) {
+            $route = $menuConfig['settings_route'];
+
+            return \Route::has($route) ? route($route) : null;
+        }
+
+        return null;
+    }
+
+    protected function getMenuConfig(string $moduleName): array
+    {
+        $module = Module::find($moduleName);
+        if (! $module) {
+            return [];
+        }
+
+        // Check both config/ and Config/ paths (case-sensitivity)
+        foreach (['config/menu.php', 'Config/menu.php'] as $path) {
+            $menuConfigPath = $module->getPath().'/'.$path;
+            if (file_exists($menuConfigPath)) {
+                return require $menuConfigPath;
+            }
+        }
+
+        return [];
     }
 }

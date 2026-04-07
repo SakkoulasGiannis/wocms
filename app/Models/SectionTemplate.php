@@ -70,23 +70,57 @@ class SectionTemplate extends Model
     }
 
     /**
-     * Render the template with provided data
+     * Render the template with provided data.
+     * Supports {{variable}} placeholders and {{#each items}}...{{/each}} blocks.
      */
     public function render(array $data = []): string
     {
         $html = $this->html_template;
 
-        // Replace {{variable}} placeholders with data
+        // 1. Process {{#each key}}...{{/each}} blocks for arrays/repeaters
+        $html = preg_replace_callback(
+            '/\{\{#each\s+(\w+)\}\}(.*?)\{\{\/each\}\}/s',
+            function ($matches) use ($data) {
+                $key = $matches[1];
+                $itemTemplate = $matches[2];
+                $items = $data[$key] ?? [];
+
+                if (! is_array($items)) {
+                    // Try to decode if it's a JSON string
+                    $decoded = json_decode($items, true);
+                    $items = is_array($decoded) ? $decoded : [];
+                }
+
+                $output = '';
+                foreach ($items as $item) {
+                    $rendered = $itemTemplate;
+                    if (is_array($item)) {
+                        foreach ($item as $itemKey => $itemValue) {
+                            if (! is_array($itemValue)) {
+                                $rendered = str_replace('{{this.'.$itemKey.'}}', (string) $itemValue, $rendered);
+                            }
+                        }
+                    }
+                    // Remove unreplaced {{this.*}} placeholders
+                    $rendered = preg_replace('/\{\{this\.[^}]+\}\}/', '', $rendered);
+                    $output .= $rendered;
+                }
+
+                return $output;
+            },
+            $html
+        );
+
+        // 2. Replace simple {{variable}} placeholders
         foreach ($data as $key => $value) {
-            // Handle array values (for repeaters)
             if (is_array($value)) {
-                $value = json_encode($value);
+                continue; // Arrays are handled by {{#each}} above
             }
 
-            $html = str_replace('{{' . $key . '}}', $value, $html);
+            $html = str_replace('{{'.$key.'}}', (string) $value, $html);
         }
 
-        // Remove any unreplaced placeholders
+        // 3. Remove any unreplaced placeholders
         $html = preg_replace('/\{\{[^}]+\}\}/', '', $html);
 
         return $html;
@@ -100,7 +134,7 @@ class SectionTemplate extends Model
         $directory = resource_path('views/sections/templates');
 
         // Create directory if it doesn't exist
-        if (!File::exists($directory)) {
+        if (! File::exists($directory)) {
             File::makeDirectory($directory, 0755, true);
         }
 
@@ -125,7 +159,7 @@ class SectionTemplate extends Model
      */
     public function deleteBladeFile(): bool
     {
-        if (!$this->blade_file) {
+        if (! $this->blade_file) {
             return true;
         }
 
