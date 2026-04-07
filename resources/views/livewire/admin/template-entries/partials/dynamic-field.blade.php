@@ -33,42 +33,12 @@
                 @break
 
             @case('wysiwyg')
-                <div wire:ignore>
-                    <input id="trix-{{ $field->name }}"
-                           type="hidden"
-                           value="{{ $fieldValues[$field->name] ?? '' }}">
-                    <trix-editor input="trix-{{ $field->name }}"
-                                 data-field-name="{{ $field->name }}"
-                                 class="trix-content"></trix-editor>
-                </div>
-                <script>
-                    document.addEventListener('livewire:init', () => {
-                        const initTrix = () => {
-                            const hiddenInput = document.querySelector('#trix-{{ $field->name }}');
-                            const editor = document.querySelector('[input="trix-{{ $field->name }}"]');
-
-                            if (editor && !editor.hasListener) {
-                                // Update hidden input on change (for internal state)
-                                editor.addEventListener('trix-change', function (e) {
-                                    if (hiddenInput) {
-                                        hiddenInput.value = this.value;
-                                    }
-                                });
-
-                                // Sync to Livewire only on blur (when user leaves the editor)
-                                editor.addEventListener('trix-blur', function (e) {
-                                    @this.set('fieldValues.{{ $field->name }}', this.value, false);
-                                });
-
-                                editor.hasListener = true;
-                            }
-                        };
-                        initTrix();
-                        Livewire.hook('morph.updated', () => {
-                            setTimeout(initTrix, 100);
-                        });
-                    });
-                </script>
+                <x-editorjs-field
+                    :name="$field->name"
+                    :value="$fieldValues[$field->name] ?? ''"
+                    wire-model="fieldValues.{{ $field->name }}"
+                    :uid="'ejs-field-' . $field->name . ($entryId ?? 'new')"
+                />
                 @break
 
             @case('grapejs')

@@ -1,5 +1,4 @@
 @push('styles')
-    <link rel="stylesheet" type="text/css" href="https://unpkg.com/trix@2.0.8/dist/trix.css">
     <link rel="stylesheet" href="https://unpkg.com/grapesjs/dist/css/grapes.min.css">
     <!-- CodeMirror CSS -->
     <link rel="stylesheet"
@@ -19,69 +18,6 @@
         /* Alpine.js x-cloak */
         [x-cloak] {
             display: none !important;
-        }
-
-        trix-toolbar .trix-button-group button {
-            border: none;
-        }
-
-        trix-editor {
-            min-height: 300px;
-            border: 1px solid #d1d5db;
-            border-radius: 0.5rem;
-            padding: 0.75rem;
-        }
-
-        trix-editor:focus {
-            outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 1px #3b82f6;
-        }
-
-        /* Trix custom attributes styling */
-        trix-editor [data-trix-attribute="alignLeft"] div,
-        .trix-content [data-trix-attribute="alignLeft"] div {
-            text-align: left !important;
-        }
-
-        trix-editor [data-trix-attribute="alignCenter"] div,
-        .trix-content [data-trix-attribute="alignCenter"] div {
-            text-align: center !important;
-        }
-
-        trix-editor [data-trix-attribute="alignRight"] div,
-        .trix-content [data-trix-attribute="alignRight"] div {
-            text-align: right !important;
-        }
-
-        trix-editor [data-trix-attribute="alignJustify"] div,
-        .trix-content [data-trix-attribute="alignJustify"] div {
-            text-align: justify !important;
-        }
-
-        /* Headings */
-        trix-editor h2,
-        .trix-content h2 {
-            font-size: 1.5em;
-            font-weight: bold;
-            margin-top: 0.5em;
-            margin-bottom: 0.5em;
-        }
-
-        trix-editor h3,
-        .trix-content h3 {
-            font-size: 1.25em;
-            font-weight: bold;
-            margin-top: 0.5em;
-            margin-bottom: 0.5em;
-        }
-
-        trix-editor h4,
-        .trix-content h4 {
-            font-size: 1.1em;
-            font-weight: bold;
-            margin-top: 0.5em;
-            margin-bottom: 0.5em;
         }
 
         .gjs-editor {

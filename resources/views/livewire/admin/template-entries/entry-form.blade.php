@@ -682,29 +682,12 @@
                                                                     @break
 
                                                                 @case('wysiwyg')
-                                                                    <div x-data="{
-                                                                        value: $wire.entangle('sectionForm.field_data.{{ $field->name }}'),
-                                                                        init() {
-                                                                            const editor = this.$refs.trixEditor;
-                                                                            if (editor && this.value) {
-                                                                                editor.editor?.loadHTML(this.value || '');
-                                                                            }
-                                                                            this.$watch('value', (val) => {
-                                                                                if (editor && editor.editor && editor.editor.getDocument().toString().trim() === '' && val) {
-                                                                                    editor.editor.loadHTML(val);
-                                                                                }
-                                                                            });
-                                                                        }
-                                                                    }" x-init="init()">
-                                                                        <input type="hidden" id="section-wysiwyg-{{ $field->name }}" x-model="value">
-                                                                        <trix-editor
-                                                                            x-ref="trixEditor"
-                                                                            input="section-wysiwyg-{{ $field->name }}"
-                                                                            class="trix-content rounded-lg border-gray-300"
-                                                                            style="min-height:150px;"
-                                                                            x-on:trix-change="value = $event.target.value"
-                                                                        ></trix-editor>
-                                                                    </div>
+                                                                    <x-editorjs-field
+                                                                        :name="'section.' . $field->name"
+                                                                        :value="$sectionForm['field_data'][$field->name] ?? ''"
+                                                                        wire-model="sectionForm.field_data.{{ $field->name }}"
+                                                                        :uid="'ejs-section-' . $field->name . ($editingSectionIndex ?? 'new')"
+                                                                    />
                                                                     @break
 
                                                                 @case('repeater')

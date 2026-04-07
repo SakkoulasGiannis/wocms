@@ -32,6 +32,11 @@ Route::get('/csrf-token', function () {
 Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
+    // EditorJS upload endpoints
+    Route::post('/editorjs/upload-image', [\App\Http\Controllers\Admin\EditorJsController::class, 'uploadImage'])->name('editorjs.upload-image');
+    Route::post('/editorjs/fetch-image', [\App\Http\Controllers\Admin\EditorJsController::class, 'fetchImageByUrl'])->name('editorjs.fetch-image');
+    Route::post('/editorjs/upload-file', [\App\Http\Controllers\Admin\EditorJsController::class, 'uploadFile'])->name('editorjs.upload-file');
+
     // Content Tree
     Route::get('/content-tree', \App\Livewire\Admin\ContentTree\TreeViewer::class)->name('content-tree');
 
