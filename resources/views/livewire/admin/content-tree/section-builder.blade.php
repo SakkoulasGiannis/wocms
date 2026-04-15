@@ -1,18 +1,128 @@
 <div class="bg-white rounded-lg shadow overflow-hidden">
     <!-- Header -->
-    <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+    <div class="px-6 py-4 bg-gray-50 border-b border-gray-200"
+         x-data="{
+             showJsonModal: false,
+             showImportModal: false,
+             jsonContent: '',
+             importContent: '',
+             copied: false,
+             openJson() {
+                 $wire.getPageJson().then(data => {
+                     this.jsonContent = JSON.stringify(data, null, 2);
+                     this.showJsonModal = true;
+                 });
+             },
+             copyJson() {
+                 navigator.clipboard.writeText(this.jsonContent);
+                 this.copied = true;
+                 setTimeout(() => this.copied = false, 2000);
+             },
+             submitImport() {
+                 $wire.importJson(this.importContent);
+                 this.showImportModal = false;
+                 this.importContent = '';
+             }
+         }">
         <div class="flex items-center justify-between">
             <div>
                 <h3 class="text-lg font-semibold text-gray-900">{{ $node->title ?? 'Page' }}</h3>
                 <p class="text-sm text-gray-500 mt-0.5">{{ $node->template->name ?? 'No template' }}</p>
             </div>
-            <button wire:click="addSection"
-                    class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                </svg>
-                Add Section
-            </button>
+            <div class="flex items-center gap-2">
+                {{-- JSON Preview --}}
+                <button x-on:click="openJson()"
+                        class="inline-flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+                    </svg>
+                    JSON
+                </button>
+
+                {{-- Export --}}
+                <button wire:click="exportJson"
+                        class="inline-flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                    </svg>
+                    Export
+                </button>
+
+                {{-- Import --}}
+                <button x-on:click="showImportModal = true; importContent = ''"
+                        class="inline-flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12"/>
+                    </svg>
+                    Import
+                </button>
+
+                {{-- Add Section --}}
+                <button wire:click="addSection"
+                        class="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Add Section
+                </button>
+            </div>
+        </div>
+
+        {{-- JSON Preview Modal --}}
+        <div x-show="showJsonModal" x-cloak
+             class="fixed inset-0 z-50 flex items-center justify-center p-6"
+             style="background:rgba(0,0,0,0.7);">
+            <div class="bg-gray-900 rounded-xl shadow-2xl w-full max-w-3xl max-h-[80vh] flex flex-col">
+                <div class="flex items-center justify-between px-5 py-3 border-b border-gray-700">
+                    <h3 class="text-white font-semibold text-sm">Page JSON — {{ $node->title ?? '' }}</h3>
+                    <div class="flex items-center gap-2">
+                        <button x-on:click="copyJson()"
+                                class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white rounded text-xs transition">
+                            <span x-show="!copied">Copy</span>
+                            <span x-show="copied" x-cloak>Copied ✓</span>
+                        </button>
+                        <button x-on:click="showJsonModal = false" class="text-gray-400 hover:text-white">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="flex-1 overflow-auto p-4">
+                    <pre class="text-green-400 text-xs font-mono whitespace-pre-wrap" x-text="jsonContent"></pre>
+                </div>
+            </div>
+        </div>
+
+        {{-- Import Modal --}}
+        <div x-show="showImportModal" x-cloak
+             class="fixed inset-0 z-50 flex items-center justify-center p-6"
+             style="background:rgba(0,0,0,0.7);">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl flex flex-col">
+                <div class="flex items-center justify-between px-5 py-3 border-b">
+                    <h3 class="font-semibold text-gray-800 text-sm">Import Page JSON</h3>
+                    <button x-on:click="showImportModal = false" class="text-gray-400 hover:text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="p-5">
+                    <p class="text-xs text-gray-500 mb-3">Paste a valid page JSON below. This will replace all current sections.</p>
+                    <textarea x-model="importContent"
+                              rows="12"
+                              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs font-mono focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                              placeholder='{ "version": "1.0", "sections": [...] }'></textarea>
+                </div>
+                <div class="px-5 pb-5 flex justify-end gap-2">
+                    <button x-on:click="showImportModal = false"
+                            class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
+                    <button x-on:click="submitImport()"
+                            class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded-lg transition">
+                        Import
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -36,7 +146,7 @@
                 @foreach($sections as $section)
                     @php
                         $isExpanded = in_array($section['id'], $expandedSections);
-                        $content = json_decode($section['content'], true) ?? [];
+                        $content = is_array($section['content']) ? $section['content'] : (json_decode($section['content'], true) ?? []);
                         $sectionTemplate = $section['section_template'] ?? null;
                     @endphp
 

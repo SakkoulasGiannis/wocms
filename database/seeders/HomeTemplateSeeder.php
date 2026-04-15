@@ -4,8 +4,8 @@ namespace Database\Seeders;
 
 use App\Models\Template;
 use App\Models\TemplateField;
-use App\Services\TemplateTableGenerator;
 use App\Services\PageCssGenerator;
+use App\Services\TemplateTableGenerator;
 use Illuminate\Database\Seeder;
 
 class HomeTemplateSeeder extends Seeder
@@ -29,7 +29,7 @@ class HomeTemplateSeeder extends Seeder
             'menu_order' => 0,
             'render_mode' => 'full_page_grapejs', // Default render mode (can be changed per entry)
             'allow_children' => true,
-            'allow_new_pages' => false, // Only one home page allowed
+            'allow_new_pages' => true, // Multiple home pages supported
             'has_physical_file' => false,
             'requires_database' => true, // Enable database table creation
             'has_seo' => true, // Enable SEO fields
@@ -82,11 +82,12 @@ class HomeTemplateSeeder extends Seeder
         $homeTemplate->load('fields');
 
         // Generate table and model
-        $tableGenerator = new TemplateTableGenerator();
+        $tableGenerator = new TemplateTableGenerator;
         $result = $tableGenerator->createTableAndModel($homeTemplate);
 
-        if (!$result) {
+        if (! $result) {
             $this->command->error('Failed to create table and model for Home template');
+
             return;
         }
 
@@ -97,8 +98,9 @@ class HomeTemplateSeeder extends Seeder
         $this->command->info("Model class: {$homeTemplate->model_class}");
 
         // Verify table exists
-        if (!\Schema::hasTable($homeTemplate->table_name)) {
+        if (! \Schema::hasTable($homeTemplate->table_name)) {
             $this->command->error("Table {$homeTemplate->table_name} was not created!");
+
             return;
         }
 
@@ -140,21 +142,22 @@ class HomeTemplateSeeder extends Seeder
         \DB::table('content_tree')->insert([
             'template_id' => $homeTemplate->id,
             'parent_id' => null,
-            'content_type' => 'App\\Models\\' . $homeTemplate->model_class,
+            'content_type' => 'App\\Models\\'.$homeTemplate->model_class,
             'content_id' => $homeId,
             'title' => 'Welcome to Our CMS',
             'slug' => 'home',
             'url_path' => '/',
             'level' => 0,
-            'tree_path' => '/' . $homeId,
+            'tree_path' => '/'.$homeId,
             'is_published' => true,
+            'is_default' => true,
             'sort_order' => 0,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
         // Create default page sections for the home page
-        $sectionableType = 'App\\Models\\' . $homeTemplate->model_class;
+        $sectionableType = 'App\\Models\\'.$homeTemplate->model_class;
 
         // Hero Section
         \DB::table('page_sections')->insert([
@@ -219,14 +222,14 @@ class HomeTemplateSeeder extends Seeder
         ]);
 
         // Generate CSS file for the home page
-        $cssGenerator = new PageCssGenerator();
+        $cssGenerator = new PageCssGenerator;
         $cssUrl = $cssGenerator->generateCssFile('home', '.container { max-width: 1200px; }
 .hover\\:shadow-xl:hover { box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }');
 
         $this->command->info('✓ Created Home template (system, root of tree)');
         $this->command->info('✓ Created default homepage entry');
         if ($cssUrl) {
-            $this->command->info('✓ Generated CSS file: ' . $cssUrl);
+            $this->command->info('✓ Generated CSS file: '.$cssUrl);
         }
     }
 }

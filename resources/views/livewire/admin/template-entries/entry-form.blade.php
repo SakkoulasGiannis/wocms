@@ -528,11 +528,22 @@
                                 <div class="flex items-center justify-between mb-6">
                                     <h3 class="text-lg font-semibold text-gray-900">Page Sections</h3>
                                     <div class="flex gap-2">
-                                        <!-- Debug Info -->
-                                        <div class="text-xs text-gray-500 flex items-center mr-4">
-                                            showForm: {{ $showSectionForm ? 'true' : 'false' }} |
-                                            Templates: {{ $availableSectionTemplates->count() }}
-                                        </div>
+                                        @if($entryId)
+                                            @php
+                                                $mc = $template->model_class ?? 'Page';
+                                                $fqcn = str_contains($mc, '\\') ? $mc : "App\\Models\\{$mc}";
+                                                $sectionableTypeUrl = str_replace('\\', '-', $fqcn);
+                                            @endphp
+                                            <a href="{{ route('admin.page-sections.visual', ['sectionableType' => $sectionableTypeUrl, 'sectionableId' => $entryId]) }}"
+                                               target="_blank"
+                                               class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm">
+                                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                                </svg>
+                                                Visual Editor
+                                            </a>
+                                        @endif
                                         <button type="button"
                                                 onclick="@this.call('addSection')"
                                                 class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm">

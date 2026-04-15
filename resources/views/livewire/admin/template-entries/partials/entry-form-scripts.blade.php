@@ -2,7 +2,6 @@
     {{-- EditorJS Core --}}
     <script src="https://cdn.jsdelivr.net/npm/@editorjs/editorjs@2.30.8/dist/editorjs.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@editorjs/header@2.8.7/dist/header.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@editorjs/paragraph@2.11.6/dist/paragraph.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@editorjs/nested-list@1.4.2/dist/nested-list.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@editorjs/quote@2.7.6/dist/quote.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@editorjs/code@2.9.3/dist/code.umd.min.js"></script>
@@ -82,13 +81,25 @@
                 },
 
                 async init() {
+                    if (this.editor) return;
+                    this.editor = '_loading_'; // sentinel blocks concurrent calls during await gap
+
                     await this.$nextTick();
 
                     const holderEl = document.getElementById(this.uid);
                     if (!holderEl || !window.EditorJS) {
+                        this.editor = null; // reset so retry can proceed
                         setTimeout(() => this.init(), 200);
                         return;
                     }
+
+                    // Destroy any stale EditorJS instance on this DOM node
+                    if (holderEl._editorjsInstance) {
+                        try { await holderEl._editorjsInstance.destroy(); } catch (_) {}
+                        holderEl._editorjsInstance = null;
+                    }
+                    // Also nuke any leftover codex-editor divs from a previous failed init
+                    holderEl.querySelectorAll('.codex-editor').forEach(el => el.remove());
 
                     const self = this;
                     const initialData = this.parseInitialData();
@@ -97,10 +108,10 @@
                         holder: this.uid,
                         placeholder: this.placeholder,
                         data: initialData || undefined,
+                        minHeight: 0,
 
                         tools: {
                             header: { class: Header, config: { levels: [1, 2, 3, 4, 5, 6], defaultLevel: 2 } },
-                            paragraph: { class: Paragraph, inlineToolbar: true },
                             list: { class: NestedList, inlineToolbar: true, config: { defaultStyle: 'unordered' } },
                             checklist: { class: Checklist, inlineToolbar: true },
                             quote: { class: Quote, inlineToolbar: true, config: { quotePlaceholder: 'Enter a quote', captionPlaceholder: 'Quote author' } },
@@ -165,6 +176,8 @@
                         },
 
                         onReady: () => {
+                            const el = document.getElementById(self.uid);
+                            if (el) el._editorjsInstance = self.editor;
                             if (window.Undo) { new Undo({ editor: self.editor }); }
                         },
                     });

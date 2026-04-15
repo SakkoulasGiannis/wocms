@@ -623,6 +623,43 @@
 
     <!-- GrapeJS Tab -->
     @if($activeTab === 'grapejs')
+        <!-- Visual Editor Settings -->
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-1">Visual Page Editor</h2>
+            <p class="text-sm text-gray-600 mb-6">Configure the drag-and-drop visual editor.</p>
+
+            <form wire:submit.prevent="saveVisualEditor">
+                <div class="space-y-6">
+                    <div class="flex items-start">
+                        <div class="flex items-center h-5">
+                            <input type="checkbox"
+                                   wire:model="ve_tailwind_cdn"
+                                   id="ve_tailwind_cdn"
+                                   class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                        </div>
+                        <div class="ml-3">
+                            <label for="ve_tailwind_cdn" class="font-medium text-gray-700">
+                                Load Tailwind CSS browser CDN (site-wide)
+                            </label>
+                            <p class="text-sm text-gray-500 mt-1">
+                                When enabled, the Tailwind CSS browser runtime (<code class="bg-gray-100 px-1.5 py-0.5 rounded text-xs">@tailwindcss/browser@4</code>)
+                                is loaded on every frontend page. This allows any Tailwind class used in sections to render correctly
+                                both in the visual editor preview and on the live site — without needing to run <code class="bg-gray-100 px-1.5 py-0.5 rounded text-xs">npm run build</code>.
+                                Required if your theme doesn't already include compiled Tailwind CSS.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-end">
+                    <button type="submit"
+                            class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                        Save Visual Editor Settings
+                    </button>
+                </div>
+            </form>
+        </div>
+
         <div class="bg-white rounded-lg shadow p-6">
             <h2 class="text-lg font-semibold text-gray-900 mb-4">GrapeJS Settings</h2>
             <p class="text-sm text-gray-600 mb-6">Configure how GrapeJS editor behaves when generating Blade templates.</p>

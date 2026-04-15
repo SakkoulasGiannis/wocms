@@ -19,14 +19,36 @@ class FrontendController extends Controller
 
     public function home()
     {
-        // Check if home exists in content tree
+        // 1. Look for the explicitly marked default home page
+        $homeTemplate = Template::where('slug', 'home')->first();
+
+        if ($homeTemplate) {
+            $homeNode = ContentNode::where('template_id', $homeTemplate->id)
+                ->where('is_default', true)
+                ->where('is_published', true)
+                ->whereNull('deleted_at')
+                ->first();
+
+            // Fallback: first published home when none is marked default
+            $homeNode ??= ContentNode::where('template_id', $homeTemplate->id)
+                ->where('is_published', true)
+                ->whereNull('deleted_at')
+                ->orderBy('sort_order')
+                ->first();
+
+            if ($homeNode) {
+                return $this->renderNode($homeNode);
+            }
+        }
+
+        // 2. Legacy: node pinned to '/'
         $homeNode = ContentNode::where('url_path', '/')->first();
 
         if ($homeNode) {
             return $this->renderNode($homeNode);
         }
 
-        // Fallback to old home page
+        // 3. Last resort fallback
         $home = Home::firstOrFail();
 
         return view('frontend.home', compact('home'));
@@ -347,7 +369,10 @@ class FrontendController extends Controller
             : ($template->render_mode ?? 'full_page_grapejs');
 
         if ($renderMode === 'sections' && $content && method_exists($content, 'activeSections')) {
-            $data['sections'] = $content->activeSections()->with('sectionTemplate')->get();
+            $data['sections'] = $content->activeSections()
+                ->whereNull('parent_section_id')
+                ->with(['sectionTemplate', 'childrenRecursive.sectionTemplate'])
+                ->get();
             \Log::info('📋 Loaded sections for page', [
                 'url' => $node->url_path,
                 'sections_count' => $data['sections']->count(),
@@ -391,9 +416,12 @@ class FrontendController extends Controller
 
         switch ($renderMode) {
             case 'sections':
-                // Render using page sections (eager load sectionTemplate)
+                // Render using page sections (eager load sectionTemplate + nested children)
                 if ($content && method_exists($content, 'activeSections') && ! isset($data['sections'])) {
-                    $data['sections'] = $content->activeSections()->with('sectionTemplate')->get();
+                    $data['sections'] = $content->activeSections()
+                        ->whereNull('parent_section_id')
+                        ->with(['sectionTemplate', 'childrenRecursive.sectionTemplate'])
+                        ->get();
                 }
                 $view = $this->themeManager->getTemplateView('sections') ?? 'frontend.sections';
 

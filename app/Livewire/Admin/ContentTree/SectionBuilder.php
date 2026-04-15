@@ -5,6 +5,8 @@ namespace App\Livewire\Admin\ContentTree;
 use App\Models\ContentNode;
 use App\Models\PageSection;
 use App\Models\SectionTemplate;
+use App\Services\PageImporter;
+use App\Services\PageSerializer;
 use Livewire\Component;
 
 class SectionBuilder extends Component
@@ -190,6 +192,44 @@ class SectionBuilder extends Component
 
             $this->loadNode($this->nodeId);
         }
+    }
+
+    public function getPageJson(): array
+    {
+        if (! $this->node) {
+            return [];
+        }
+
+        return app(PageSerializer::class)->serialize($this->node);
+    }
+
+    public function exportJson(): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $json = $this->getPageJson();
+        $filename = str($this->node->title ?? 'page')->slug()->append('.json')->toString();
+
+        return response()->streamDownload(function () use ($json) {
+            echo json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        }, $filename, ['Content-Type' => 'application/json']);
+    }
+
+    public function importJson(string $json): void
+    {
+        if (! $this->node) {
+            return;
+        }
+
+        $layout = json_decode($json, true);
+
+        if (! $layout || ! isset($layout['sections'])) {
+            session()->flash('error', 'Invalid JSON format.');
+
+            return;
+        }
+
+        app(PageImporter::class)->import($this->node, $layout);
+        $this->loadNode($this->nodeId);
+        session()->flash('success', 'Page imported successfully.');
     }
 
     public function render()

@@ -33,6 +33,14 @@
         {!! $themeManager->renderCssAssets() !!}
     @endif
 
+    @if(\App\Models\Setting::get('ve_tailwind_cdn', false))
+        {{-- Tailwind v4 browser CDN — renders Tailwind classes in sections site-wide --}}
+        <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4" crossorigin="anonymous"></script>
+        <style type="text/tailwindcss">
+            @import "tailwindcss";
+        </style>
+    @endif
+
     {{-- Livewire Styles --}}
     @livewireStyles
 

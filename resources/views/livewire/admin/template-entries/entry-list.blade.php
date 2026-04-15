@@ -74,6 +74,11 @@
                                 {{ $field->label }}
                             </th>
                         @endforeach
+                        @if($template->slug === 'home')
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Status
+                            </th>
+                        @endif
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Created
                         </th>
@@ -87,8 +92,10 @@
                         @php
                             // For tree view, $item is a ContentNode with 'content' property
                             // For flat view, $item is the entry itself
-                            $entry = isset($isTree) && $isTree ? $item->content : $item;
-                            $level = isset($isTree) && $isTree ? ($item->level ?? 0) : 0;
+                            $entry      = isset($isTree) && $isTree ? $item->content : $item;
+                            $level      = isset($isTree) && $isTree ? ($item->level ?? 0) : 0;
+                            $rowNode    = (isset($isTree) && $isTree) ? $item : null;
+                            $isDefaultRow = $rowNode && ($rowNode->is_default ?? false);
                         @endphp
                         @if($entry)
                         <tr class="hover:bg-gray-50">
@@ -132,10 +139,45 @@
                                     @endif
                                 </td>
                             @endforeach
+                            @if($template->slug === 'home')
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                    @if($isDefaultRow ?? false)
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                                            </svg>
+                                            Default
+                                        </span>
+                                    @else
+                                        <span class="text-xs text-gray-400">—</span>
+                                    @endif
+                                </td>
+                            @endif
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {{ $entry->created_at->diffForHumans() }}
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                {{-- Default home badge + set-default button (home template only) --}}
+                                @if($template->slug === 'home' && $rowNode)
+                                    @if($isDefaultRow)
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 mr-2">
+                                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                                            </svg>
+                                            Default
+                                        </span>
+                                    @else
+                                        <button wire:click="setDefaultEntry({{ $rowNode->id }})"
+                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 hover:bg-yellow-100 text-gray-500 hover:text-yellow-700 transition mr-2"
+                                                title="Set as default home page">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
+                                            </svg>
+                                            Set Default
+                                        </button>
+                                    @endif
+                                @endif
+
                                 @php
                                     $viewUrl = null;
                                     $urlIdentifierField = $template->fields->where('is_url_identifier', true)->first();

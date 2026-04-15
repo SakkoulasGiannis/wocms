@@ -2,14 +2,18 @@
 
 namespace App\Models;
 
+use App\Services\PageSerializer;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PageSection extends Model
 {
+    use HasFactory;
     use SoftDeletes;
 
     protected $fillable = [
+        'parent_section_id',
         'section_template_id',
         'sectionable_type',
         'sectionable_id',
@@ -18,6 +22,7 @@ class PageSection extends Model
         'name',
         'order',
         'is_active',
+        'is_visible',
         'content',
         'rendered_html',
         'css',
@@ -28,23 +33,85 @@ class PageSection extends Model
         'content' => 'array',
         'settings' => 'array',
         'is_active' => 'boolean',
+        'is_visible' => 'boolean',
         'order' => 'integer',
     ];
 
     /**
      * Get the parent sectionable model (Home, Page, etc).
      */
-    public function sectionable()
+    public function sectionable(): \Illuminate\Database\Eloquent\Relations\MorphTo
     {
         return $this->morphTo();
     }
 
     /**
-     * Get the section template for this section
+     * Get the section template for this section.
      */
-    public function sectionTemplate()
+    public function sectionTemplate(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(SectionTemplate::class);
+    }
+
+    /**
+     * Get the parent section (for nested sections).
+     */
+    public function parentSection(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_section_id');
+    }
+
+    /**
+     * Get direct child sections ordered by their position.
+     */
+    public function children(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(self::class, 'parent_section_id')->orderBy('order');
+    }
+
+    /**
+     * Get all nested children recursively (eager-loadable).
+     */
+    public function childrenRecursive(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->children()->with('childrenRecursive');
+    }
+
+    /**
+     * Whether this section type acts as a container (can hold children).
+     */
+    public function isContainer(): bool
+    {
+        return in_array($this->section_type, [
+            'primitive_div',
+            'primitive_grid',
+            'primitive_section',
+        ]);
+    }
+
+    public static function containerTypes(): array
+    {
+        return ['primitive_div', 'primitive_grid', 'primitive_section'];
+    }
+
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        $sync = function (self $section) {
+            $node = ContentNode::where('content_type', $section->sectionable_type)
+                ->where('content_id', $section->sectionable_id)
+                ->first();
+
+            if ($node) {
+                $layout = app(PageSerializer::class)->serialize($node);
+                $node->page_layout = $layout;
+                $node->saveQuietly();
+            }
+        };
+
+        static::saved($sync);
+        static::deleted($sync);
     }
 
     /**

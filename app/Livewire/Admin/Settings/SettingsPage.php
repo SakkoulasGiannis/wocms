@@ -83,6 +83,9 @@ class SettingsPage extends Component
     // GrapeJS Settings
     public $grapejs_include_css_in_blade = true;
 
+    // Visual Editor Settings
+    public bool $ve_tailwind_cdn = false;
+
     // Image Sizes
     public $imageSizes = [];
 
@@ -131,6 +134,9 @@ class SettingsPage extends Component
 
         // GrapeJS Settings
         $this->grapejs_include_css_in_blade = Setting::get('grapejs_include_css_in_blade', true);
+
+        // Visual Editor Settings
+        $this->ve_tailwind_cdn = (bool) Setting::get('ve_tailwind_cdn', false);
 
         // Integrations settings
         $this->google_analytics_id = Setting::get('google_analytics_id', '');
@@ -274,6 +280,13 @@ class SettingsPage extends Component
         Setting::set('grapejs_include_css_in_blade', $this->grapejs_include_css_in_blade, 'grapejs');
 
         session()->flash('success', 'GrapeJS settings saved successfully!');
+    }
+
+    public function saveVisualEditor(): void
+    {
+        Setting::set('ve_tailwind_cdn', $this->ve_tailwind_cdn, 'visual_editor');
+
+        session()->flash('success', 'Visual Editor settings saved.');
     }
 
     // Image Sizes Methods

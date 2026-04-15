@@ -60,13 +60,26 @@ class EntryList extends Component
         $this->resetPage();
     }
 
-    public function deleteEntry($id)
+    public function deleteEntry($id): void
     {
         $modelClass = $this->resolveModelClass();
         $entry = $modelClass::findOrFail($id);
         $entry->delete();
 
         session()->flash('success', $this->template->name.' entry deleted successfully!');
+    }
+
+    public function setDefaultEntry(int $contentNodeId): void
+    {
+        // Clear default flag from all nodes belonging to this template
+        \App\Models\ContentNode::where('template_id', $this->template->id)
+            ->update(['is_default' => false]);
+
+        // Mark the chosen node
+        \App\Models\ContentNode::where('id', $contentNodeId)
+            ->update(['is_default' => true]);
+
+        session()->flash('success', 'Default home page updated.');
     }
 
     public function render()

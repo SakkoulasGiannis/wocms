@@ -32,6 +32,14 @@
 
     @livewireStyles
     @stack('styles')
+
+    @if(\App\Models\Setting::get('ve_tailwind_cdn', false))
+        {{-- Tailwind v4 browser CDN — renders Tailwind classes in sections site-wide --}}
+        <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4" crossorigin="anonymous"></script>
+        <style type="text/tailwindcss">
+            @import "tailwindcss";
+        </style>
+    @endif
 </head>
 <body class="body">
 
@@ -83,5 +91,51 @@
 
     @livewireScripts
     @stack('scripts')
+
+    @if(request()->has('ve'))
+    <style>
+        /* wrapper is display:contents — style its first child instead */
+        .ve-section-wrapper { display: contents; }
+        .ve-section-wrapper > *:first-child {
+            cursor: pointer;
+            outline: 2px solid transparent;
+            outline-offset: 3px;
+            transition: outline-color 0.15s;
+        }
+        .ve-section-wrapper > *:first-child:hover { outline-color: #c4b5fd !important; }
+        .ve-section-wrapper.ve-active > *:first-child { outline: 2px solid #7c3aed !important; outline-offset: 3px; }
+        .ve-section-wrapper.ve-hidden > *:first-child { opacity: 0.35; outline: 2px dashed #9ca3af !important; }
+    </style>
+    <script>
+        // Event delegation — works for dynamically patched sections too
+        document.addEventListener('click', function (e) {
+            const wrapper = e.target.closest('[data-ve-section-id]');
+            if (!wrapper) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const id = parseInt(wrapper.dataset.veSectionId);
+            document.querySelectorAll('.ve-section-wrapper').forEach(w => w.classList.remove('ve-active'));
+            wrapper.classList.add('ve-active');
+            window.parent.postMessage({ type: 've-section-click', sectionId: id }, '*');
+        }, true);
+
+        // Patch a single section's HTML without full reload
+        window.addEventListener('message', function (e) {
+            if (!e.data) return;
+            if (e.data.type === 've-patch') {
+                const wrapper = document.querySelector('[data-ve-section-id="' + e.data.sectionId + '"]');
+                if (!wrapper) return;
+                const wasActive = wrapper.classList.contains('ve-active');
+                const tmp = document.createElement('div');
+                tmp.innerHTML = e.data.html;
+                const newEl = tmp.firstElementChild;
+                if (newEl) {
+                    if (wasActive) newEl.classList.add('ve-active');
+                    wrapper.replaceWith(newEl);
+                }
+            }
+        });
+    </script>
+    @endif
 </body>
 </html>

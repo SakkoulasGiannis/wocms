@@ -74,6 +74,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     Route::get('/page-sections', \App\Livewire\Admin\PageSections\PageSelector::class)->name('page-sections.index');
     Route::get('/page-sections/manage/{sectionableType}/{sectionableId}', \App\Livewire\Admin\PageSections\SectionManager::class)->name('page-sections');
     Route::get('/page-sections/section/{sectionId}/edit', \App\Livewire\Admin\PageSections\SectionEditor::class)->name('page-sections.edit');
+    Route::get('/page-sections/visual/{sectionableType}/{sectionableId}', \App\Livewire\Admin\PageSections\VisualPageEditor::class)->name('page-sections.visual');
 
     // Section Templates Routes
     Route::get('/section-templates', \App\Livewire\Admin\SectionTemplates\SectionTemplateList::class)->name('section-templates.index');

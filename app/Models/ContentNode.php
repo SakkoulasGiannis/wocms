@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ContentNode extends Model
 {
+    use HasFactory;
     use SoftDeletes;
 
     protected $table = 'content_tree';
@@ -22,13 +24,17 @@ class ContentNode extends Model
         'level',
         'tree_path',
         'is_published',
+        'is_default',
         'cache_enabled',
         'sort_order',
+        'page_layout',
     ];
 
     protected $casts = [
         'is_published' => 'boolean',
+        'is_default' => 'boolean',
         'cache_enabled' => 'boolean',
+        'page_layout' => 'array',
     ];
 
     protected static function boot()
@@ -37,10 +43,10 @@ class ContentNode extends Model
 
         static::creating(function ($node) {
             // Auto-generate URL path and tree structure
-            if (!$node->url_path) {
+            if (! $node->url_path) {
                 $node->generateUrlPath();
             }
-            if (!$node->tree_path) {
+            if (! $node->tree_path) {
                 $node->generateTreePath();
             }
         });
@@ -95,6 +101,7 @@ class ContentNode extends Model
         if ($this->content_type && $this->content_id) {
             return $this->content_type::find($this->content_id);
         }
+
         return null;
     }
 
@@ -104,18 +111,18 @@ class ContentNode extends Model
     public function generateUrlPath()
     {
         // Load template if not already loaded
-        if (!$this->relationLoaded('template')) {
+        if (! $this->relationLoaded('template')) {
             $this->load('template');
         }
 
         // Check if template uses slug prefix
         if ($this->template && $this->template->use_slug_prefix) {
             // Use template slug as prefix: /template-slug/{entry-slug}
-            $this->url_path = '/' . $this->template->slug . '/' . $this->slug;
+            $this->url_path = '/'.$this->template->slug.'/'.$this->slug;
             $this->level = 1; // Template-prefixed entries are level 1
-        } elseif (!$this->parent_id) {
+        } elseif (! $this->parent_id) {
             // Root level without prefix
-            $this->url_path = '/' . $this->slug;
+            $this->url_path = '/'.$this->slug;
             $this->level = 0;
         } else {
             // Child level (hierarchical)
@@ -123,9 +130,9 @@ class ContentNode extends Model
             if ($parent) {
                 // Handle root parent specially to avoid double slashes
                 if ($parent->url_path === '/') {
-                    $this->url_path = '/' . $this->slug;
+                    $this->url_path = '/'.$this->slug;
                 } else {
-                    $this->url_path = rtrim($parent->url_path, '/') . '/' . $this->slug;
+                    $this->url_path = rtrim($parent->url_path, '/').'/'.$this->slug;
                 }
                 $this->level = $parent->level + 1;
             }
@@ -137,12 +144,12 @@ class ContentNode extends Model
      */
     public function generateTreePath()
     {
-        if (!$this->parent_id) {
-            $this->tree_path = '/' . $this->id;
+        if (! $this->parent_id) {
+            $this->tree_path = '/'.$this->id;
         } else {
             $parent = ContentNode::find($this->parent_id);
             if ($parent) {
-                $this->tree_path = $parent->tree_path . '/' . $this->id;
+                $this->tree_path = $parent->tree_path.'/'.$this->id;
             }
         }
     }
@@ -190,7 +197,7 @@ class ContentNode extends Model
      */
     public function getAllowedChildTemplates()
     {
-        if (!$this->template || !$this->template->allowed_child_templates) {
+        if (! $this->template || ! $this->template->allowed_child_templates) {
             return collect();
         }
 

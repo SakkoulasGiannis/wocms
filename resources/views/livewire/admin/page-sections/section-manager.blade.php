@@ -436,11 +436,24 @@ if (typeof window.editorjsField === 'undefined') {
                                                 @break
 
                                             @case('select')
-                                                @php $options = json_decode($field->options ?? '[]', true) ?: []; @endphp
+                                                @php
+                                                    $rawOpts = json_decode($field->options ?? '[]', true) ?: [];
+                                                    // Support both ["h1","h2"] and {"value":"label"} and [{"value":"v","label":"l"}]
+                                                    $selectOptions = [];
+                                                    foreach ($rawOpts as $k => $v) {
+                                                        if (is_array($v)) {
+                                                            $selectOptions[$v['value'] ?? $k] = $v['label'] ?? $v['value'] ?? $k;
+                                                        } elseif (is_int($k)) {
+                                                            $selectOptions[$v] = $v;
+                                                        } else {
+                                                            $selectOptions[$k] = $v;
+                                                        }
+                                                    }
+                                                @endphp
                                                 <select wire:model="sectionContent.{{ $field->name }}"
                                                         class="w-full border border-gray-300 rounded px-3 py-2">
                                                     <option value="">-- Select --</option>
-                                                    @foreach($options as $optVal => $optLabel)
+                                                    @foreach($selectOptions as $optVal => $optLabel)
                                                         <option value="{{ $optVal }}">{{ $optLabel }}</option>
                                                     @endforeach
                                                 </select>
