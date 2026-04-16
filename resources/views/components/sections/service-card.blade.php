@@ -5,10 +5,10 @@
     $title = $content['title'] ?? '';
     $description = $content['description'] ?? '';
     $link = $content['link'] ?? '';
-    $linkText = $content['link_text'] ?? 'Learn More';
-    $cardClass = $content['card_class'] ?? 'rounded-2xl bg-white p-8 shadow-sm ring-1 ring-slate-200 transition-all hover:shadow-xl hover:-translate-y-1';
-    $imageClass = $content['image_class'] ?? 'h-16 w-16 object-contain';
-    $titleClass = $content['title_class'] ?? 'text-xl font-bold text-slate-900';
+    $linkText = !empty($content['link_text']) ? $content['link_text'] : 'Learn More';
+    $cardClass = !empty($content['card_class']) ? $content['card_class'] : 'rounded-2xl bg-white p-8 shadow-sm ring-1 ring-slate-200 transition-all hover:shadow-xl hover:-translate-y-1';
+    $imageClass = !empty($content['image_class']) ? $content['image_class'] : 'h-16 w-16 object-contain';
+    $titleClass = !empty($content['title_class']) ? $content['title_class'] : 'text-xl font-bold text-slate-900';
 @endphp
 
 <div class="group {{ $cardClass }}">
