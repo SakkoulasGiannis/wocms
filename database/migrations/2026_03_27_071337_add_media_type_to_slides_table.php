@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (! Schema::hasTable('slides')) {
+            return; // Table created by Slider module; may not exist yet on fresh install
+        }
+
         Schema::table('slides', function (Blueprint $table) {
             $table->string('media_type')->default('image')->after('button_text'); // image, video, youtube
             $table->string('video_url')->nullable()->after('media_type'); // YouTube URL

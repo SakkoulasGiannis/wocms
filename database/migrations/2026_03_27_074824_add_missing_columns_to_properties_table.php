@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (! Schema::hasTable('properties')) {
+            return; // Table created by Properties module; may not exist yet on fresh install
+        }
+
         Schema::table('properties', function (Blueprint $table) {
             if (! Schema::hasColumn('properties', 'currency')) {
                 $table->string('currency', 3)->default('EUR')->after('price');

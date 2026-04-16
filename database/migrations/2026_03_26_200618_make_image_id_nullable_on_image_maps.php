@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (! Schema::hasTable('image_maps')) {
+            return; // Table created by ImageMaps module; may not exist yet on fresh install
+        }
+
         Schema::table('image_maps', function (Blueprint $table) {
             $table->unsignedBigInteger('image_id')->nullable()->change();
         });
