@@ -17,6 +17,19 @@ class FrontendController extends Controller
         $this->themeManager = $themeManager;
     }
 
+    /**
+     * Resolve view: prefer theme override, fall back to default frontend view.
+     * Example: themeView('properties.index') will try themes.{active}.templates.properties.index
+     * and fall back to frontend.properties.index.
+     */
+    protected function themeView(string $view): string
+    {
+        $theme = $this->themeManager->getActiveTheme();
+        $themed = "themes.{$theme}.templates.{$view}";
+
+        return view()->exists($themed) ? $themed : "frontend.{$view}";
+    }
+
     public function home()
     {
         // 1. Look for the explicitly marked default home page
@@ -59,7 +72,7 @@ class FrontendController extends Controller
      */
     public function contact()
     {
-        return view('frontend.contact');
+        return view($this->themeView('contact'));
     }
 
     /**
@@ -113,7 +126,7 @@ class FrontendController extends Controller
         $propertyTypes = \Modules\Properties\Models\Property::getPropertyTypes();
         $statuses = \Modules\Properties\Models\Property::getStatuses();
 
-        return view('frontend.properties.index', [
+        return view($this->themeView('properties.index'), [
             'properties' => $properties,
             'propertyTypes' => $propertyTypes,
             'statuses' => $statuses,
@@ -167,7 +180,7 @@ class FrontendController extends Controller
 
         $properties = $query->paginate(12)->withQueryString();
 
-        return view('frontend.rental-properties.index', [
+        return view($this->themeView('rental-properties.index'), [
             'properties' => $properties,
             'propertyTypes' => \Modules\RentalProperties\Models\RentalProperty::getPropertyTypes(),
             'statuses' => \Modules\RentalProperties\Models\RentalProperty::getStatuses(),
@@ -188,7 +201,7 @@ class FrontendController extends Controller
             ->where('city', $property->city)
             ->limit(3)->get();
 
-        return view('frontend.rental-properties.show', [
+        return view($this->themeView('rental-properties.show'), [
             'property' => $property,
             'related' => $related,
             'title' => $property->title,
@@ -208,7 +221,7 @@ class FrontendController extends Controller
             ->where('property_type', $property->property_type)
             ->limit(3)->get();
 
-        return view('frontend.properties.show', [
+        return view($this->themeView('properties.show'), [
             'property' => $property,
             'related' => $related,
             'title' => $property->title,

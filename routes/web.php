@@ -70,17 +70,6 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     // Permissions Management Route
     Route::get('/permissions', \App\Livewire\Admin\Permissions\PermissionManagement::class)->name('permissions');
 
-    // Page Sections Routes
-    Route::get('/page-sections', \App\Livewire\Admin\PageSections\PageSelector::class)->name('page-sections.index');
-    Route::get('/page-sections/manage/{sectionableType}/{sectionableId}', \App\Livewire\Admin\PageSections\SectionManager::class)->name('page-sections');
-    Route::get('/page-sections/section/{sectionId}/edit', \App\Livewire\Admin\PageSections\SectionEditor::class)->name('page-sections.edit');
-    Route::get('/page-sections/visual/{sectionableType}/{sectionableId}', \App\Livewire\Admin\PageSections\VisualPageEditor::class)->name('page-sections.visual');
-
-    // Section Templates Routes
-    Route::get('/section-templates', \App\Livewire\Admin\SectionTemplates\SectionTemplateList::class)->name('section-templates.index');
-    Route::get('/section-templates/create', \App\Livewire\Admin\SectionTemplates\SectionTemplateForm::class)->name('section-templates.create');
-    Route::get('/section-templates/{templateId}/edit', \App\Livewire\Admin\SectionTemplates\SectionTemplateForm::class)->name('section-templates.edit');
-
     // Module Management Routes
     Route::get('/modules', [\App\Http\Controllers\Admin\ModuleController::class, 'index'])->name('modules.index');
     Route::post('/modules/{module}/enable', [\App\Http\Controllers\Admin\ModuleController::class, 'enable'])->name('modules.enable');

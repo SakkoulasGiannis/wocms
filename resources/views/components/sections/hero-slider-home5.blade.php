@@ -1,16 +1,23 @@
 @props(['content' => [], 'settings' => []])
 
 @php
+    // Defensive helper: ensure value is array (JSON strings may come from form/editor)
+    $ensureArray = function ($val, $default = []) {
+        if (is_array($val)) return $val;
+        if (is_string($val) && $val !== '') { $d = json_decode($val, true); if (is_array($d)) return $d; }
+        return $default;
+    };
+
     // Fallbacks when no slider is selected
     $defaultHeading = $content['heading'] ?? 'Indulge in Your';
-    $animatedWords = $content['animated_words'] ?? ['Sanctuary', 'Safe House'];
+    $animatedWords = $ensureArray($content['animated_words'] ?? null, ['Sanctuary', 'Safe House']);
     $defaultSubtitle = $content['subtitle'] ?? 'Discover your private oasis, where every corner, from the spacious garden to the relaxing pool, is crafted for your comfort and enjoyment.';
-    $categories = $content['categories'] ?? [
+    $categories = $ensureArray($content['categories'] ?? null, [
         ['icon' => 'icon-house-fill', 'label' => 'Houses', 'url' => '#'],
         ['icon' => 'icon-villa-fill', 'label' => 'Villa', 'url' => '#'],
         ['icon' => 'icon-office-fill', 'label' => 'Office', 'url' => '#'],
         ['icon' => 'icon-apartment', 'label' => 'Apartments', 'url' => '#'],
-    ];
+    ]);
 
     // Try to load slides from Slider module
     $sliderSlug = $content['slider_slug'] ?? null;
@@ -44,23 +51,23 @@
         ])->toArray();
         $thumbSlides = $sliderSlides->map(fn($s) => $s->getFirstMediaUrl('image', 'thumb') ?: $s->getFirstMediaUrl('image') ?: '/themes/kretaeiendom/images/slider/slider-pagi.jpg')->toArray();
     } else {
-        $defaultImages = $content['bg_slides'] ?? [
+        $defaultImages = $ensureArray($content['bg_slides'] ?? null, [
             '/themes/kretaeiendom/images/slider/slider-5.jpg',
             '/themes/kretaeiendom/images/slider/slider-5-1.jpg',
             '/themes/kretaeiendom/images/slider/slider-5-2.jpg',
             '/themes/kretaeiendom/images/slider/slider-5-3.jpg',
-        ];
+        ]);
         $bgSlides = array_map(fn($url) => [
             'url' => $url, 'media_type' => 'image', 'video_url' => null,
             'video_file_url' => null, 'title' => null, 'description' => null,
             'link' => null, 'button_text' => null,
         ], $defaultImages);
-        $thumbSlides = $content['thumb_slides'] ?? [
+        $thumbSlides = $ensureArray($content['thumb_slides'] ?? null, [
             '/themes/kretaeiendom/images/slider/slider-pagi.jpg',
             '/themes/kretaeiendom/images/slider/slider-pagi2.jpg',
             '/themes/kretaeiendom/images/slider/slider-pagi3.jpg',
             '/themes/kretaeiendom/images/slider/slider-pagi4.jpg',
-        ];
+        ]);
     }
 @endphp
 
