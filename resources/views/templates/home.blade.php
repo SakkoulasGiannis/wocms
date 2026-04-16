@@ -1,6 +1,6 @@
 @extends(app(\App\Services\ThemeManager::class)->getLayout())
 
-@section('title', $node->title ?? $title ?? 'Page')
+@section('title', $node->title ?? $title ?? 'Home')
 
 @section('content')
     {{-- Render all active sections (isolated to protect Blade section stack) --}}
@@ -19,10 +19,9 @@
             @endphp
         @endforeach
     @else
-        <div class="container mx-auto px-4 py-12">
-            <div class="text-center text-gray-500">
-                <p>This page has no sections yet. Add sections from the admin panel.</p>
-            </div>
-        </div>
+        {{-- Fallback: render body content if no sections --}}
+        @if($content && $content->body)
+            {!! $content->body !!}
+        @endif
     @endif
 @endsection
