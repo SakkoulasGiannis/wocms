@@ -1,14 +1,39 @@
 @props(['content' => [], 'settings' => []])
 
 @php
-    // Defensive decode: slides may be a JSON string if persisted from form/editor
-    $slides = $content['slides'] ?? [];
-    if (is_string($slides)) {
-        $decoded = json_decode($slides, true);
-        $slides = is_array($decoded) ? $decoded : [];
+    $slides = [];
+
+    // Priority 1: Load from Slider module if slider_id is set
+    $sliderId = $content['slider_id'] ?? null;
+    if ($sliderId && class_exists(\Modules\Slider\Models\Slider::class)) {
+        try {
+            $slider = \Modules\Slider\Models\Slider::with(['slides' => fn($q) => $q->where('is_active', true)->orderBy('order')])
+                ->where('is_active', true)
+                ->find($sliderId);
+
+            if ($slider && $slider->slides->isNotEmpty()) {
+                $slides = $slider->slides->map(fn($s) => [
+                    'image'       => $s->getFirstMediaUrl('image') ?: '',
+                    'heading'     => $s->title ?? '',
+                    'subheading'  => $s->subtitle ?? '',
+                    'text'        => $s->description ?? '',
+                    'button_text' => $s->button_text ?? '',
+                    'button_url'  => $s->link ?? '#',
+                ])->toArray();
+            }
+        } catch (\Throwable $e) {}
     }
-    if (! is_array($slides)) {
-        $slides = [];
+
+    // Priority 2: Inline slides from section content
+    if (empty($slides)) {
+        $slides = $content['slides'] ?? [];
+        if (is_string($slides)) {
+            $decoded = json_decode($slides, true);
+            $slides = is_array($decoded) ? $decoded : [];
+        }
+        if (! is_array($slides)) {
+            $slides = [];
+        }
     }
 
     $autoplay = (bool) ($settings['autoplay'] ?? true);

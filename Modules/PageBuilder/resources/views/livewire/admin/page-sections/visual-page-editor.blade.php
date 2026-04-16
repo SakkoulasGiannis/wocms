@@ -440,20 +440,31 @@ if (typeof window.editorjsField === 'undefined') {
 
                                 @case('select')
                                     @php
-                                        // options can live in field->options OR field->settings['options']
-                                        $rawOptions = $field->options ?? null;
-                                        if ($rawOptions) {
-                                            $options = is_string($rawOptions) ? json_decode($rawOptions, true) : $rawOptions;
-                                        } else {
-                                            $opts = is_string($field->settings) ? json_decode($field->settings, true) : ($field->settings ?? []);
-                                            $options = $opts['options'] ?? [];
+                                        // Dynamic model-based select fields
+                                        $dynamicOptions = null;
+                                        if ($field->name === 'slider_id' && class_exists(\Modules\Slider\Models\Slider::class)) {
+                                            $dynamicOptions = \Modules\Slider\Models\Slider::where('is_active', true)
+                                                ->orderBy('name')->get()
+                                                ->map(fn($s) => ['value' => $s->id, 'label' => $s->name])
+                                                ->toArray();
                                         }
-                                        $options = $options ?: [];
+
+                                        if ($dynamicOptions === null) {
+                                            // Static options from field->options OR field->settings['options']
+                                            $rawOptions = $field->options ?? null;
+                                            if ($rawOptions) {
+                                                $dynamicOptions = is_string($rawOptions) ? json_decode($rawOptions, true) : $rawOptions;
+                                            } else {
+                                                $opts = is_string($field->settings) ? json_decode($field->settings, true) : ($field->settings ?? []);
+                                                $dynamicOptions = $opts['options'] ?? [];
+                                            }
+                                        }
+                                        $dynamicOptions = $dynamicOptions ?: [];
                                     @endphp
                                     <select wire:model.live="sectionContent.{{ $field->name }}"
                                             class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent">
                                         <option value="">— Select —</option>
-                                        @foreach($options as $opt)
+                                        @foreach($dynamicOptions as $opt)
                                             <option value="{{ $opt['value'] ?? $opt }}">{{ $opt['label'] ?? $opt }}</option>
                                         @endforeach
                                     </select>
