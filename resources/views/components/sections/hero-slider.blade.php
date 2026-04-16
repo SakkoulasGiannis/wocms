@@ -36,15 +36,57 @@
         }
     }
 
-    $autoplay = (bool) ($settings['autoplay'] ?? true);
-    $interval = (int) ($settings['interval'] ?? 5000);
-    $showArrows = (bool) ($settings['show_arrows'] ?? true);
-    $showDots = (bool) ($settings['show_dots'] ?? true);
+    // Merge slider model settings (slider settings are defaults; section settings override)
+    $sliderSettings = [];
+    if (isset($slider) && $slider) {
+        $sliderSettings = $slider->settings ?? [];
+    }
+
+    $autoplay        = (bool)   ($settings['autoplay']         ?? $sliderSettings['autoplay']          ?? true);
+    $interval        = (int)    ($settings['interval']         ?? $sliderSettings['autoplay_interval'] ?? 5000);
+    $showArrows      = (bool)   ($settings['show_arrows']      ?? $sliderSettings['show_arrows']       ?? true);
+    $showDots        = (bool)   ($settings['show_dots']        ?? $sliderSettings['show_dots']         ?? true);
+    $height          =           $settings['height']           ?? $sliderSettings['height']            ?? 'h-screen';
+    $imageFit        =           $settings['image_fit']        ?? $sliderSettings['image_fit']         ?? 'cover';
+    $overlayColor    =           $settings['overlay_color']    ?? $sliderSettings['overlay_color']     ?? 'black';
+    $overlayOpacity  =           $settings['overlay_opacity']  ?? $sliderSettings['overlay_opacity']   ?? '0.5';
+    $transitionEffect =          $settings['transition_effect'] ?? $sliderSettings['transition_effect'] ?? 'fade';
+    $textPosition    =           $settings['text_position']    ?? $sliderSettings['text_position']     ?? 'center';
+    $contentMaxWidth =           $settings['content_max_width'] ?? $sliderSettings['content_max_width'] ?? 'max-w-4xl';
+
+    // Resolve CSS classes from settings values
+    $imageFitClass = match($imageFit) {
+        'contain' => 'object-contain',
+        'fill'    => 'object-fill',
+        default   => 'object-cover',
+    };
+
+    $overlayColorClass = match($overlayColor) {
+        'brand' => 'bg-brand',
+        'white' => 'bg-white',
+        default => 'bg-black',
+    };
+
+    $textAlignClass = match($textPosition) {
+        'left'  => 'text-left',
+        'right' => 'text-right',
+        default => 'text-center',
+    };
+
+    $justifyClass = match($textPosition) {
+        'left'  => 'justify-start',
+        'right' => 'justify-end',
+        default => 'justify-center',
+    };
+
+    $transitionClass = $transitionEffect === 'slide'
+        ? 'transition-transform duration-700 ease-in-out'
+        : 'transition-opacity duration-700 ease-in-out';
 @endphp
 
 @if(count($slides) > 0)
 <section
-    class="relative h-screen overflow-hidden"
+    class="relative {{ $height }} overflow-hidden"
     x-data="{
         current: 0,
         total: {{ count($slides) }},
@@ -80,20 +122,24 @@
     {{-- Slides --}}
     @foreach($slides as $i => $slide)
         <div
-            class="absolute inset-0 transition-opacity duration-700 ease-in-out"
+            class="absolute inset-0 {{ $transitionClass }}"
             :class="current === {{ $i }} ? 'opacity-100 z-10' : 'opacity-0 z-0'"
         >
             {{-- Background --}}
             @if(!empty($slide['image']))
-                <div class="absolute inset-0 bg-cover bg-center" style="background-image:url('{{ $slide['image'] }}')"></div>
-                <div class="absolute inset-0 bg-black/50"></div>
+                <div class="absolute inset-0 w-full h-full">
+                    <img src="{{ $slide['image'] }}" alt="{{ $slide['heading'] ?? '' }}" class="w-full h-full {{ $imageFitClass }}">
+                </div>
+                @if((float) $overlayOpacity > 0)
+                    <div class="absolute inset-0 {{ $overlayColorClass }}" style="opacity: {{ $overlayOpacity }}"></div>
+                @endif
             @else
                 <div class="absolute inset-0 bg-gradient-to-br from-brand to-brand-dark"></div>
             @endif
 
             {{-- Content --}}
-            <div class="relative flex h-full items-center justify-center">
-                <div class="mx-auto max-w-4xl px-6 text-center text-white">
+            <div class="relative flex h-full items-center {{ $justifyClass }}">
+                <div class="mx-auto {{ $contentMaxWidth }} px-6 {{ $textAlignClass }} text-white">
                     @if(!empty($slide['subheading']))
                         <p
                             class="mb-4 text-lg opacity-90 md:text-xl"

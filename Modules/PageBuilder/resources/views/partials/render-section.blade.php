@@ -43,19 +43,36 @@
 @if(!empty($section->rendered_html))
     {!! $section->rendered_html !!}
 
-{{-- 2. Dedicated blade_file on the SectionTemplate --}}
+{{-- 2–5: All rendering is done via isolated view()->render() to prevent
+       exceptions from corrupting the parent Blade section stack --}}
 @elseif($section->sectionTemplate?->blade_file && view()->exists($section->sectionTemplate->blade_file))
-    @include($section->sectionTemplate->blade_file, [
-        'section'  => $section,
-        'content'  => $sectionContent,
-        'settings' => $sectionSettings,
-    ])
+    @php
+        try {
+            echo view($section->sectionTemplate->blade_file, [
+                'section'  => $section,
+                'content'  => $sectionContent,
+                'settings' => $sectionSettings,
+            ])->render();
+        } catch (\Throwable $e) {
+            if (config('app.debug')) {
+                echo '<div style="background:#fee;border:1px solid #c00;color:#c00;padding:12px;margin:8px;border-radius:4px;">'
+                    . '<strong>' . e($section->section_type) . ' (blade_file):</strong> ' . e($e->getMessage()) . '</div>';
+            }
+        }
+    @endphp
 
-{{-- 3. Legacy partial: frontend/sections/{type}.blade.php --}}
 @elseif(view()->exists('frontend.sections.' . $section->section_type))
-    @include('frontend.sections.' . $section->section_type, ['section' => $section])
+    @php
+        try {
+            echo view('frontend.sections.' . $section->section_type, ['section' => $section])->render();
+        } catch (\Throwable $e) {
+            if (config('app.debug')) {
+                echo '<div style="background:#fee;border:1px solid #c00;color:#c00;padding:12px;margin:8px;border-radius:4px;">'
+                    . '<strong>' . e($section->section_type) . ' (legacy):</strong> ' . e($e->getMessage()) . '</div>';
+            }
+        }
+    @endphp
 
-{{-- 4. View component: components/sections/{type}.blade.php --}}
 @elseif(view()->exists('components.sections.' . $sectionTypeSlug))
     @php
         try {
@@ -66,17 +83,14 @@
         } catch (\Throwable $e) {
             if (config('app.debug')) {
                 echo '<div style="background:#fee;border:1px solid #c00;color:#c00;padding:12px;margin:8px;border-radius:4px;">'
-                    . '<strong>' . e($section->section_type) . ':</strong> ' . e($e->getMessage())
-                    . '</div>';
+                    . '<strong>' . e($section->section_type) . ':</strong> ' . e($e->getMessage()) . '</div>';
             }
         }
     @endphp
 
-{{-- 5. Inline html_template from SectionTemplate (primitives use this) --}}
 @elseif($section->sectionTemplate?->html_template)
     {!! $section->sectionTemplate->render($sectionContent) !!}
 
-{{-- 6. Debug fallback --}}
 @elseif(config('app.debug'))
     <div style="background:#ffc;border:1px solid #990;color:#660;padding:12px;margin:8px;border-radius:4px;">
         Section type <strong>{{ $section->section_type }}</strong> has no renderer.

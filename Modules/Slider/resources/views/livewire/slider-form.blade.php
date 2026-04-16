@@ -50,6 +50,131 @@
             </div>
         </div>
 
+        <!-- Slider Settings -->
+        <div class="bg-white rounded-lg shadow mb-6">
+            <div class="p-6 border-b border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-900"><i class="fa fa-sliders-h mr-2 text-gray-400"></i>Slider Settings</h2>
+                <p class="mt-1 text-sm text-gray-500">Control how this slider looks and behaves when rendered.</p>
+            </div>
+            <div class="p-6 space-y-6">
+
+                {{-- Layout --}}
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">Layout</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Height</label>
+                            <select wire:model="height" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm">
+                                <option value="h-screen">Full Screen</option>
+                                <option value="h-[600px]">600px</option>
+                                <option value="h-[500px]">500px</option>
+                                <option value="h-[400px]">400px</option>
+                                <option value="h-[300px]">300px</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Content Max Width</label>
+                            <select wire:model="contentMaxWidth" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm">
+                                <option value="max-w-2xl">Narrow (2xl)</option>
+                                <option value="max-w-3xl">Medium (3xl)</option>
+                                <option value="max-w-4xl">Wide (4xl)</option>
+                                <option value="max-w-5xl">Extra Wide (5xl)</option>
+                                <option value="max-w-full">Full Width</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Text Position</label>
+                            <select wire:model="textPosition" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm">
+                                <option value="center">Center</option>
+                                <option value="left">Left</option>
+                                <option value="right">Right</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Images --}}
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">Images</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Image Fit</label>
+                            <select wire:model="imageFit" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm">
+                                <option value="cover">Cover (crop to fill)</option>
+                                <option value="contain">Contain (show all)</option>
+                                <option value="fill">Fill (stretch)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Overlay Color</label>
+                            <select wire:model="overlayColor" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm">
+                                <option value="black">Black</option>
+                                <option value="brand">Brand</option>
+                                <option value="white">White</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Overlay Opacity</label>
+                            <select wire:model="overlayOpacity" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm">
+                                <option value="0">None (0%)</option>
+                                <option value="0.3">Light (30%)</option>
+                                <option value="0.5">Medium (50%)</option>
+                                <option value="0.7">Dark (70%)</option>
+                                <option value="0.9">Very Dark (90%)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Behavior --}}
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">Behavior</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Transition Effect</label>
+                            <select wire:model="transitionEffect" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm">
+                                <option value="fade">Fade</option>
+                                <option value="slide">Slide</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-3">Autoplay</label>
+                            <div class="flex items-center gap-2">
+                                <input type="checkbox" wire:model.live="autoplay" id="autoplay" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                <label for="autoplay" class="text-sm text-gray-700">Enable autoplay</label>
+                            </div>
+                        </div>
+                        @if($autoplay)
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Autoplay Interval (ms)</label>
+                            <input type="number" wire:model="autoplayInterval" min="1000" max="30000" step="500"
+                                   class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                                   placeholder="5000">
+                            <p class="text-xs text-gray-500 mt-1">1000ms = 1 second</p>
+                            @error('autoplayInterval') <span class="text-red-600 text-xs">{{ $message }}</span> @enderror
+                        </div>
+                        @endif
+                    </div>
+                </div>
+
+                {{-- Navigation --}}
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">Navigation</h3>
+                    <div class="flex items-center gap-6">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" wire:model="showArrows" id="show_arrows" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                            <label for="show_arrows" class="text-sm font-medium text-gray-700">Show Arrow Buttons</label>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" wire:model="showDots" id="show_dots" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                            <label for="show_dots" class="text-sm font-medium text-gray-700">Show Dot Indicators</label>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
         <!-- Slides -->
         <div class="bg-white rounded-lg shadow mb-6">
             <div class="p-6 border-b border-gray-200 flex items-center justify-between">

@@ -22,6 +22,29 @@ class SliderForm extends Component
 
     public bool $isActive = true;
 
+    // Display Settings
+    public string $height = 'h-screen';
+
+    public string $imageFit = 'cover';
+
+    public string $overlayOpacity = '0.5';
+
+    public string $overlayColor = 'black';
+
+    public bool $autoplay = true;
+
+    public int $autoplayInterval = 5000;
+
+    public bool $showArrows = true;
+
+    public bool $showDots = true;
+
+    public string $transitionEffect = 'fade';
+
+    public string $textPosition = 'center';
+
+    public string $contentMaxWidth = 'max-w-4xl';
+
     // Slides
     public array $slides = [];
 
@@ -36,6 +59,17 @@ class SliderForm extends Component
             'slug' => 'required|string|max:255|unique:sliders,slug,'.$this->sliderId,
             'description' => 'nullable|string',
             'isActive' => 'boolean',
+            'height' => 'required|string',
+            'imageFit' => 'required|in:cover,contain,fill',
+            'overlayOpacity' => 'required|in:0,0.3,0.5,0.7,0.9',
+            'overlayColor' => 'required|in:black,brand,white',
+            'autoplay' => 'boolean',
+            'autoplayInterval' => 'required|integer|min:1000|max:30000',
+            'showArrows' => 'boolean',
+            'showDots' => 'boolean',
+            'transitionEffect' => 'required|in:fade,slide',
+            'textPosition' => 'required|in:center,left,right',
+            'contentMaxWidth' => 'required|string',
             'slides.*.title' => 'nullable|string|max:255',
             'slides.*.description' => 'nullable|string',
             'slides.*.link' => 'nullable|string|max:255',
@@ -67,6 +101,19 @@ class SliderForm extends Component
         $this->slug = $slider->slug;
         $this->description = $slider->description ?? '';
         $this->isActive = $slider->is_active;
+
+        $s = $slider->settings ?? [];
+        $this->height = $s['height'] ?? 'h-screen';
+        $this->imageFit = $s['image_fit'] ?? 'cover';
+        $this->overlayOpacity = $s['overlay_opacity'] ?? '0.5';
+        $this->overlayColor = $s['overlay_color'] ?? 'black';
+        $this->autoplay = (bool) ($s['autoplay'] ?? true);
+        $this->autoplayInterval = (int) ($s['autoplay_interval'] ?? 5000);
+        $this->showArrows = (bool) ($s['show_arrows'] ?? true);
+        $this->showDots = (bool) ($s['show_dots'] ?? true);
+        $this->transitionEffect = $s['transition_effect'] ?? 'fade';
+        $this->textPosition = $s['text_position'] ?? 'center';
+        $this->contentMaxWidth = $s['content_max_width'] ?? 'max-w-4xl';
 
         $this->slides = $slider->slides->map(function ($slide) {
             return [
@@ -153,6 +200,19 @@ class SliderForm extends Component
                 'slug' => $this->slug,
                 'description' => $this->description ?: null,
                 'is_active' => $this->isActive,
+                'settings' => [
+                    'height' => $this->height,
+                    'image_fit' => $this->imageFit,
+                    'overlay_opacity' => $this->overlayOpacity,
+                    'overlay_color' => $this->overlayColor,
+                    'autoplay' => $this->autoplay,
+                    'autoplay_interval' => $this->autoplayInterval,
+                    'show_arrows' => $this->showArrows,
+                    'show_dots' => $this->showDots,
+                    'transition_effect' => $this->transitionEffect,
+                    'text_position' => $this->textPosition,
+                    'content_max_width' => $this->contentMaxWidth,
+                ],
             ]
         );
 
