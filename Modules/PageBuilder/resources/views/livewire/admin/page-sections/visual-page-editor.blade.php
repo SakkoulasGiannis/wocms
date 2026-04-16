@@ -352,7 +352,7 @@ if (typeof window.editorjsField === 'undefined') {
                                 @case('text')
                                 @case('url')
                                 @case('email')
-                                    @if($field->name === 'class')
+                                    @if($field->name === 'class' || str_ends_with($field->name, '_class'))
                                         <div x-data="{
                                             tags: (@js($sectionContent[$field->name] ?? '')).split(/\s+/).filter(t => t !== ''),
                                             inputVal: '',
