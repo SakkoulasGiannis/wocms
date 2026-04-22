@@ -177,6 +177,54 @@ class SliderForm extends Component
         }
     }
 
+    /**
+     * Auto-save the image immediately when uploaded to a slide.
+     */
+    public function updatedNewImages($value, $key): void
+    {
+        // $key is the index like "0" or "1" etc.
+        $index = (int) $key;
+        $file = $this->newImages[$index] ?? null;
+
+        if (! $file || ! isset($this->slides[$index])) {
+            return;
+        }
+
+        // Validate single file
+        $this->validate([
+            "newImages.{$index}" => 'image|max:10240',
+        ]);
+
+        $slideData = $this->slides[$index];
+
+        // If slide has no ID yet, we need slider to exist first — skip auto-save
+        if (empty($slideData['id']) || empty($this->sliderId)) {
+            return;
+        }
+
+        $slide = Slide::find($slideData['id']);
+        if (! $slide) {
+            return;
+        }
+
+        // Replace image
+        $slide->clearMediaCollection('image');
+        $slide->addMedia($file->getRealPath())
+            ->usingFileName($file->getClientOriginalName())
+            ->toMediaCollection('image');
+
+        // Update in-memory URL for preview
+        $slide->refresh();
+        $this->slides[$index]['image_url'] = $slide->getFirstMediaUrl('image', 'thumb') ?: $slide->getFirstMediaUrl('image');
+
+        // Clear the newImages entry since it's saved
+        unset($this->newImages[$index]);
+        $this->newImages = array_values($this->newImages);
+
+        session()->flash('success', 'Image uploaded for Slide #'.($index + 1));
+        $this->dispatch('notify', message: 'Image saved!', type: 'success');
+    }
+
     public function updateSlideOrder(array $orderedIds): void
     {
         $newOrder = [];
