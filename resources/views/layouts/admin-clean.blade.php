@@ -95,6 +95,16 @@
                                 {{ $template->menu_label ?: $template->name }}
                             </a>
                         @endforeach
+
+                        <!-- Our Staff (Agents CRUD) -->
+                        <a href="{{ route('admin.agents.index') }}"
+                           class="flex items-center px-3 py-2 text-sm font-medium rounded-lg transition
+                                  {{ request()->routeIs('admin.agents.*') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50' }}">
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-5.13a4 4 0 11-8 0 4 4 0 018 0zm6 3a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                            Our Staff
+                        </a>
                     </nav>
                 </div>
 
@@ -174,15 +184,6 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                             </svg>
                             Media Library
-                        </a>
-
-                        <a href="{{ route('admin.agents.index') }}"
-                           class="flex items-center px-3 py-2 text-sm font-medium rounded-lg transition
-                                  {{ request()->routeIs('admin.agents.*') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50' }}">
-                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-5.13a4 4 0 11-8 0 4 4 0 018 0zm6 3a3 3 0 11-6 0 3 3 0 016 0z"/>
-                            </svg>
-                            Our Staff
                         </a>
 
                         <a href="{{ route('admin.users') }}"
