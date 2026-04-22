@@ -68,10 +68,19 @@ class FrontendController extends Controller
     }
 
     /**
-     * Contact page
+     * Contact page — prefer Contact ContentNode (sections), fallback to themed view.
      */
     public function contact()
     {
+        $node = ContentNode::where('url_path', '/contact')
+            ->where('is_published', true)
+            ->whereNull('deleted_at')
+            ->first();
+
+        if ($node) {
+            return $this->renderNode($node);
+        }
+
         return view($this->themeView('contact'));
     }
 
