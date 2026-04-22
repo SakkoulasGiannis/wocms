@@ -68,7 +68,8 @@
                                         <option value="">{{ $field->placeholder ?: 'Select an option' }}</option>
                                         @if($field->options)
                                             @foreach($field->options as $option)
-                                                <option value="{{ $option }}">{{ $option }}</option>
+                                                @php $val = is_array($option) ? ($option['value'] ?? '') : $option; $lbl = is_array($option) ? ($option['label'] ?? $val) : $option; @endphp
+                                                <option value="{{ $val }}">{{ $lbl }}</option>
                                             @endforeach
                                         @endif
                                     </select>
@@ -78,15 +79,16 @@
                                     <div class="space-y-2">
                                         @if($field->options)
                                             @foreach($field->options as $option)
+                                                @php $val = is_array($option) ? ($option['value'] ?? '') : $option; $lbl = is_array($option) ? ($option['label'] ?? $val) : $option; @endphp
                                                 <label class="flex items-center">
                                                     <input
                                                         type="radio"
                                                         wire:model="formData.{{ $field->name }}"
-                                                        value="{{ $option }}"
+                                                        value="{{ $val }}"
                                                         class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                                                         @if($field->is_required) required @endif
                                                     >
-                                                    <span class="ml-2 text-gray-700">{{ $option }}</span>
+                                                    <span class="ml-2 text-gray-700">{{ $lbl }}</span>
                                                 </label>
                                             @endforeach
                                         @endif
@@ -97,14 +99,15 @@
                                     <div class="space-y-2">
                                         @if($field->options)
                                             @foreach($field->options as $option)
+                                                @php $val = is_array($option) ? ($option['value'] ?? '') : $option; $lbl = is_array($option) ? ($option['label'] ?? $val) : $option; @endphp
                                                 <label class="flex items-center">
                                                     <input
                                                         type="checkbox"
                                                         wire:model="formData.{{ $field->name }}"
-                                                        value="{{ $option }}"
+                                                        value="{{ $val }}"
                                                         class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                                                     >
-                                                    <span class="ml-2 text-gray-700">{{ $option }}</span>
+                                                    <span class="ml-2 text-gray-700">{{ $lbl }}</span>
                                                 </label>
                                             @endforeach
                                         @endif
