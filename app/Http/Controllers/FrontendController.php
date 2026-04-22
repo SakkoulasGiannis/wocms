@@ -76,6 +76,22 @@ class FrontendController extends Controller
     }
 
     /**
+     * Our Staff (Agents) page
+     */
+    public function staff()
+    {
+        $agents = \App\Models\Agent::query()
+            ->active()
+            ->ordered()
+            ->get();
+
+        return view($this->themeView('our-staff'), [
+            'agents' => $agents,
+            'title' => 'Our Staff',
+        ]);
+    }
+
+    /**
      * Properties listing page with filters and map
      */
     public function properties(Request $request)

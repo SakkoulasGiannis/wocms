@@ -21,6 +21,9 @@ Route::get('/rental-properties/{slug}', [FrontendController::class, 'rentalPrope
 
 // Contact page
 Route::get('/contact', [FrontendController::class, 'contact'])->name('contact');
+
+// Our Staff page
+Route::get('/our-staff', [FrontendController::class, 'staff'])->name('our-staff');
 // CSRF token refresh route
 Route::get('/csrf-token', function () {
     return response()->json([
@@ -87,6 +90,11 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
 
     // Menu Manager Route
     Route::get('/menus', \App\Livewire\Admin\Menus\MenuManager::class)->name('menus.index');
+
+    // Agents (Our Staff) Routes
+    Route::get('/agents', \App\Livewire\Admin\Agents\AgentList::class)->name('agents.index');
+    Route::get('/agents/create', \App\Livewire\Admin\Agents\AgentForm::class)->name('agents.create');
+    Route::get('/agents/{agentId}/edit', \App\Livewire\Admin\Agents\AgentForm::class)->name('agents.edit');
 
     // Auto-load module admin routes (must be before the wildcard {templateSlug} catch-all)
     foreach (\Nwidart\Modules\Facades\Module::allEnabled() as $module) {

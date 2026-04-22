@@ -36,6 +36,16 @@
       ]
     },
     {
+      "section": "Team",
+      "items": [
+        {
+          "label": "Our Staff",
+          "icon": "users",
+          "route": "admin.agents.index"
+        }
+      ]
+    },
+    {
       "section": "System",
       "items": [
         {
