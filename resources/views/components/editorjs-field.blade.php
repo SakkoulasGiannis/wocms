@@ -137,7 +137,11 @@ class ColumnsTool {
     static get isReadOnlySupported() { return true; }
     constructor({ data, api, config }) {
         this.api = api;
-        this.data = data && data.columns ? data : { columns: [['','']], cols: 2 };
+        const d = data && data.columns ? data : {};
+        const cols = d.cols || 2;
+        let columns = Array.isArray(d.columns) ? d.columns.map(c => typeof c === 'string' ? c : '') : [];
+        while (columns.length < cols) columns.push('');
+        this.data = { cols, columns };
     }
     renderSettings() {
         const wrapper = document.createElement('div');
@@ -407,6 +411,7 @@ function editorjsField(config) {
                     const el = document.getElementById(self.uid);
                     if (el) el._editorjsInstance = self.editor;
                     if (window.Undo) new Undo({ editor: self.editor });
+                    console.log('[EditorJS] Tools registered:', Object.keys(self.editor?.configuration?.tools || {}));
                 },
             });
         },
