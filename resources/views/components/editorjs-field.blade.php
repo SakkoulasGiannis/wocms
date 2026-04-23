@@ -410,7 +410,10 @@ function editorjsField(config) {
                     // Stamp instance on DOM node so re-init guard can clean it up
                     const el = document.getElementById(self.uid);
                     if (el) el._editorjsInstance = self.editor;
-                    if (window.Undo) new Undo({ editor: self.editor });
+                    // Initialize Undo inside try/catch (can fail with some custom tools)
+                    try {
+                        if (window.Undo) new Undo({ editor: self.editor });
+                    } catch (e) { console.warn('Undo init failed:', e); }
                     console.log('[EditorJS] Tools registered:', Object.keys(self.editor?.configuration?.tools || {}));
                 },
             });

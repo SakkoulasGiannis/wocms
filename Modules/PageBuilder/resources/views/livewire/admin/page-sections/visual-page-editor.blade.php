@@ -721,11 +721,13 @@ if (typeof window.editorjsField === 'undefined') {
          x-on:preview-visibility.window="patchVisibility($event.detail)"
          x-init="
              $data.patchPreview = function(detail) {
+                 if (!detail || !detail.sectionId) return;
                  const frame = document.getElementById('preview-frame');
                  if (!frame?.contentWindow) { reloadPreview(); return; }
                  frame.contentWindow.postMessage({ type: 've-patch', sectionId: detail.sectionId, html: detail.html }, '*');
              };
              $data.patchVisibility = function(detail) {
+                 if (!detail || !detail.sectionId) return;
                  const frame = document.getElementById('preview-frame');
                  if (!frame?.contentDocument) return;
                  const wrapper = frame.contentDocument.querySelector('[data-ve-section-id=\'' + detail.sectionId + '\']');
