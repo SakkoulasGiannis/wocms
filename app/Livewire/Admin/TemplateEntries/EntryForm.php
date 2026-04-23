@@ -1205,6 +1205,15 @@ class EntryForm extends Component
             }
         }
 
+        // Fallback: if the entry is linked to a ContentNode, use its url_path
+        $node = ContentNode::where('content_type', get_class($this->entry))
+            ->where('content_id', $this->entry->id)
+            ->where('is_published', true)
+            ->first();
+        if ($node && $node->url_path) {
+            return $node->url_path;
+        }
+
         return null;
     }
 

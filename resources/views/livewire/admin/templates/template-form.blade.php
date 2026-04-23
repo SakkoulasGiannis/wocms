@@ -309,6 +309,18 @@
                     </div>
 
                     <div>
+                        <label class="flex items-center">
+                            <input type="checkbox"
+                                   wire:model="sortable"
+                                   class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <span class="ml-2 text-sm text-gray-700">Enable drag-to-reorder in entries list</span>
+                        </label>
+                        <p class="mt-1 ml-6 text-xs text-gray-500">
+                            When enabled, admins can drag rows in the entries list to reorder them
+                        </p>
+                    </div>
+
+                    <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">
                             Allowed Template(s) for Parents
                         </label>

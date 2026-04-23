@@ -5,38 +5,56 @@ namespace App\Livewire\Admin\Templates;
 use App\Models\Template;
 use App\Models\TemplateField;
 use App\Services\TemplateTableGenerator;
-use Livewire\Component;
 use Illuminate\Support\Str;
+use Livewire\Component;
 
 class TemplateForm extends Component
 {
     public ?Template $template = null;
+
     public $templateId;
 
     // Template Fields
     public $name = '';
+
     public $slug = '';
+
     public $useSlugPrefix = false;
+
     public $description = '';
+
     public $has_physical_file = false;
+
     public $requires_database = true;
+
     public $file_path = '';
+
     public $render_mode = 'full_page_grapejs';
+
     public $html_content = '';
+
     public $is_active = true;
+
     public $is_public = true;
+
     public $show_in_menu = false;
+
     public $menu_label = '';
+
     public $menu_order = 0;
 
     // Family & Hierarchy Settings
     public $allow_children = true;
+
     public $allow_new_pages = true;
+
     public $allowed_parent_templates = [];
+
     public $allowed_child_templates = [];
 
     // Access Control
     public $use_custom_access = false;
+
     public $allowed_roles = [];
 
     // Visual
@@ -44,14 +62,20 @@ class TemplateForm extends Component
 
     // Caching
     public $enable_full_page_cache = false;
+
     public $cache_ttl = 3600;
 
     // Tree Structure
     public $parent_id = null;
 
+    // Settings (JSON column)
+    public bool $sortable = false;
+
     // Fields Array
     public $fields = [];
+
     public $fieldTypes = [];
+
     public $availableTemplates = [];
 
     public function mount($templateId = null)
@@ -60,7 +84,7 @@ class TemplateForm extends Component
 
         // Load all templates for parent/child selection (excluding current template)
         $this->availableTemplates = Template::where('is_active', true)
-            ->when($templateId, fn($q) => $q->where('id', '!=', $templateId))
+            ->when($templateId, fn ($q) => $q->where('id', '!=', $templateId))
             ->orderBy('name')
             ->get();
 
@@ -101,11 +125,14 @@ class TemplateForm extends Component
             // Load tree structure
             $this->parent_id = $this->template->parent_id;
 
+            // Load settings
+            $this->sortable = (bool) ($this->template->settings['sortable'] ?? false);
+
             // Load existing fields
             $this->fields = $this->template->fields->map(function ($field) {
                 $settings = $field->settings ?? [];
                 // Ensure sub_fields key exists for backwards compatibility
-                if (!isset($settings['sub_fields'])) {
+                if (! isset($settings['sub_fields'])) {
                     $settings['sub_fields'] = '';
                 }
 
@@ -210,18 +237,18 @@ class TemplateForm extends Component
 
     public function updatedName()
     {
-        if (!$this->templateId) {
+        if (! $this->templateId) {
             $this->slug = Str::slug($this->name);
             if ($this->has_physical_file && empty($this->file_path)) {
-                $this->file_path = 'templates/' . $this->slug . '.blade.php';
+                $this->file_path = 'templates/'.$this->slug.'.blade.php';
             }
         }
     }
 
     public function updatedHasPhysicalFile()
     {
-        if ($this->has_physical_file && empty($this->file_path) && !empty($this->slug)) {
-            $this->file_path = 'templates/' . $this->slug . '.blade.php';
+        if ($this->has_physical_file && empty($this->file_path) && ! empty($this->slug)) {
+            $this->file_path = 'templates/'.$this->slug.'.blade.php';
         }
     }
 
@@ -259,17 +286,17 @@ class TemplateForm extends Component
             $fieldName = strtolower(preg_replace('/[^a-zA-Z_]/', '', $fieldName));
 
             // Pluralize the field name
-            if (!empty($fieldName)) {
+            if (! empty($fieldName)) {
                 $this->fields[$index]['name'] = Str::plural($fieldName);
             }
         }
 
         // Handle field repositioning when insert_after_index changes
         if (preg_match('/fields\.(\d+)\.insert_after_index/', $key, $matches)) {
-            $currentIndex = (int)$matches[1];
+            $currentIndex = (int) $matches[1];
 
             // Check if field still exists at this index
-            if (!isset($this->fields[$currentIndex])) {
+            if (! isset($this->fields[$currentIndex])) {
                 return;
             }
 
@@ -281,11 +308,12 @@ class TemplateForm extends Component
             }
 
             // Convert to string for comparison
-            $insertAfterIndexStr = (string)$insertAfterIndex;
+            $insertAfterIndexStr = (string) $insertAfterIndex;
 
             // Skip if trying to insert after itself
-            if ($insertAfterIndexStr !== '-1' && (int)$insertAfterIndex == $currentIndex) {
+            if ($insertAfterIndexStr !== '-1' && (int) $insertAfterIndex == $currentIndex) {
                 $this->fields[$currentIndex]['insert_after_index'] = null;
+
                 return;
             }
 
@@ -301,7 +329,7 @@ class TemplateForm extends Component
                 array_unshift($this->fields, $field);
             } else {
                 // Insert after specified index
-                $targetIndex = (int)$insertAfterIndex;
+                $targetIndex = (int) $insertAfterIndex;
 
                 // Adjust index if current field was before the target
                 if ($currentIndex < $targetIndex) {
@@ -338,7 +366,7 @@ class TemplateForm extends Component
         $currentState = $this->fields[$clickedIndex]['is_url_identifier'] ?? false;
 
         // If it's currently false (will become true after click)
-        if (!$currentState) {
+        if (! $currentState) {
             // Uncheck all other fields
             foreach ($this->fields as $index => &$field) {
                 if ($index !== $clickedIndex) {
@@ -390,7 +418,7 @@ class TemplateForm extends Component
     {
         $validated = $this->validate([
             'name' => 'required|string|max:255',
-            'slug' => 'required|string|unique:templates,slug,' . ($this->templateId ?? 'NULL'),
+            'slug' => 'required|string|unique:templates,slug,'.($this->templateId ?? 'NULL'),
             'useSlugPrefix' => 'boolean',
             'description' => 'nullable|string',
             'has_physical_file' => 'boolean',
@@ -417,6 +445,8 @@ class TemplateForm extends Component
             // Caching
             'enable_full_page_cache' => 'boolean',
             'cache_ttl' => 'nullable|integer|min:60',
+            // Settings
+            'sortable' => 'boolean',
             // Fields
             'fields.*.name' => 'required|string|regex:/^[a-z_]+$/',
             'fields.*.label' => 'required|string',
@@ -433,36 +463,47 @@ class TemplateForm extends Component
         $fieldNames = collect($this->fields)->pluck('name')->filter();
         if ($fieldNames->count() !== $fieldNames->unique()->count()) {
             $this->addError('fields', 'Duplicate field names are not allowed within the same template.');
+
             return;
         }
 
         // Check for field name conflicts with existing fields in other templates (optional)
         foreach ($this->fields as $index => $field) {
-            if (empty($field['name'])) continue;
+            if (empty($field['name'])) {
+                continue;
+            }
 
             $existingField = \App\Models\TemplateField::where('name', $field['name'])
                 ->where('template_id', $this->templateId ?? 0)
-                ->when(isset($field['id']), function($query) use ($field) {
+                ->when(isset($field['id']), function ($query) use ($field) {
                     return $query->where('id', '!=', $field['id']);
                 })
                 ->first();
 
             if ($existingField) {
-                $this->addError("fields.{$index}.name", "This field name already exists in this template.");
+                $this->addError("fields.{$index}.name", 'This field name already exists in this template.');
+
                 return;
             }
         }
 
-        $isNewTemplate = !$this->templateId;
+        $isNewTemplate = ! $this->templateId;
 
         // Map camelCase to snake_case for database
         $data = $validated;
         $data['use_slug_prefix'] = $data['useSlugPrefix'] ?? false;
         unset($data['useSlugPrefix']);
 
+        // Extract settings-level fields and merge into settings JSON
+        $sortable = (bool) ($data['sortable'] ?? false);
+        unset($data['sortable']);
+
         if ($this->templateId) {
+            $existingSettings = $this->template->settings ?? [];
+            $data['settings'] = array_merge($existingSettings, ['sortable' => $sortable]);
             $this->template->update($data);
         } else {
+            $data['settings'] = ['sortable' => $sortable];
             $this->template = Template::create($data);
         }
 
@@ -487,7 +528,7 @@ class TemplateForm extends Component
         $this->template->load('fields');
 
         // Create database table and model
-        $tableGenerator = new TemplateTableGenerator();
+        $tableGenerator = new TemplateTableGenerator;
         if ($tableGenerator->createTableAndModel($this->template)) {
             session()->flash('success', 'Template and database table created successfully!');
         } else {
@@ -499,22 +540,21 @@ class TemplateForm extends Component
 
     protected function updateTreeStructure()
     {
-        if (!$this->template->parent_id) {
+        if (! $this->template->parent_id) {
             // Root template (like Home)
             $this->template->tree_level = 0;
-            $this->template->tree_path = '/' . $this->template->id;
+            $this->template->tree_path = '/'.$this->template->id;
         } else {
             // Child template
             $parent = Template::find($this->template->parent_id);
             if ($parent) {
                 $this->template->tree_level = $parent->tree_level + 1;
-                $this->template->tree_path = $parent->tree_path . '/' . $this->template->id;
+                $this->template->tree_path = $parent->tree_path.'/'.$this->template->id;
             }
         }
 
         $this->template->save();
     }
-
 
     protected function syncFields()
     {

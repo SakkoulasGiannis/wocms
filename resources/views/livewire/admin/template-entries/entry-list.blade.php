@@ -60,12 +60,17 @@
         @endif
     </div>
 
+    @php $sortable = $sortable ?? false; @endphp
+
     <!-- Entries Table -->
     <div class="bg-white rounded-lg shadow overflow-hidden">
         @if($entries->count() > 0)
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
+                        @if($sortable)
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-10"></th>
+                        @endif
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             ID
                         </th>
@@ -87,7 +92,7 @@
                         </th>
                     </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
+                <tbody class="bg-white divide-y divide-gray-200" @if($sortable) id="entries-sortable-body" data-sortable-mode="{{ (isset($isTree) && $isTree) ? 'tree' : 'flat' }}" @endif>
                     @foreach($entries as $item)
                         @php
                             // For tree view, $item is a ContentNode with 'content' property
@@ -96,9 +101,25 @@
                             $level      = isset($isTree) && $isTree ? ($item->level ?? 0) : 0;
                             $rowNode    = (isset($isTree) && $isTree) ? $item : null;
                             $isDefaultRow = $rowNode && ($rowNode->is_default ?? false);
+                            // ID used for reordering:
+                            // tree view => ContentNode id; flat view => entry id
+                            $sortId     = (isset($isTree) && $isTree) ? ($rowNode->id ?? null) : ($entry->id ?? null);
+                            $sortParent = ($rowNode && isset($rowNode->parent_id)) ? (int) $rowNode->parent_id : 0;
                         @endphp
                         @if($entry)
-                        <tr class="hover:bg-gray-50">
+                        <tr class="hover:bg-gray-50"
+                            @if($sortable && $sortId) data-entry-id="{{ $sortId }}" data-parent-id="{{ $sortParent }}" @endif>
+                            @if($sortable)
+                                <td class="px-3 py-4 text-center">
+                                    <button type="button"
+                                            class="entry-drag-handle cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-700 select-none"
+                                            title="Drag to reorder">
+                                        <svg class="w-5 h-5 inline-block" fill="currentColor" viewBox="0 0 20 20">
+                                            <path d="M7 4a1 1 0 11-2 0 1 1 0 012 0zM7 10a1 1 0 11-2 0 1 1 0 012 0zM7 16a1 1 0 11-2 0 1 1 0 012 0zM15 4a1 1 0 11-2 0 1 1 0 012 0zM15 10a1 1 0 11-2 0 1 1 0 012 0zM15 16a1 1 0 11-2 0 1 1 0 012 0z"/>
+                                        </svg>
+                                    </button>
+                                </td>
+                            @endif
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                 @if($level > 0)
                                     <span class="text-gray-400">
@@ -263,4 +284,49 @@
             </div>
         @endif
     </div>
+
+    @if($sortable && $entries->count() > 0)
+        {{-- SortableJS drag-to-reorder --}}
+        <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+        <script>
+            (function() {
+                function initSortable() {
+                    const tbody = document.getElementById('entries-sortable-body');
+                    if (!tbody || tbody._sortableInit) return;
+                    tbody._sortableInit = true;
+
+                    const isTree = tbody.dataset.sortableMode === 'tree';
+
+                    new Sortable(tbody, {
+                        handle: '.entry-drag-handle',
+                        animation: 150,
+                        ghostClass: 'opacity-50',
+                        chosenClass: 'bg-blue-50',
+                        onMove: function (evt) {
+                            // In tree mode, only allow reordering within the same parent group
+                            if (!isTree) return true;
+                            const dragged = evt.dragged;
+                            const related = evt.related;
+                            return dragged && related &&
+                                dragged.dataset.parentId === related.dataset.parentId;
+                        },
+                        onEnd: function () {
+                            const orderedIds = Array.from(tbody.querySelectorAll('tr[data-entry-id]'))
+                                .map(tr => parseInt(tr.dataset.entryId));
+                            @this.call('reorder', orderedIds);
+                        },
+                    });
+                }
+                initSortable();
+                document.addEventListener('livewire:navigated', initSortable);
+                if (window.Livewire) {
+                    Livewire.hook('morph.updated', () => {
+                        const tbody = document.getElementById('entries-sortable-body');
+                        if (tbody) tbody._sortableInit = false;
+                        initSortable();
+                    });
+                }
+            })();
+        </script>
+    @endif
 </div>
