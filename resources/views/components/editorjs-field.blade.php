@@ -384,7 +384,7 @@ function editorjsField(config) {
                     underline: Underline,
 
                     // Columns block (custom)
-                    columns: window.ColumnsTool,
+                    ...(window.ColumnsTool ? { columns: { class: window.ColumnsTool } } : {}),
                 },
 
                 onChange: async (api, event) => {
@@ -411,7 +411,9 @@ function editorjsField(config) {
                     const el = document.getElementById(self.uid);
                     if (el) el._editorjsInstance = self.editor;
                     // Undo disabled — caused issues with custom tools
+                    console.log('[EditorJS] window.ColumnsTool:', typeof window.ColumnsTool);
                     console.log('[EditorJS] Tools registered:', Object.keys(self.editor?.configuration?.tools || {}));
+                    console.log('[EditorJS] Tools in toolbox:', Array.from(document.querySelectorAll('.ce-popover-item__title')).map(el => el.textContent));
                 },
             });
         },
