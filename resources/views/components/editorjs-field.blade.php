@@ -44,17 +44,27 @@
 <style>
 .editorjs-container .ce-block__content,
 .editorjs-container .ce-toolbar__content {
-    max-width: calc(100% - 2rem);
-    margin: 0 0 0 2rem;
+    max-width: calc(100% - 2rem) !important;
+    margin: 0 0 0 2rem !important;
 }
 .editorjs-container .codex-editor__redactor {
     padding-bottom: 100px;
+    padding-right: 4rem;
 }
 /* Fullscreen mode — use full width of parent container */
-.editorjs-container.editorjs-fullscreen .ce-block__content,
-.editorjs-container.editorjs-fullscreen .ce-toolbar__content {
-    max-width: 100%;
-    margin: 0;
+.editorjs-fullscreen-mode .editorjs-container,
+.editorjs-fullscreen-mode .editorjs-container .codex-editor,
+.editorjs-fullscreen-mode .editorjs-container .codex-editor__redactor {
+    max-width: 100% !important;
+    width: 100% !important;
+}
+.editorjs-fullscreen-mode .editorjs-container .ce-block__content,
+.editorjs-fullscreen-mode .editorjs-container .ce-toolbar__content {
+    max-width: 100% !important;
+    margin: 0 !important;
+}
+.editorjs-fullscreen-mode .editorjs-container .codex-editor__redactor {
+    padding-right: 5rem !important;
 }
 .editorjs-container .codex-editor {
     font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;

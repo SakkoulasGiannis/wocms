@@ -513,7 +513,7 @@ if (typeof window.editorjsField === 'undefined') {
 
                                 @case('wysiwyg')
                                     <div x-data="{ fullscreen: false }"
-                                         :class="fullscreen ? 'fixed inset-0 z-[1000] bg-white flex flex-col' : ''">
+                                         :class="fullscreen ? 'fixed inset-0 z-[1000] bg-white flex flex-col editorjs-fullscreen-mode' : ''">
                                         <div :class="fullscreen ? 'flex items-center justify-between px-6 py-3 border-b border-gray-200 bg-gray-50' : 'flex items-center justify-end mb-1'">
                                             <span x-show="fullscreen" class="text-sm font-semibold text-gray-700">{{ $field->label }}</span>
                                             <button type="button"
