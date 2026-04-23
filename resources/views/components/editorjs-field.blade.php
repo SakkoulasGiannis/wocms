@@ -125,8 +125,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@editorjs/inline-code@1.5.0/dist/inline-code.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@editorjs/underline@1.2.1/dist/underline.umd.js"></script>
 
-{{-- Undo/Redo --}}
-<script src="https://cdn.jsdelivr.net/npm/editorjs-undo@2.0.1/dist/bundle.js"></script>
+{{-- Undo/Redo — disabled (causes errors with custom tools) --}}
+{{-- <script src="https://cdn.jsdelivr.net/npm/editorjs-undo@2.0.1/dist/bundle.js"></script> --}}
 
 <script>
 /* ─── Custom ColumnsTool for EditorJS (2 / 3 / 4 columns) ─── */
@@ -410,10 +410,7 @@ function editorjsField(config) {
                     // Stamp instance on DOM node so re-init guard can clean it up
                     const el = document.getElementById(self.uid);
                     if (el) el._editorjsInstance = self.editor;
-                    // Initialize Undo inside try/catch (can fail with some custom tools)
-                    try {
-                        if (window.Undo) new Undo({ editor: self.editor });
-                    } catch (e) { console.warn('Undo init failed:', e); }
+                    // Undo disabled — caused issues with custom tools
                     console.log('[EditorJS] Tools registered:', Object.keys(self.editor?.configuration?.tools || {}));
                 },
             });
