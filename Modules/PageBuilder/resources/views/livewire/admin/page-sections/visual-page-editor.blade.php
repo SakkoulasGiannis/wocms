@@ -528,8 +528,9 @@ if (typeof window.editorjsField === 'undefined') {
                                                 <span x-text="fullscreen ? 'Κλείσιμο' : 'Fullscreen'"></span>
                                             </button>
                                         </div>
-                                        <div :class="fullscreen ? 'flex-1 overflow-y-auto' : ''">
-                                            <div :class="fullscreen ? 'w-full px-8 py-6' : ''"
+                                        <div :class="fullscreen ? 'flex-1 overflow-y-auto' : ''" style=""
+                                             x-effect="if (fullscreen) $el.style.padding = '15px'; else $el.style.padding = ''">
+                                            <div :class="fullscreen ? 'w-full' : ''"
                                                  x-effect="
                                                     const w = $el.querySelector('.editorjs-container');
                                                     if (w) {
