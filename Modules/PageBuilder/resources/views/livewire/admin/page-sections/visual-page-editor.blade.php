@@ -529,7 +529,7 @@ if (typeof window.editorjsField === 'undefined') {
                                             </button>
                                         </div>
                                         <div :class="fullscreen ? 'flex-1 overflow-y-auto p-8' : ''">
-                                            <div :class="fullscreen ? 'max-w-4xl mx-auto' : ''">
+                                            <div :class="fullscreen ? 'max-w-7xl mx-auto' : ''">
                                                 <x-editorjs-field
                                                     :name="'ve.' . $field->name"
                                                     :value="$sectionContent[$field->name] ?? ''"
