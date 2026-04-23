@@ -5,6 +5,8 @@ namespace App\Livewire\Admin\AIChat;
 use App\Models\AIChatMessage;
 use App\Services\AI\AIContentHandler;
 use App\Services\AI\AIManager;
+use App\Services\AI\ToolExecutor;
+use App\Services\AI\ToolRegistry;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
@@ -21,6 +23,21 @@ class ChatWidget extends Component
     public $currentUrl = '';
 
     public $currentContext = [];
+
+    /**
+     * When a tool requires confirmation, we stash it here and show a modal.
+     */
+    public ?array $pendingToolCall = null;
+
+    /**
+     * In-progress agentic tool loop state: messages for the provider, iteration count.
+     */
+    public array $toolLoopState = [];
+
+    /**
+     * Feature flag — use tool-calling instead of legacy intent routing.
+     */
+    public bool $useTools = true;
 
     public function mount()
     {
@@ -435,6 +452,261 @@ class ChatWidget extends Component
     {
         AIChatMessage::where('user_id', Auth::id())->delete();
         $this->messages = [];
+    }
+
+    /* ─────────────────────────────────────────────────────────────────
+     * TOOL-CALLING FLOW (Phase 1 MVP)
+     * ───────────────────────────────────────────────────────────────── */
+
+    /**
+     * Entry point for tool-based chat. Runs an agentic loop:
+     *   user message → provider → tool_calls? → execute → back to provider → ... until text reply.
+     */
+    public function sendMessageWithTools(): void
+    {
+        if (empty(trim($this->message))) {
+            return;
+        }
+
+        $userMessage = trim($this->message);
+        $this->message = '';
+        $this->isLoading = true;
+
+        $userMsg = AIChatMessage::create([
+            'user_id' => Auth::id(),
+            'role' => 'user',
+            'message' => $userMessage,
+        ]);
+
+        $this->messages[] = [
+            'id' => $userMsg->id,
+            'role' => 'user',
+            'message' => $userMessage,
+            'created_at' => 'Just now',
+        ];
+
+        // Initialize the conversation state
+        $this->toolLoopState = [
+            'messages' => [
+                ['role' => 'user', 'content' => $userMessage],
+            ],
+            'iterations' => 0,
+            'user_msg_id' => $userMsg->id,
+        ];
+
+        $this->runToolLoop();
+    }
+
+    /**
+     * Agentic loop — call provider, execute any non-destructive tools, pause for confirmation on destructive ones.
+     */
+    protected function runToolLoop(): void
+    {
+        $registry = app(ToolRegistry::class);
+        $executor = app(ToolExecutor::class);
+        $manager = app(AIManager::class);
+        $provider = \App\Models\Setting::get('ai_provider', 'claude');
+
+        $tools = $provider === 'chatgpt'
+            ? $registry->toOpenAISchema()
+            : $registry->toClaudeSchema();
+
+        $systemPrompt = $this->buildSystemPrompt();
+
+        for ($i = $this->toolLoopState['iterations']; $i < 5; $i++) {
+            $this->toolLoopState['iterations'] = $i + 1;
+
+            try {
+                $response = $manager->chatWithTools(
+                    $this->toolLoopState['messages'],
+                    $tools,
+                    $systemPrompt
+                );
+            } catch (\Throwable $e) {
+                $this->pushAssistantMessage('⚠️ Σφάλμα: '.$e->getMessage());
+                $this->isLoading = false;
+
+                return;
+            }
+
+            // No tool calls → final reply
+            if (! $response->hasToolCalls()) {
+                $text = trim($response->text) ?: 'OK.';
+                $this->pushAssistantMessage($text);
+                $this->isLoading = false;
+                $this->toolLoopState = [];
+
+                return;
+            }
+
+            // Add assistant's message (with tool_use blocks) to state
+            $assistantContent = [];
+            if ($response->text) {
+                $assistantContent[] = ['type' => 'text', 'text' => $response->text];
+            }
+            foreach ($response->toolCalls as $call) {
+                $assistantContent[] = [
+                    'type' => 'tool_use',
+                    'id' => $call['id'],
+                    'name' => $call['name'],
+                    'input' => $call['arguments'],
+                ];
+            }
+            $this->toolLoopState['messages'][] = ['role' => 'assistant', 'content' => $assistantContent];
+
+            // Execute each tool call
+            foreach ($response->toolCalls as $call) {
+                $result = $executor->execute($call['name'], $call['arguments'], [
+                    'provider' => $provider,
+                    'chat_message_id' => $this->toolLoopState['user_msg_id'] ?? null,
+                    'confirmed' => false,
+                ]);
+
+                // If confirmation needed, stash and return — user will confirm via UI
+                if (($result['requires_confirmation'] ?? false) === true) {
+                    $this->pendingToolCall = [
+                        'tool_call_id' => $call['id'],
+                        'tool_name' => $call['name'],
+                        'tool_label' => $result['tool_label'] ?? $call['name'],
+                        'args' => $call['arguments'],
+                        'preview' => $result['preview'] ?? '',
+                        'audit_id' => $result['audit_id'] ?? null,
+                    ];
+                    $this->isLoading = false;
+                    $this->pushAssistantMessage('⏳ Περιμένω επιβεβαίωση για: '.($result['preview'] ?? $call['name']));
+
+                    return;
+                }
+
+                // Append tool result to conversation
+                $this->toolLoopState['messages'][] = [
+                    'role' => 'user',
+                    'content' => [[
+                        'type' => 'tool_result',
+                        'tool_use_id' => $call['id'],
+                        'content' => json_encode([
+                            'success' => $result['success'],
+                            'message' => $result['message'],
+                            'data' => $result['data'] ?? [],
+                        ]),
+                    ]],
+                ];
+            }
+        }
+
+        // Max iterations reached
+        $this->pushAssistantMessage('⚠️ Έφτασα το μέγιστο όριο βημάτων (5). Διέκοψα.');
+        $this->isLoading = false;
+        $this->toolLoopState = [];
+    }
+
+    /**
+     * User confirmed the pending tool — execute and continue the loop.
+     */
+    public function confirmPendingTool(): void
+    {
+        if (! $this->pendingToolCall) {
+            return;
+        }
+
+        $executor = app(ToolExecutor::class);
+        $provider = \App\Models\Setting::get('ai_provider', 'claude');
+
+        $result = $executor->execute(
+            $this->pendingToolCall['tool_name'],
+            $this->pendingToolCall['args'],
+            [
+                'provider' => $provider,
+                'chat_message_id' => $this->toolLoopState['user_msg_id'] ?? null,
+                'confirmed' => true,
+            ]
+        );
+
+        // Append tool result
+        $this->toolLoopState['messages'][] = [
+            'role' => 'user',
+            'content' => [[
+                'type' => 'tool_result',
+                'tool_use_id' => $this->pendingToolCall['tool_call_id'],
+                'content' => json_encode([
+                    'success' => $result['success'],
+                    'message' => $result['message'],
+                    'data' => $result['data'] ?? [],
+                ]),
+            ]],
+        ];
+
+        $icon = $result['success'] ? '✅' : '❌';
+        $this->pushAssistantMessage("{$icon} ".$result['message']);
+
+        $this->pendingToolCall = null;
+        $this->isLoading = true;
+        $this->runToolLoop();
+    }
+
+    public function cancelPendingTool(): void
+    {
+        if (! $this->pendingToolCall) {
+            return;
+        }
+
+        // Append rejection to conversation
+        $this->toolLoopState['messages'][] = [
+            'role' => 'user',
+            'content' => [[
+                'type' => 'tool_result',
+                'tool_use_id' => $this->pendingToolCall['tool_call_id'],
+                'content' => json_encode([
+                    'success' => false,
+                    'message' => 'User cancelled this action.',
+                ]),
+            ]],
+        ];
+
+        $this->pushAssistantMessage('❌ Ακύρωσες την ενέργεια.');
+
+        $this->pendingToolCall = null;
+        $this->isLoading = true;
+        $this->runToolLoop();
+    }
+
+    protected function buildSystemPrompt(): string
+    {
+        $context = $this->buildContext();
+        $contextStr = $this->currentUrl ? "Current admin URL: {$this->currentUrl}\n" : '';
+        if (! empty($this->currentContext)) {
+            $contextStr .= 'Context: '.json_encode($this->currentContext, JSON_UNESCAPED_UNICODE)."\n";
+        }
+
+        return <<<PROMPT
+You are the AI assistant for a Laravel CMS (Kreta Eiendom real estate). You help the admin manage content through TOOL CALLS.
+
+IMPORTANT RULES:
+1. When the user asks for an action (create, update, etc.), use the appropriate tool.
+2. If the user is ambiguous, ask ONE clarifying question first — don't call tools blindly.
+3. Tools that modify data are executed only after user confirmation — you don't need to ask "shall I proceed?" yourself, the system does that.
+4. When you finish, give a short natural-language summary in Greek (unless user wrote in English).
+5. If a tool fails, explain why and suggest a fix.
+6. Do not guess IDs — if you need an ID (e.g. section_id), check the user's message or ask.
+
+{$contextStr}
+Current conversation context ready. Reply naturally and call tools when needed.
+PROMPT;
+    }
+
+    protected function pushAssistantMessage(string $text): void
+    {
+        $msg = AIChatMessage::create([
+            'user_id' => Auth::id(),
+            'role' => 'assistant',
+            'message' => $text,
+        ]);
+        $this->messages[] = [
+            'id' => $msg->id,
+            'role' => 'assistant',
+            'message' => $text,
+            'created_at' => 'Just now',
+        ];
     }
 
     protected function buildContext(): array

@@ -59,4 +59,15 @@ interface AIProviderInterface
      * Test the API connection
      */
     public function testConnection(): bool;
+
+    /**
+     * Native function-calling chat. Returns ToolCallResponse with either:
+     *  - text reply (no tool calls), or
+     *  - array of tool calls to execute.
+     *
+     * @param  array  $messages  Full conversation: [['role' => 'user', 'content' => '...'], ['role' => 'assistant', 'content' => '...' | tool_use blocks], ['role' => 'tool', 'tool_call_id' => 'x', 'content' => 'result json']]
+     * @param  array  $tools  Provider-formatted tool schemas (from ToolRegistry)
+     * @param  string|null  $system  System prompt
+     */
+    public function chatWithTools(array $messages, array $tools, ?string $system = null): \App\Services\AI\ToolCallResponse;
 }

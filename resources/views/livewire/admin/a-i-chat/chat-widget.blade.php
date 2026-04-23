@@ -92,23 +92,55 @@
                 @endif
             </div>
 
+            <!-- Pending Tool Confirmation -->
+            @if($pendingToolCall)
+                <div class="border-t border-amber-300 bg-amber-50 p-4">
+                    <div class="flex items-start gap-2 mb-2">
+                        <svg class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                        <div class="flex-1 text-sm">
+                            <div class="font-semibold text-amber-900 mb-1">Επιβεβαίωση ενέργειας</div>
+                            <div class="text-amber-800">{{ $pendingToolCall['preview'] ?? '' }}</div>
+                            <div class="text-xs text-amber-700 mt-1 font-mono">{{ $pendingToolCall['tool_name'] }}</div>
+                        </div>
+                    </div>
+                    <div class="flex gap-2 mt-3">
+                        <button wire:click="confirmPendingTool" type="button"
+                                class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium py-2 rounded-lg transition">
+                            ✓ Εκτέλεση
+                        </button>
+                        <button wire:click="cancelPendingTool" type="button"
+                                class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm font-medium py-2 rounded-lg transition">
+                            ✗ Ακύρωση
+                        </button>
+                    </div>
+                </div>
+            @endif
+
             <!-- Input Area -->
             <div class="border-t border-gray-200 p-4">
-                <form wire:submit.prevent="sendMessage" class="flex space-x-2">
+                <form wire:submit.prevent="{{ $useTools ? 'sendMessageWithTools' : 'sendMessage' }}" class="flex space-x-2">
                     <input type="text"
                            wire:model="message"
                            placeholder="Type your message..."
                            class="flex-1 rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 text-sm"
-                           {{ $isLoading ? 'disabled' : '' }}>
+                           {{ ($isLoading || $pendingToolCall) ? 'disabled' : '' }}>
                     <button type="submit"
                             class="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                            {{ $isLoading ? 'disabled' : '' }}>
+                            {{ ($isLoading || $pendingToolCall) ? 'disabled' : '' }}>
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
                         </svg>
                     </button>
                 </form>
-                <p class="text-xs text-gray-400 mt-2">Try: “Generate an article about Artificial Intelligence or create a product template.”</p>
+                <p class="text-xs text-gray-400 mt-2">
+                    @if($useTools)
+                        🛠️ Tool mode — Πες π.χ. "Φτιάξε slider Hero με 2 slides"
+                    @else
+                        Try: Generate an article or create a product template.
+                    @endif
+                </p>
             </div>
         </div>
     @endif

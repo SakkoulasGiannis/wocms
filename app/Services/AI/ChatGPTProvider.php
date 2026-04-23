@@ -10,7 +10,9 @@ use Illuminate\Support\Facades\Log;
 class ChatGPTProvider implements AIProviderInterface
 {
     protected string $apiKey;
+
     protected string $model;
+
     protected string $apiUrl = 'https://api.openai.com/v1/chat/completions';
 
     public function __construct()
@@ -25,8 +27,8 @@ class ChatGPTProvider implements AIProviderInterface
             $messages = [
                 [
                     'role' => 'system',
-                    'content' => 'You are a helpful AI assistant for a CMS. You help users create content, templates, and manage their website. Always respond in the same language as the user\'s question (Greek or English).'
-                ]
+                    'content' => 'You are a helpful AI assistant for a CMS. You help users create content, templates, and manage their website. Always respond in the same language as the user\'s question (Greek or English).',
+                ],
             ];
 
             // Add conversation history from context
@@ -34,7 +36,7 @@ class ChatGPTProvider implements AIProviderInterface
                 foreach ($context['conversation_history'] as $msg) {
                     $messages[] = [
                         'role' => $msg['role'] === 'user' ? 'user' : 'assistant',
-                        'content' => $msg['message']
+                        'content' => $msg['message'],
                     ];
                 }
             }
@@ -42,12 +44,12 @@ class ChatGPTProvider implements AIProviderInterface
             // Add current message
             $messages[] = [
                 'role' => 'user',
-                'content' => $message
+                'content' => $message,
             ];
 
             $response = Http::timeout(120)
                 ->withHeaders([
-                    'Authorization' => 'Bearer ' . $this->apiKey,
+                    'Authorization' => 'Bearer '.$this->apiKey,
                     'Content-Type' => 'application/json',
                 ])->post($this->apiUrl, [
                     'model' => $this->model,
@@ -59,9 +61,10 @@ class ChatGPTProvider implements AIProviderInterface
             if ($response->failed()) {
                 Log::error('ChatGPT API Error', [
                     'status' => $response->status(),
-                    'body' => $response->body()
+                    'body' => $response->body(),
                 ]);
-                return AIResponse::error('Failed to communicate with ChatGPT: ' . $response->body());
+
+                return AIResponse::error('Failed to communicate with ChatGPT: '.$response->body());
             }
 
             $data = $response->json();
@@ -71,6 +74,7 @@ class ChatGPTProvider implements AIProviderInterface
 
         } catch (\Exception $e) {
             Log::error('ChatGPT Provider Exception', ['error' => $e->getMessage()]);
+
             return AIResponse::error($e->getMessage());
         }
     }
@@ -78,7 +82,8 @@ class ChatGPTProvider implements AIProviderInterface
     public function detectIntent(string $message): string
     {
         // Reuse Claude's intent detection logic (already well-tested)
-        $provider = new ClaudeProvider();
+        $provider = new ClaudeProvider;
+
         return $provider->detectIntent($message);
     }
 
@@ -97,13 +102,13 @@ class ChatGPTProvider implements AIProviderInterface
 
             $response = Http::timeout(120)
                 ->withHeaders([
-                    'Authorization' => 'Bearer ' . $this->apiKey,
+                    'Authorization' => 'Bearer '.$this->apiKey,
                     'Content-Type' => 'application/json',
                 ])->post($this->apiUrl, [
                     'model' => $this->model,
                     'messages' => [
                         ['role' => 'system', 'content' => $systemPrompt],
-                        ['role' => 'user', 'content' => $userPrompt]
+                        ['role' => 'user', 'content' => $userPrompt],
                     ],
                     'response_format' => ['type' => 'json_object'],
                     'max_tokens' => 4096,
@@ -111,7 +116,7 @@ class ChatGPTProvider implements AIProviderInterface
                 ]);
 
             if ($response->failed()) {
-                throw new \Exception('ChatGPT API Error: ' . $response->body());
+                throw new \Exception('ChatGPT API Error: '.$response->body());
             }
 
             $data = $response->json();
@@ -120,22 +125,23 @@ class ChatGPTProvider implements AIProviderInterface
             // Parse JSON response
             $generatedData = json_decode($content, true);
 
-            if (!$generatedData) {
+            if (! $generatedData) {
                 throw new \Exception('Failed to parse ChatGPT response as JSON');
             }
 
             return [
                 'success' => true,
                 'data' => $generatedData,
-                'message' => 'Content generated successfully'
+                'message' => 'Content generated successfully',
             ];
 
         } catch (\Exception $e) {
             Log::error('ChatGPT Content Generation Error', ['error' => $e->getMessage()]);
+
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
-                'message' => 'Failed to generate content: ' . $e->getMessage()
+                'message' => 'Failed to generate content: '.$e->getMessage(),
             ];
         }
     }
@@ -150,41 +156,42 @@ class ChatGPTProvider implements AIProviderInterface
 
             $response = Http::timeout(120)
                 ->withHeaders([
-                    'Authorization' => 'Bearer ' . $this->apiKey,
+                    'Authorization' => 'Bearer '.$this->apiKey,
                     'Content-Type' => 'application/json',
                 ])->post($this->apiUrl, [
                     'model' => $this->model,
                     'messages' => [
                         ['role' => 'system', 'content' => $systemPrompt],
-                        ['role' => 'user', 'content' => $userPrompt]
+                        ['role' => 'user', 'content' => $userPrompt],
                     ],
                     'response_format' => ['type' => 'json_object'],
                     'max_tokens' => 4096,
                 ]);
 
             if ($response->failed()) {
-                throw new \Exception('ChatGPT API Error: ' . $response->body());
+                throw new \Exception('ChatGPT API Error: '.$response->body());
             }
 
             $data = $response->json();
             $content = $data['choices'][0]['message']['content'] ?? '';
             $updatedData = json_decode($content, true);
 
-            if (!$updatedData) {
+            if (! $updatedData) {
                 throw new \Exception('Failed to parse ChatGPT response');
             }
 
             return [
                 'success' => true,
                 'data' => $updatedData,
-                'message' => 'Content updated successfully'
+                'message' => 'Content updated successfully',
             ];
 
         } catch (\Exception $e) {
             Log::error('ChatGPT Content Update Error', ['error' => $e->getMessage()]);
+
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ];
         }
     }
@@ -192,45 +199,46 @@ class ChatGPTProvider implements AIProviderInterface
     public function generateTemplate(string $prompt): array
     {
         try {
-            $systemPrompt = "You are a template generation AI for a CMS. Create template structures with appropriate fields based on user requirements. Return JSON with: name, description, fields (array of {name, type, label, required}).";
+            $systemPrompt = 'You are a template generation AI for a CMS. Create template structures with appropriate fields based on user requirements. Return JSON with: name, description, fields (array of {name, type, label, required}).';
 
             $response = Http::timeout(120)
                 ->withHeaders([
-                    'Authorization' => 'Bearer ' . $this->apiKey,
+                    'Authorization' => 'Bearer '.$this->apiKey,
                     'Content-Type' => 'application/json',
                 ])->post($this->apiUrl, [
                     'model' => $this->model,
                     'messages' => [
                         ['role' => 'system', 'content' => $systemPrompt],
-                        ['role' => 'user', 'content' => $prompt]
+                        ['role' => 'user', 'content' => $prompt],
                     ],
                     'response_format' => ['type' => 'json_object'],
                     'max_tokens' => 2048,
                 ]);
 
             if ($response->failed()) {
-                throw new \Exception('ChatGPT API Error: ' . $response->body());
+                throw new \Exception('ChatGPT API Error: '.$response->body());
             }
 
             $data = $response->json();
             $content = $data['choices'][0]['message']['content'] ?? '';
             $templateData = json_decode($content, true);
 
-            if (!$templateData) {
+            if (! $templateData) {
                 throw new \Exception('Failed to parse template structure');
             }
 
             return [
                 'success' => true,
                 'data' => $templateData,
-                'message' => 'Template structure generated'
+                'message' => 'Template structure generated',
             ];
 
         } catch (\Exception $e) {
             Log::error('ChatGPT Template Generation Error', ['error' => $e->getMessage()]);
+
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ];
         }
     }
@@ -238,60 +246,61 @@ class ChatGPTProvider implements AIProviderInterface
     public function modifyTemplate(Template $template, string $prompt): array
     {
         try {
-            $systemPrompt = "You are a template modification AI. Modify existing template structures based on user instructions. Return the complete updated template structure in JSON format.";
+            $systemPrompt = 'You are a template modification AI. Modify existing template structures based on user instructions. Return the complete updated template structure in JSON format.';
 
-            $currentFields = $template->fields->map(fn($f) => [
+            $currentFields = $template->fields->map(fn ($f) => [
                 'name' => $f->name,
                 'type' => $f->type,
                 'label' => $f->label,
-                'required' => $f->is_required
+                'required' => $f->is_required,
             ])->toArray();
 
             $currentStructure = [
                 'name' => $template->name,
                 'description' => $template->description,
-                'fields' => $currentFields
+                'fields' => $currentFields,
             ];
 
-            $userPrompt = "Current template:\n" . json_encode($currentStructure, JSON_UNESCAPED_UNICODE) . "\n\nModification instructions: {$prompt}\n\nReturn the updated template structure.";
+            $userPrompt = "Current template:\n".json_encode($currentStructure, JSON_UNESCAPED_UNICODE)."\n\nModification instructions: {$prompt}\n\nReturn the updated template structure.";
 
             $response = Http::timeout(120)
                 ->withHeaders([
-                    'Authorization' => 'Bearer ' . $this->apiKey,
+                    'Authorization' => 'Bearer '.$this->apiKey,
                     'Content-Type' => 'application/json',
                 ])->post($this->apiUrl, [
                     'model' => $this->model,
                     'messages' => [
                         ['role' => 'system', 'content' => $systemPrompt],
-                        ['role' => 'user', 'content' => $userPrompt]
+                        ['role' => 'user', 'content' => $userPrompt],
                     ],
                     'response_format' => ['type' => 'json_object'],
                     'max_tokens' => 2048,
                 ]);
 
             if ($response->failed()) {
-                throw new \Exception('ChatGPT API Error: ' . $response->body());
+                throw new \Exception('ChatGPT API Error: '.$response->body());
             }
 
             $data = $response->json();
             $content = $data['choices'][0]['message']['content'] ?? '';
             $updatedTemplate = json_decode($content, true);
 
-            if (!$updatedTemplate) {
+            if (! $updatedTemplate) {
                 throw new \Exception('Failed to parse modified template');
             }
 
             return [
                 'success' => true,
                 'data' => $updatedTemplate,
-                'message' => 'Template modified successfully'
+                'message' => 'Template modified successfully',
             ];
 
         } catch (\Exception $e) {
             Log::error('ChatGPT Template Modification Error', ['error' => $e->getMessage()]);
+
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ];
         }
     }
@@ -302,19 +311,19 @@ class ChatGPTProvider implements AIProviderInterface
             // Extract text content from the data
             $contentText = $this->extractTextFromContent($contentData);
 
-            $systemPrompt = "You are an SEO expert. Generate SEO metadata based on the content provided. Return ONLY valid JSON with these exact keys: meta_title (50-60 chars), meta_description (150-160 chars), meta_keywords (5-10 keywords, comma-separated), og_title, og_description. Use the same language as the content.";
+            $systemPrompt = 'You are an SEO expert. Generate SEO metadata based on the content provided. Return ONLY valid JSON with these exact keys: meta_title (50-60 chars), meta_description (150-160 chars), meta_keywords (5-10 keywords, comma-separated), og_title, og_description. Use the same language as the content.';
 
             $userPrompt = "CONTENT TO ANALYZE:\n{$contentText}\n\n{$additionalContext}\n\nGenerate SEO metadata in JSON format.";
 
             $response = Http::timeout(120)
                 ->withHeaders([
-                    'Authorization' => 'Bearer ' . $this->apiKey,
+                    'Authorization' => 'Bearer '.$this->apiKey,
                     'Content-Type' => 'application/json',
                 ])->post($this->apiUrl, [
                     'model' => $this->model,
                     'messages' => [
                         ['role' => 'system', 'content' => $systemPrompt],
-                        ['role' => 'user', 'content' => $userPrompt]
+                        ['role' => 'user', 'content' => $userPrompt],
                     ],
                     'response_format' => ['type' => 'json_object'],
                     'max_tokens' => 1024,
@@ -322,7 +331,7 @@ class ChatGPTProvider implements AIProviderInterface
                 ]);
 
             if ($response->failed()) {
-                throw new \Exception('ChatGPT API Error: ' . $response->body());
+                throw new \Exception('ChatGPT API Error: '.$response->body());
             }
 
             $data = $response->json();
@@ -330,22 +339,23 @@ class ChatGPTProvider implements AIProviderInterface
 
             $seoData = json_decode($content, true);
 
-            if (!$seoData || !isset($seoData['meta_title'])) {
+            if (! $seoData || ! isset($seoData['meta_title'])) {
                 throw new \Exception('Invalid SEO data returned');
             }
 
             return [
                 'success' => true,
                 'data' => $seoData,
-                'message' => 'SEO metadata generated successfully'
+                'message' => 'SEO metadata generated successfully',
             ];
 
         } catch (\Exception $e) {
             Log::error('ChatGPT SEO Generation Error', ['error' => $e->getMessage()]);
+
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
-                'message' => 'Failed to generate SEO metadata'
+                'message' => 'Failed to generate SEO metadata',
             ];
         }
     }
@@ -363,7 +373,7 @@ class ChatGPTProvider implements AIProviderInterface
                 continue;
             }
 
-            if (is_string($value) && !empty(trim($value))) {
+            if (is_string($value) && ! empty(trim($value))) {
                 // Clean HTML content thoroughly
                 $cleanValue = $this->cleanHtmlContent($value);
 
@@ -409,7 +419,7 @@ class ChatGPTProvider implements AIProviderInterface
     {
         try {
             // Build field descriptions with types
-            $fieldsDescription = "";
+            $fieldsDescription = '';
             foreach ($contextData['fields_metadata'] as $fieldName => $fieldMeta) {
                 $currentValue = $fieldMeta['current_value'] ?? '';
 
@@ -417,7 +427,7 @@ class ChatGPTProvider implements AIProviderInterface
                 if (in_array($fieldMeta['type'], ['wysiwyg', 'textarea', 'grapejs'])) {
                     $displayValue = $this->cleanHtmlContent($currentValue);
                     if (strlen($displayValue) > 500) {
-                        $displayValue = substr($displayValue, 0, 500) . '...';
+                        $displayValue = substr($displayValue, 0, 500).'...';
                     }
                 } else {
                     $displayValue = $currentValue;
@@ -425,10 +435,10 @@ class ChatGPTProvider implements AIProviderInterface
 
                 $fieldsDescription .= "\n- {$fieldName} ({$fieldMeta['label']})";
                 $fieldsDescription .= "\n  Type: {$fieldMeta['type']}";
-                $fieldsDescription .= "\n  Current: " . ($displayValue ?: '(empty)');
+                $fieldsDescription .= "\n  Current: ".($displayValue ?: '(empty)');
             }
 
-            $systemPrompt = <<<SYSTEM
+            $systemPrompt = <<<'SYSTEM'
 You are a content improvement assistant. Your task is to improve content based on user requests.
 
 IMPORTANT RULES:
@@ -476,31 +486,32 @@ USERMSG;
 
             \Log::info('Calling ChatGPT API for content improvement...', [
                 'fields_count' => count($contextData['fields_metadata']),
-                'prompt_length' => strlen($userPrompt)
+                'prompt_length' => strlen($userPrompt),
             ]);
 
             $response = Http::timeout(120)
                 ->withHeaders([
-                    'Authorization' => 'Bearer ' . $this->apiKey,
+                    'Authorization' => 'Bearer '.$this->apiKey,
                     'Content-Type' => 'application/json',
                 ])->post($this->apiUrl, [
                     'model' => $this->model,
                     'messages' => [
                         ['role' => 'system', 'content' => $systemPrompt],
-                        ['role' => 'user', 'content' => $userMessage]
+                        ['role' => 'user', 'content' => $userMessage],
                     ],
                     'response_format' => ['type' => 'json_object'],
                     'max_tokens' => 4096,
                 ]);
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 \Log::error('ChatGPT API request failed', [
                     'status' => $response->status(),
-                    'body' => $response->body()
+                    'body' => $response->body(),
                 ]);
+
                 return [
                     'success' => false,
-                    'message' => 'API request failed: ' . $response->body()
+                    'message' => 'API request failed: '.$response->body(),
                 ];
             }
 
@@ -508,41 +519,41 @@ USERMSG;
             $content = $data['choices'][0]['message']['content'] ?? '';
 
             \Log::info('ChatGPT API response received', [
-                'content_length' => strlen($content)
+                'content_length' => strlen($content),
             ]);
 
             $improvedFields = json_decode($content, true);
 
             if (json_last_error() === JSON_ERROR_NONE) {
                 \Log::info('Successfully parsed improved fields', [
-                    'improved_count' => count($improvedFields)
+                    'improved_count' => count($improvedFields),
                 ]);
 
                 return [
                     'success' => true,
-                    'data' => $improvedFields
+                    'data' => $improvedFields,
                 ];
             }
 
             // If JSON parsing failed, log and return error
             \Log::error('Failed to parse JSON from ChatGPT response', [
-                'content' => $content
+                'content' => $content,
             ]);
 
             return [
                 'success' => false,
-                'message' => 'Failed to parse AI response as JSON'
+                'message' => 'Failed to parse AI response as JSON',
             ];
 
         } catch (\Exception $e) {
             \Log::error('ChatGPT improveContent error', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return [
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ];
         }
     }
@@ -553,7 +564,7 @@ USERMSG;
     public function improveCode(string $currentCode, string $userPrompt): array
     {
         try {
-            $systemPrompt = <<<SYSTEM
+            $systemPrompt = <<<'SYSTEM'
 You are an expert HTML/CSS developer and code quality assistant.
 
 IMPORTANT RULES:
@@ -584,12 +595,12 @@ USERMSG;
 
             \Log::info('Calling ChatGPT API for code improvement...', [
                 'code_length' => strlen($currentCode),
-                'prompt' => $userPrompt
+                'prompt' => $userPrompt,
             ]);
 
             $response = Http::timeout(120)
                 ->withHeaders([
-                    'Authorization' => 'Bearer ' . $this->apiKey,
+                    'Authorization' => 'Bearer '.$this->apiKey,
                     'Content-Type' => 'application/json',
                 ])
                 ->post($this->apiUrl, [
@@ -599,24 +610,24 @@ USERMSG;
                     'messages' => [
                         [
                             'role' => 'system',
-                            'content' => $systemPrompt
+                            'content' => $systemPrompt,
                         ],
                         [
                             'role' => 'user',
-                            'content' => $userMessage
-                        ]
-                    ]
+                            'content' => $userMessage,
+                        ],
+                    ],
                 ]);
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 \Log::error('ChatGPT API request failed', [
                     'status' => $response->status(),
-                    'body' => $response->body()
+                    'body' => $response->body(),
                 ]);
 
                 return [
                     'success' => false,
-                    'message' => 'API request failed: ' . $response->status()
+                    'message' => 'API request failed: '.$response->status(),
                 ];
             }
 
@@ -626,7 +637,7 @@ USERMSG;
             if (empty($improvedCode)) {
                 return [
                     'success' => false,
-                    'message' => 'No improved code received from AI'
+                    'message' => 'No improved code received from AI',
                 ];
             }
 
@@ -637,23 +648,23 @@ USERMSG;
 
             \Log::info('Code improved successfully', [
                 'original_length' => strlen($currentCode),
-                'improved_length' => strlen($improvedCode)
+                'improved_length' => strlen($improvedCode),
             ]);
 
             return [
                 'success' => true,
-                'data' => $improvedCode
+                'data' => $improvedCode,
             ];
 
         } catch (\Exception $e) {
             \Log::error('ChatGPT improveCode error', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return [
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ];
         }
     }
@@ -663,12 +674,12 @@ USERMSG;
         try {
             $response = Http::timeout(10)
                 ->withHeaders([
-                    'Authorization' => 'Bearer ' . $this->apiKey,
+                    'Authorization' => 'Bearer '.$this->apiKey,
                     'Content-Type' => 'application/json',
                 ])->post($this->apiUrl, [
                     'model' => $this->model,
                     'messages' => [
-                        ['role' => 'user', 'content' => 'test']
+                        ['role' => 'user', 'content' => 'test'],
                     ],
                     'max_tokens' => 5,
                 ]);
@@ -676,7 +687,213 @@ USERMSG;
             return $response->successful();
         } catch (\Exception $e) {
             Log::error('ChatGPT Connection Test Failed', ['error' => $e->getMessage()]);
+
             return false;
         }
+    }
+
+    /**
+     * Native OpenAI function-calling chat completion.
+     */
+    public function chatWithTools(array $messages, array $tools, ?string $system = null): ToolCallResponse
+    {
+        if (empty($this->apiKey)) {
+            Log::error('ChatGPT chatWithTools called without API key');
+
+            return new ToolCallResponse(
+                text: 'ERROR: Missing ChatGPT API key',
+                raw: ['error' => 'missing_api_key']
+            );
+        }
+
+        $normalized = $this->normalizeMessagesForOpenAI($messages);
+
+        if ($system !== null && $system !== '') {
+            array_unshift($normalized, ['role' => 'system', 'content' => $system]);
+        }
+
+        $payload = [
+            'model' => $this->model,
+            'messages' => $normalized,
+            'max_tokens' => 4096,
+        ];
+
+        if (! empty($tools)) {
+            $payload['tools'] = $tools;
+        }
+
+        try {
+            $response = Http::timeout(120)
+                ->withHeaders([
+                    'Authorization' => 'Bearer '.$this->apiKey,
+                    'Content-Type' => 'application/json',
+                ])
+                ->post($this->apiUrl, $payload);
+
+            if ($response->failed()) {
+                Log::error('ChatGPT chatWithTools API Error', [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+
+                return new ToolCallResponse(
+                    text: 'ERROR: OpenAI API request failed: '.$response->body(),
+                    raw: ['status' => $response->status(), 'body' => $response->body()]
+                );
+            }
+
+            $data = $response->json() ?? [];
+            $choice = $data['choices'][0] ?? [];
+            $message = $choice['message'] ?? [];
+
+            $toolCalls = [];
+            foreach (($message['tool_calls'] ?? []) as $call) {
+                $rawArgs = $call['function']['arguments'] ?? '';
+                $decoded = is_string($rawArgs) ? json_decode($rawArgs, true) : $rawArgs;
+
+                $toolCalls[] = [
+                    'id' => $call['id'] ?? '',
+                    'name' => $call['function']['name'] ?? '',
+                    'arguments' => is_array($decoded) ? $decoded : [],
+                ];
+            }
+
+            return new ToolCallResponse(
+                text: is_string($message['content'] ?? null) ? $message['content'] : '',
+                toolCalls: $toolCalls,
+                stopReason: $choice['finish_reason'] ?? null,
+                raw: $data
+            );
+        } catch (\Throwable $e) {
+            Log::error('ChatGPT chatWithTools exception', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return new ToolCallResponse(
+                text: 'ERROR: '.$e->getMessage(),
+                raw: ['exception' => $e->getMessage()]
+            );
+        }
+    }
+
+    /**
+     * Normalize a mixed-format messages array into OpenAI's expected shape.
+     *
+     * Supports:
+     *  - native OpenAI messages (pass-through)
+     *  - Claude-style user/tool_result messages (content as array of blocks)
+     *  - Claude-style assistant messages with tool_use blocks
+     *  - Plain string-content messages (pass-through)
+     *
+     * @param  array<int, array<string, mixed>>  $messages
+     * @return array<int, array<string, mixed>>
+     */
+    protected function normalizeMessagesForOpenAI(array $messages): array
+    {
+        $normalized = [];
+
+        foreach ($messages as $message) {
+            $role = $message['role'] ?? 'user';
+            $content = $message['content'] ?? '';
+
+            if ($role === 'tool') {
+                $normalized[] = [
+                    'role' => 'tool',
+                    'tool_call_id' => $message['tool_call_id'] ?? ($message['tool_use_id'] ?? ''),
+                    'content' => is_string($content)
+                        ? $content
+                        : json_encode($content, JSON_UNESCAPED_UNICODE),
+                ];
+
+                continue;
+            }
+
+            // Claude-style assistant with tool_use blocks in content array
+            if ($role === 'assistant' && is_array($content)) {
+                $textParts = [];
+                $toolCalls = [];
+
+                foreach ($content as $block) {
+                    $type = $block['type'] ?? null;
+
+                    if ($type === 'text') {
+                        $textParts[] = $block['text'] ?? '';
+                    }
+
+                    if ($type === 'tool_use') {
+                        $input = $block['input'] ?? [];
+                        $toolCalls[] = [
+                            'id' => $block['id'] ?? '',
+                            'type' => 'function',
+                            'function' => [
+                                'name' => $block['name'] ?? '',
+                                'arguments' => json_encode(is_array($input) ? $input : [], JSON_UNESCAPED_UNICODE),
+                            ],
+                        ];
+                    }
+                }
+
+                $assistantMessage = ['role' => 'assistant'];
+
+                if (! empty($toolCalls)) {
+                    $assistantMessage['content'] = null;
+                    $assistantMessage['tool_calls'] = $toolCalls;
+                } else {
+                    $assistantMessage['content'] = implode('', $textParts);
+                }
+
+                $normalized[] = $assistantMessage;
+
+                continue;
+            }
+
+            // Claude-style user message with tool_result blocks in content array
+            if ($role === 'user' && is_array($content)) {
+                foreach ($content as $block) {
+                    $type = $block['type'] ?? null;
+
+                    if ($type === 'tool_result') {
+                        $blockContent = $block['content'] ?? '';
+                        $normalized[] = [
+                            'role' => 'tool',
+                            'tool_call_id' => $block['tool_use_id'] ?? '',
+                            'content' => is_string($blockContent)
+                                ? $blockContent
+                                : json_encode($blockContent, JSON_UNESCAPED_UNICODE),
+                        ];
+
+                        continue;
+                    }
+
+                    if ($type === 'text') {
+                        $normalized[] = [
+                            'role' => 'user',
+                            'content' => $block['text'] ?? '',
+                        ];
+                    }
+                }
+
+                continue;
+            }
+
+            // OpenAI-native assistant with tool_calls already set
+            if ($role === 'assistant' && isset($message['tool_calls'])) {
+                $normalized[] = [
+                    'role' => 'assistant',
+                    'content' => $content,
+                    'tool_calls' => $message['tool_calls'],
+                ];
+
+                continue;
+            }
+
+            $normalized[] = [
+                'role' => $role,
+                'content' => $content,
+            ];
+        }
+
+        return $normalized;
     }
 }

@@ -17,11 +17,11 @@ class AIManager
     {
         $providerName = Setting::get('ai_provider', 'claude');
 
-        return match($providerName) {
-            'claude' => new ClaudeProvider(),
-            'chatgpt' => new ChatGPTProvider(),
-            'ollama' => new OllamaProvider(),
-            default => new ClaudeProvider(),
+        return match ($providerName) {
+            'claude' => new ClaudeProvider,
+            'chatgpt' => new ChatGPTProvider,
+            'ollama' => new OllamaProvider,
+            default => new ClaudeProvider,
         };
     }
 
@@ -48,6 +48,11 @@ class AIManager
     public function testConnection(): bool
     {
         return $this->provider->testConnection();
+    }
+
+    public function chatWithTools(array $messages, array $tools, ?string $system = null): ToolCallResponse
+    {
+        return $this->provider->chatWithTools($messages, $tools, $system);
     }
 
     public function getProvider(): AIProviderInterface

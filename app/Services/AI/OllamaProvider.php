@@ -7,6 +7,7 @@ use App\Models\Setting;
 class OllamaProvider implements AIProviderInterface
 {
     protected string $url;
+
     protected string $model;
 
     public function __construct()
@@ -24,7 +25,8 @@ class OllamaProvider implements AIProviderInterface
     public function detectIntent(string $message): string
     {
         // Reuse Claude's intent detection logic
-        $provider = new ClaudeProvider();
+        $provider = new ClaudeProvider;
+
         return $provider->detectIntent($message);
     }
 
@@ -58,7 +60,7 @@ class OllamaProvider implements AIProviderInterface
         return [
             'success' => false,
             'error' => 'Ollama provider not yet implemented',
-            'message' => 'Ollama provider not yet implemented'
+            'message' => 'Ollama provider not yet implemented',
         ];
     }
 
@@ -68,7 +70,7 @@ class OllamaProvider implements AIProviderInterface
         return [
             'success' => false,
             'error' => 'Ollama provider not yet implemented',
-            'message' => 'Ollama provider not yet implemented'
+            'message' => 'Ollama provider not yet implemented',
         ];
     }
 
@@ -78,12 +80,17 @@ class OllamaProvider implements AIProviderInterface
         return [
             'success' => false,
             'error' => 'Ollama provider not yet implemented',
-            'message' => 'Ollama provider not yet implemented'
+            'message' => 'Ollama provider not yet implemented',
         ];
     }
 
     public function testConnection(): bool
     {
         return false;
+    }
+
+    public function chatWithTools(array $messages, array $tools, ?string $system = null): ToolCallResponse
+    {
+        throw new \RuntimeException('Ollama does not support tool calling yet');
     }
 }

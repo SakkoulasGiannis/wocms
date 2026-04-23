@@ -9,7 +9,9 @@ use Illuminate\Support\Facades\Log;
 class ClaudeProvider implements AIProviderInterface
 {
     protected string $apiKey;
+
     protected string $model;
+
     protected string $apiUrl = 'https://api.anthropic.com/v1/messages';
 
     public function __construct()
@@ -32,17 +34,18 @@ class ClaudeProvider implements AIProviderInterface
                     'messages' => [
                         [
                             'role' => 'user',
-                            'content' => $this->buildPrompt($message, $context)
-                        ]
-                    ]
+                            'content' => $this->buildPrompt($message, $context),
+                        ],
+                    ],
                 ]);
 
             if ($response->failed()) {
                 Log::error('Claude API Error', [
                     'status' => $response->status(),
-                    'body' => $response->body()
+                    'body' => $response->body(),
                 ]);
-                return AIResponse::error('Failed to communicate with Claude: ' . $response->body());
+
+                return AIResponse::error('Failed to communicate with Claude: '.$response->body());
             }
 
             $data = $response->json();
@@ -52,6 +55,7 @@ class ClaudeProvider implements AIProviderInterface
 
         } catch (\Exception $e) {
             Log::error('Claude Provider Exception', ['error' => $e->getMessage()]);
+
             return AIResponse::error($e->getMessage());
         }
     }
@@ -119,7 +123,7 @@ class ClaudeProvider implements AIProviderInterface
         foreach ($fields as $field) {
             $fieldSchema = [
                 'type' => $this->mapFieldTypeToJsonSchema($field['type']),
-                'description' => $field['description'] ?: $field['label']
+                'description' => $field['description'] ?: $field['label'],
             ];
 
             // Add array items schema for repeater fields
@@ -141,8 +145,8 @@ class ClaudeProvider implements AIProviderInterface
             'input_schema' => [
                 'type' => 'object',
                 'properties' => $properties,
-                'required' => $required
-            ]
+                'required' => $required,
+            ],
         ];
 
         // Load prompt from settings or config
@@ -163,18 +167,18 @@ class ClaudeProvider implements AIProviderInterface
                     'messages' => [
                         [
                             'role' => 'user',
-                            'content' => $prompt
-                        ]
-                    ]
+                            'content' => $prompt,
+                        ],
+                    ],
                 ]);
 
             if ($response->failed()) {
                 Log::error('Claude API Request Failed', [
                     'status' => $response->status(),
                     'body' => $response->body(),
-                    'template' => $templateName
+                    'template' => $templateName,
                 ]);
-                throw new \Exception('Claude API failed: ' . $response->body());
+                throw new \Exception('Claude API failed: '.$response->body());
             }
 
             $data = $response->json();
@@ -182,28 +186,28 @@ class ClaudeProvider implements AIProviderInterface
             Log::info('Claude API Response', [
                 'template' => $templateName,
                 'response_structure' => array_keys($data),
-                'content_types' => array_map(fn($c) => $c['type'] ?? 'unknown', $data['content'] ?? [])
+                'content_types' => array_map(fn ($c) => $c['type'] ?? 'unknown', $data['content'] ?? []),
             ]);
 
             // Extract tool use from response
             foreach ($data['content'] ?? [] as $content) {
                 if ($content['type'] === 'tool_use' && $content['name'] === 'create_content') {
                     Log::info('Tool use found', ['input_keys' => array_keys($content['input'] ?? [])]);
+
                     return $this->processGeneratedContent($content['input'], $fields);
                 }
             }
 
             Log::error('No tool use found in Claude response', [
                 'response' => $data,
-                'template' => $templateName
+                'template' => $templateName,
             ]);
             throw new \Exception('No tool use found in response');
-
         } catch (\Exception $e) {
             Log::error('Claude Content Generation Error', [
                 'error' => $e->getMessage(),
                 'template' => $templateName,
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
             throw $e;
         }
@@ -214,7 +218,7 @@ class ClaudeProvider implements AIProviderInterface
      */
     protected function mapFieldTypeToJsonSchema(string $fieldType): string
     {
-        return match($fieldType) {
+        return match ($fieldType) {
             'number', 'integer' => 'number',
             'boolean', 'checkbox' => 'boolean',
             'repeater' => 'array',  // Repeater fields should be arrays
@@ -246,8 +250,9 @@ class ClaudeProvider implements AIProviderInterface
                 if ($jsonValue === false) {
                     Log::warning("Failed to encode JSON for field: {$field['name']}", [
                         'value' => $value,
-                        'error' => json_last_error_msg()
+                        'error' => json_last_error_msg(),
                     ]);
+
                     continue;
                 }
 
@@ -269,7 +274,7 @@ class ClaudeProvider implements AIProviderInterface
         foreach ($fields as $field) {
             $fieldSchema = [
                 'type' => $this->mapFieldTypeToJsonSchema($field['type']),
-                'description' => $field['description'] ?: $field['label']
+                'description' => $field['description'] ?: $field['label'],
             ];
 
             if ($field['type'] === 'repeater') {
@@ -285,8 +290,8 @@ class ClaudeProvider implements AIProviderInterface
             'input_schema' => [
                 'type' => 'object',
                 'properties' => $properties,
-                'required' => $required // No required fields for updates
-            ]
+                'required' => $required, // No required fields for updates
+            ],
         ];
 
         // Build context with current data
@@ -329,18 +334,18 @@ SYSTEM;
                     'messages' => [
                         [
                             'role' => 'user',
-                            'content' => $prompt
-                        ]
-                    ]
+                            'content' => $prompt,
+                        ],
+                    ],
                 ]);
 
             if ($response->failed()) {
                 Log::error('Claude API Request Failed (update)', [
                     'status' => $response->status(),
                     'body' => $response->body(),
-                    'template' => $templateName
+                    'template' => $templateName,
                 ]);
-                throw new \Exception('Claude API failed: ' . $response->body());
+                throw new \Exception('Claude API failed: '.$response->body());
             }
 
             $data = $response->json();
@@ -353,11 +358,10 @@ SYSTEM;
             }
 
             throw new \Exception('No tool use found in response');
-
         } catch (\Exception $e) {
             Log::error('Claude Content Update Error', [
                 'error' => $e->getMessage(),
-                'template' => $templateName
+                'template' => $templateName,
             ]);
             throw $e;
         }
@@ -381,13 +385,13 @@ SYSTEM;
                     'messages' => [
                         [
                             'role' => 'user',
-                            'content' => $prompt
-                        ]
-                    ]
+                            'content' => $prompt,
+                        ],
+                    ],
                 ]);
 
             if ($response->failed()) {
-                throw new \Exception('Claude API failed: ' . $response->body());
+                throw new \Exception('Claude API failed: '.$response->body());
             }
 
             $data = $response->json();
@@ -410,7 +414,7 @@ SYSTEM;
     public function modifyTemplate(Template $template, string $prompt): array
     {
         // Build current template structure
-        $currentFields = $template->fields->map(fn($f) => [
+        $currentFields = $template->fields->map(fn ($f) => [
             'name' => $f->name,
             'label' => $f->label,
             'type' => $f->type,
@@ -422,7 +426,7 @@ SYSTEM;
             'name' => $template->name,
             'slug' => $template->slug,
             'description' => $template->description,
-            'fields' => $currentFields
+            'fields' => $currentFields,
         ];
 
         $currentStr = json_encode($currentStructure, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
@@ -464,13 +468,13 @@ SYSTEM;
                     'messages' => [
                         [
                             'role' => 'user',
-                            'content' => $prompt
-                        ]
-                    ]
+                            'content' => $prompt,
+                        ],
+                    ],
                 ]);
 
             if ($response->failed()) {
-                throw new \Exception('Claude API failed: ' . $response->body());
+                throw new \Exception('Claude API failed: '.$response->body());
             }
 
             $data = $response->json();
@@ -486,7 +490,7 @@ SYSTEM;
 
             Log::info('Template modification requested', [
                 'template' => $template->slug,
-                'modifications' => $modifications
+                'modifications' => $modifications,
             ]);
 
             return $modifications;
@@ -499,7 +503,7 @@ SYSTEM;
 
     public function generateFrontendModifications(string $prompt, ?string $currentFileContent = null): array
     {
-        $contextStr = $currentFileContent ? "CURRENT FILE CONTENT:\n{$currentFileContent}\n\n" : "";
+        $contextStr = $currentFileContent ? "CURRENT FILE CONTENT:\n{$currentFileContent}\n\n" : '';
 
         $systemPrompt = <<<SYSTEM
 You are a frontend designer for a CMS. Generate safe, atomic operations to modify Blade templates.
@@ -553,13 +557,13 @@ SYSTEM;
                     'messages' => [
                         [
                             'role' => 'user',
-                            'content' => $prompt
-                        ]
-                    ]
+                            'content' => $prompt,
+                        ],
+                    ],
                 ]);
 
             if ($response->failed()) {
-                throw new \Exception('Claude API failed: ' . $response->body());
+                throw new \Exception('Claude API failed: '.$response->body());
             }
 
             $data = $response->json();
@@ -573,12 +577,12 @@ SYSTEM;
 
             $operations = json_decode($content, true);
 
-            if (!is_array($operations)) {
+            if (! is_array($operations)) {
                 throw new \Exception('Invalid JSON response from AI');
             }
 
             Log::info('Frontend modifications generated', [
-                'operations_count' => count($operations)
+                'operations_count' => count($operations),
             ]);
 
             return $operations;
@@ -626,13 +630,13 @@ SYSTEM;
                     'messages' => [
                         [
                             'role' => 'user',
-                            'content' => $systemPrompt
-                        ]
-                    ]
+                            'content' => $systemPrompt,
+                        ],
+                    ],
                 ]);
 
             if ($response->failed()) {
-                throw new \Exception('Claude API failed: ' . $response->body());
+                throw new \Exception('Claude API failed: '.$response->body());
             }
 
             $data = $response->json();
@@ -646,22 +650,23 @@ SYSTEM;
 
             $seoData = json_decode($content, true);
 
-            if (!$seoData || !isset($seoData['meta_title'])) {
+            if (! $seoData || ! isset($seoData['meta_title'])) {
                 throw new \Exception('Invalid SEO data returned');
             }
 
             return [
                 'success' => true,
                 'data' => $seoData,
-                'message' => 'SEO metadata generated successfully'
+                'message' => 'SEO metadata generated successfully',
             ];
 
         } catch (\Exception $e) {
             Log::error('Claude SEO Generation Error', ['error' => $e->getMessage()]);
+
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
-                'message' => 'Failed to generate SEO metadata'
+                'message' => 'Failed to generate SEO metadata',
             ];
         }
     }
@@ -679,7 +684,7 @@ SYSTEM;
                 continue;
             }
 
-            if (is_string($value) && !empty(trim($value))) {
+            if (is_string($value) && ! empty(trim($value))) {
                 // Clean HTML content thoroughly
                 $cleanValue = $this->cleanHtmlContent($value);
 
@@ -704,7 +709,7 @@ SYSTEM;
             return array_map([$this, 'ensureValidUtf8'], $value);
         }
 
-        if (!is_string($value)) {
+        if (! is_string($value)) {
             return $value;
         }
 
@@ -712,7 +717,7 @@ SYSTEM;
         $value = mb_convert_encoding($value, 'UTF-8', 'UTF-8');
 
         // Alternative method: use iconv as fallback
-        if (!mb_check_encoding($value, 'UTF-8')) {
+        if (! mb_check_encoding($value, 'UTF-8')) {
             $value = iconv('UTF-8', 'UTF-8//IGNORE', $value);
         }
 
@@ -758,7 +763,7 @@ SYSTEM;
             $userPrompt = $this->ensureValidUtf8($userPrompt);
 
             // Build field descriptions with types
-            $fieldsDescription = "";
+            $fieldsDescription = '';
             foreach ($contextData['fields_metadata'] as $fieldName => $fieldMeta) {
                 $currentValue = $fieldMeta['current_value'] ?? '';
 
@@ -766,7 +771,7 @@ SYSTEM;
                 if (in_array($fieldMeta['type'], ['wysiwyg', 'textarea', 'grapejs'])) {
                     $displayValue = $this->cleanHtmlContent($currentValue);
                     if (strlen($displayValue) > 500) {
-                        $displayValue = substr($displayValue, 0, 500) . '...';
+                        $displayValue = substr($displayValue, 0, 500).'...';
                     }
                 } else {
                     $displayValue = $currentValue;
@@ -774,10 +779,10 @@ SYSTEM;
 
                 $fieldsDescription .= "\n- {$fieldName} ({$fieldMeta['label']})";
                 $fieldsDescription .= "\n  Type: {$fieldMeta['type']}";
-                $fieldsDescription .= "\n  Current: " . ($displayValue ?: '(empty)');
+                $fieldsDescription .= "\n  Current: ".($displayValue ?: '(empty)');
             }
 
-            $systemPrompt = <<<SYSTEM
+            $systemPrompt = <<<'SYSTEM'
 You are a content improvement assistant. Your task is to improve content based on user requests.
 
 IMPORTANT RULES:
@@ -825,7 +830,7 @@ USERMSG;
 
             \Log::info('Calling Claude API for content improvement...', [
                 'fields_count' => count($contextData['fields_metadata']),
-                'prompt_length' => strlen($userPrompt)
+                'prompt_length' => strlen($userPrompt),
             ]);
 
             // Sanitize final constructed messages to ensure valid UTF-8
@@ -845,19 +850,20 @@ USERMSG;
                     'messages' => [
                         [
                             'role' => 'user',
-                            'content' => $userMessage
-                        ]
-                    ]
+                            'content' => $userMessage,
+                        ],
+                    ],
                 ]);
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 \Log::error('Claude API request failed', [
                     'status' => $response->status(),
-                    'body' => $response->body()
+                    'body' => $response->body(),
                 ]);
+
                 return [
                     'success' => false,
-                    'message' => 'API request failed: ' . $response->body()
+                    'message' => 'API request failed: '.$response->body(),
                 ];
             }
 
@@ -865,7 +871,7 @@ USERMSG;
             $content = $data['content'][0]['text'] ?? '';
 
             \Log::info('Claude API response received', [
-                'content_length' => strlen($content)
+                'content_length' => strlen($content),
             ]);
 
             // Extract JSON from response
@@ -875,35 +881,35 @@ USERMSG;
 
                 if (json_last_error() === JSON_ERROR_NONE) {
                     \Log::info('Successfully parsed improved fields', [
-                        'improved_count' => count($improvedFields)
+                        'improved_count' => count($improvedFields),
                     ]);
 
                     return [
                         'success' => true,
-                        'data' => $improvedFields
+                        'data' => $improvedFields,
                     ];
                 }
             }
 
             // If JSON parsing failed, log and return error
             \Log::error('Failed to parse JSON from Claude response', [
-                'content' => $content
+                'content' => $content,
             ]);
 
             return [
                 'success' => false,
-                'message' => 'Failed to parse AI response as JSON'
+                'message' => 'Failed to parse AI response as JSON',
             ];
 
         } catch (\Exception $e) {
             \Log::error('Claude improveContent error', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return [
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ];
         }
     }
@@ -919,7 +925,7 @@ USERMSG;
             $userPrompt = $this->ensureValidUtf8($userPrompt);
 
             // Build system prompt
-            $systemPrompt = <<<SYSTEM
+            $systemPrompt = <<<'SYSTEM'
 You are an expert HTML/CSS developer and code quality assistant.
 
 IMPORTANT RULES:
@@ -954,7 +960,7 @@ USERMSG;
 
             \Log::info('Calling Claude API for code improvement...', [
                 'code_length' => strlen($currentCode),
-                'prompt' => $userPrompt
+                'prompt' => $userPrompt,
             ]);
 
             $response = Http::timeout(120)
@@ -970,20 +976,20 @@ USERMSG;
                     'messages' => [
                         [
                             'role' => 'user',
-                            'content' => $userMessage
-                        ]
-                    ]
+                            'content' => $userMessage,
+                        ],
+                    ],
                 ]);
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 \Log::error('Claude API request failed', [
                     'status' => $response->status(),
-                    'body' => $response->body()
+                    'body' => $response->body(),
                 ]);
 
                 return [
                     'success' => false,
-                    'message' => 'API request failed: ' . $response->status()
+                    'message' => 'API request failed: '.$response->status(),
                 ];
             }
 
@@ -993,7 +999,7 @@ USERMSG;
             if (empty($improvedCode)) {
                 return [
                     'success' => false,
-                    'message' => 'No improved code received from AI'
+                    'message' => 'No improved code received from AI',
                 ];
             }
 
@@ -1004,23 +1010,23 @@ USERMSG;
 
             \Log::info('Code improved successfully', [
                 'original_length' => strlen($currentCode),
-                'improved_length' => strlen($improvedCode)
+                'improved_length' => strlen($improvedCode),
             ]);
 
             return [
                 'success' => true,
-                'data' => $improvedCode
+                'data' => $improvedCode,
             ];
 
         } catch (\Exception $e) {
             \Log::error('Claude improveCode error', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return [
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ];
         }
     }
@@ -1029,10 +1035,178 @@ USERMSG;
     {
         try {
             $response = $this->chat('Hello');
+
             return $response->success;
         } catch (\Exception $e) {
             return false;
         }
+    }
+
+    /**
+     * Native Anthropic tool_use chat completion.
+     */
+    public function chatWithTools(array $messages, array $tools, ?string $system = null): ToolCallResponse
+    {
+        if (empty($this->apiKey)) {
+            Log::error('Claude chatWithTools called without API key');
+
+            return new ToolCallResponse(
+                text: 'ERROR: Missing Claude API key',
+                raw: ['error' => 'missing_api_key']
+            );
+        }
+
+        $normalized = $this->normalizeMessagesForClaude($messages);
+
+        $payload = [
+            'model' => $this->model,
+            'max_tokens' => 4096,
+            'messages' => $normalized,
+        ];
+
+        if (! empty($tools)) {
+            $payload['tools'] = $tools;
+        }
+
+        if ($system !== null && $system !== '') {
+            $payload['system'] = $system;
+        }
+
+        try {
+            $response = Http::timeout(120)
+                ->withHeaders([
+                    'x-api-key' => $this->apiKey,
+                    'anthropic-version' => '2023-06-01',
+                    'content-type' => 'application/json',
+                ])
+                ->post($this->apiUrl, $payload);
+
+            if ($response->failed()) {
+                Log::error('Claude chatWithTools API Error', [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+
+                return new ToolCallResponse(
+                    text: 'ERROR: Claude API request failed: '.$response->body(),
+                    raw: ['status' => $response->status(), 'body' => $response->body()]
+                );
+            }
+
+            $data = $response->json() ?? [];
+
+            $toolCalls = [];
+            $text = '';
+
+            foreach (($data['content'] ?? []) as $block) {
+                $type = $block['type'] ?? null;
+
+                if ($type === 'text') {
+                    $text .= $block['text'] ?? '';
+                }
+
+                if ($type === 'tool_use') {
+                    $toolCalls[] = [
+                        'id' => $block['id'] ?? '',
+                        'name' => $block['name'] ?? '',
+                        'arguments' => $block['input'] ?? [],
+                    ];
+                }
+            }
+
+            return new ToolCallResponse(
+                text: $text,
+                toolCalls: $toolCalls,
+                stopReason: $data['stop_reason'] ?? null,
+                raw: $data
+            );
+        } catch (\Throwable $e) {
+            Log::error('Claude chatWithTools exception', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return new ToolCallResponse(
+                text: 'ERROR: '.$e->getMessage(),
+                raw: ['exception' => $e->getMessage()]
+            );
+        }
+    }
+
+    /**
+     * Normalize a mixed-format messages array into Anthropic's expected shape.
+     *
+     * Supports:
+     *  - native Claude messages (pass-through if content is already an array)
+     *  - OpenAI-style tool result messages (role=tool, tool_call_id, content)
+     *  - OpenAI-style assistant messages with tool_calls
+     *  - Plain string-content messages (pass-through)
+     *
+     * @param  array<int, array<string, mixed>>  $messages
+     * @return array<int, array<string, mixed>>
+     */
+    protected function normalizeMessagesForClaude(array $messages): array
+    {
+        $normalized = [];
+
+        foreach ($messages as $message) {
+            $role = $message['role'] ?? 'user';
+
+            if ($role === 'tool') {
+                $normalized[] = [
+                    'role' => 'user',
+                    'content' => [[
+                        'type' => 'tool_result',
+                        'tool_use_id' => $message['tool_call_id'] ?? ($message['tool_use_id'] ?? ''),
+                        'content' => is_string($message['content'] ?? null)
+                            ? $message['content']
+                            : json_encode($message['content'] ?? '', JSON_UNESCAPED_UNICODE),
+                    ]],
+                ];
+
+                continue;
+            }
+
+            if ($role === 'assistant' && isset($message['tool_calls']) && is_array($message['tool_calls'])) {
+                $content = [];
+
+                $text = $message['content'] ?? null;
+                if (is_string($text) && $text !== '') {
+                    $content[] = ['type' => 'text', 'text' => $text];
+                }
+
+                foreach ($message['tool_calls'] as $call) {
+                    $rawArgs = $call['function']['arguments'] ?? ($call['arguments'] ?? []);
+                    if (is_string($rawArgs)) {
+                        $decoded = json_decode($rawArgs, true);
+                        $input = is_array($decoded) ? $decoded : [];
+                    } else {
+                        $input = is_array($rawArgs) ? $rawArgs : [];
+                    }
+
+                    $content[] = [
+                        'type' => 'tool_use',
+                        'id' => $call['id'] ?? '',
+                        'name' => $call['function']['name'] ?? ($call['name'] ?? ''),
+                        'input' => $input,
+                    ];
+                }
+
+                $normalized[] = [
+                    'role' => 'assistant',
+                    'content' => $content,
+                ];
+
+                continue;
+            }
+
+            $normalized[] = [
+                'role' => $role,
+                'content' => $message['content'] ?? '',
+            ];
+        }
+
+        return $normalized;
     }
 
     protected function buildPrompt(string $message, array $context): string
@@ -1042,6 +1216,7 @@ USERMSG;
         }
 
         $contextStr = json_encode($context, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+
         return <<<PROMPT
 Context:
 {$contextStr}
@@ -1058,6 +1233,7 @@ PROMPT;
             $required = $field['is_required'] ? '(required)' : '(optional)';
             $lines[] = "- {$field['name']} ({$field['type']}) {$required}: {$field['description']}";
         }
+
         return implode("\n", $lines);
     }
 
@@ -1068,7 +1244,7 @@ PROMPT;
     {
         $sectionTypes = \App\Models\PageSection::getSectionTypes();
 
-        if (!isset($sectionTypes[$sectionType])) {
+        if (! isset($sectionTypes[$sectionType])) {
             return ['error' => 'Invalid section type'];
         }
 
@@ -1102,13 +1278,13 @@ SYSTEM;
                     'messages' => [
                         [
                             'role' => 'user',
-                            'content' => $prompt
-                        ]
-                    ]
+                            'content' => $prompt,
+                        ],
+                    ],
                 ]);
 
             if ($response->failed()) {
-                return ['error' => 'API request failed: ' . $response->body()];
+                return ['error' => 'API request failed: '.$response->body()];
             }
 
             $data = $response->json();
@@ -1126,6 +1302,7 @@ SYSTEM;
 
         } catch (\Exception $e) {
             Log::error('Page Section Generation Error', ['error' => $e->getMessage()]);
+
             return ['error' => $e->getMessage()];
         }
     }
@@ -1148,6 +1325,7 @@ SYSTEM;
                 $lines[] = "- {$key}: string";
             }
         }
+
         return implode("\n", $lines);
     }
 
@@ -1158,7 +1336,7 @@ SYSTEM;
     {
         $sectionTypes = \App\Models\PageSection::getSectionTypes();
 
-        if (!isset($sectionTypes[$sectionType])) {
+        if (! isset($sectionTypes[$sectionType])) {
             return ['error' => 'Invalid section type'];
         }
 
@@ -1198,13 +1376,13 @@ SYSTEM;
                     'messages' => [
                         [
                             'role' => 'user',
-                            'content' => $prompt
-                        ]
-                    ]
+                            'content' => $prompt,
+                        ],
+                    ],
                 ]);
 
             if ($response->failed()) {
-                return ['error' => 'API request failed: ' . $response->body()];
+                return ['error' => 'API request failed: '.$response->body()];
             }
 
             $data = $response->json();
@@ -1222,6 +1400,7 @@ SYSTEM;
 
         } catch (\Exception $e) {
             Log::error('Page Section Modification Error', ['error' => $e->getMessage()]);
+
             return ['error' => $e->getMessage()];
         }
     }
@@ -1338,13 +1517,13 @@ SYSTEM;
                     'messages' => [
                         [
                             'role' => 'user',
-                            'content' => $systemPrompt
-                        ]
-                    ]
+                            'content' => $systemPrompt,
+                        ],
+                    ],
                 ]);
 
             if ($response->failed()) {
-                return ['error' => 'Failed to generate HTML: ' . $response->body()];
+                return ['error' => 'Failed to generate HTML: '.$response->body()];
             }
 
             $data = $response->json();
@@ -1357,11 +1536,12 @@ SYSTEM;
 
             return [
                 'html' => $html,
-                'success' => true
+                'success' => true,
             ];
 
         } catch (\Exception $e) {
             Log::error('HTML Generation Error', ['error' => $e->getMessage()]);
+
             return ['error' => $e->getMessage()];
         }
     }
@@ -1374,7 +1554,7 @@ SYSTEM;
     {
         // Load prompt from settings or config and inject user request
         $basePrompt = Setting::get('prompt_structured_html', config('ai-prompts.structured_html'));
-        $systemPrompt = $basePrompt . "\n\nUser request: {$prompt}\n\nReturn ONLY the JSON structure, no markdown, no explanations.";
+        $systemPrompt = $basePrompt."\n\nUser request: {$prompt}\n\nReturn ONLY the JSON structure, no markdown, no explanations.";
 
         try {
             $response = Http::timeout(120)
@@ -1388,13 +1568,13 @@ SYSTEM;
                     'messages' => [
                         [
                             'role' => 'user',
-                            'content' => $systemPrompt
-                        ]
-                    ]
+                            'content' => $systemPrompt,
+                        ],
+                    ],
                 ]);
 
             if ($response->failed()) {
-                return ['error' => 'Failed to generate structured HTML: ' . $response->body()];
+                return ['error' => 'Failed to generate structured HTML: '.$response->body()];
             }
 
             $data = $response->json();
@@ -1411,24 +1591,26 @@ SYSTEM;
             if (json_last_error() !== JSON_ERROR_NONE) {
                 Log::error('Failed to parse structured HTML JSON', [
                     'content' => $content,
-                    'error' => json_last_error_msg()
+                    'error' => json_last_error_msg(),
                 ]);
-                return ['error' => 'Invalid JSON response from AI: ' . json_last_error_msg()];
+
+                return ['error' => 'Invalid JSON response from AI: '.json_last_error_msg()];
             }
 
             // Validate the structure
             $validation = \App\Helpers\StructuredHTMLRenderer::validate($structure);
-            if (!$validation['valid']) {
-                return ['error' => 'Invalid HTML structure: ' . ($validation['error'] ?? 'Unknown error')];
+            if (! $validation['valid']) {
+                return ['error' => 'Invalid HTML structure: '.($validation['error'] ?? 'Unknown error')];
             }
 
             return [
                 'structure' => $structure,
-                'success' => true
+                'success' => true,
             ];
 
         } catch (\Exception $e) {
             Log::error('Structured HTML Generation Error', ['error' => $e->getMessage()]);
+
             return ['error' => $e->getMessage()];
         }
     }
@@ -1473,13 +1655,13 @@ SYSTEM;
                     'messages' => [
                         [
                             'role' => 'user',
-                            'content' => $systemPrompt
-                        ]
-                    ]
+                            'content' => $systemPrompt,
+                        ],
+                    ],
                 ]);
 
             if ($response->failed()) {
-                return ['error' => 'Failed to modify structured HTML: ' . $response->body()];
+                return ['error' => 'Failed to modify structured HTML: '.$response->body()];
             }
 
             $data = $response->json();
@@ -1496,24 +1678,26 @@ SYSTEM;
             if (json_last_error() !== JSON_ERROR_NONE) {
                 Log::error('Failed to parse modified structured HTML JSON', [
                     'content' => $content,
-                    'error' => json_last_error_msg()
+                    'error' => json_last_error_msg(),
                 ]);
-                return ['error' => 'Invalid JSON response from AI: ' . json_last_error_msg()];
+
+                return ['error' => 'Invalid JSON response from AI: '.json_last_error_msg()];
             }
 
             // Validate the structure
             $validation = \App\Helpers\StructuredHTMLRenderer::validate($structure);
-            if (!$validation['valid']) {
-                return ['error' => 'Invalid HTML structure: ' . ($validation['error'] ?? 'Unknown error')];
+            if (! $validation['valid']) {
+                return ['error' => 'Invalid HTML structure: '.($validation['error'] ?? 'Unknown error')];
             }
 
             return [
                 'structure' => $structure,
-                'success' => true
+                'success' => true,
             ];
 
         } catch (\Exception $e) {
             Log::error('Structured HTML Modification Error', ['error' => $e->getMessage()]);
+
             return ['error' => $e->getMessage()];
         }
     }
