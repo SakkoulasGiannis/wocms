@@ -45,6 +45,16 @@
 .editorjs-container .ce-block__content,
 .editorjs-container .ce-toolbar__content {
     max-width: calc(100% - 2rem);
+    margin: 0 0 0 2rem;
+}
+.editorjs-container .codex-editor__redactor {
+    padding-bottom: 100px;
+}
+/* Fullscreen mode — use full width of parent container */
+.editorjs-container.editorjs-fullscreen .ce-block__content,
+.editorjs-container.editorjs-fullscreen .ce-toolbar__content {
+    max-width: 100%;
+    margin: 0;
 }
 .editorjs-container .codex-editor {
     font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
