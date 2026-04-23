@@ -207,7 +207,7 @@
         <script>
             document.addEventListener('DOMContentLoaded', function () {
                 var map = L.map('property-map').setView([{{ $property->latitude }}, {{ $property->longitude }}], 15);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', {
                     attribution: '&copy; OpenStreetMap'
                 }).addTo(map);
                 L.marker([{{ $property->latitude }}, {{ $property->longitude }}]).addTo(map)

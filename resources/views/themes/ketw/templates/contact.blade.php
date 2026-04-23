@@ -140,8 +140,8 @@
             var lat = {{ $lat ?: '35.24' }};
             var lng = {{ $lng ?: '24.47' }};
             var map = L.map('contact-map').setView([lat, lng], 14);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; OpenStreetMap contributors'
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a> contributors &copy; <a href="https://carto.com">CARTO</a>'
             }).addTo(map);
             L.marker([lat, lng]).addTo(map);
         });
