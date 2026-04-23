@@ -109,6 +109,66 @@
 <script src="https://cdn.jsdelivr.net/npm/editorjs-undo@2.0.1/dist/bundle.js"></script>
 
 <script>
+/* ─── Custom ColumnsTool for EditorJS (2 / 3 / 4 columns) ─── */
+class ColumnsTool {
+    static get toolbox() {
+        return { title: 'Columns', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="6" height="16" rx="1"/><rect x="10" y="4" width="4" height="16"/><rect x="15" y="4" width="6" height="16" rx="1"/></svg>' };
+    }
+    static get isReadOnlySupported() { return true; }
+    constructor({ data, api, config }) {
+        this.api = api;
+        this.data = data && data.columns ? data : { columns: [['','']], cols: 2 };
+    }
+    renderSettings() {
+        const wrapper = document.createElement('div');
+        wrapper.style.padding = '6px';
+        [2, 3, 4].forEach(n => {
+            const btn = document.createElement('div');
+            btn.classList.add('cdx-settings-button');
+            btn.innerHTML = `${n}<span style="font-size:10px;margin-left:3px">cols</span>`;
+            btn.style.cssText = 'display:inline-flex;align-items:center;padding:6px 10px;margin-right:4px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600;border:1px solid #e5e7eb;';
+            if (this.data.cols === n) btn.style.background = '#dbeafe';
+            btn.addEventListener('click', () => { this.setCols(n); });
+            wrapper.appendChild(btn);
+        });
+        return wrapper;
+    }
+    setCols(n) {
+        this.data.cols = n;
+        const curr = this.data.columns.length;
+        if (n > curr) { for (let i = curr; i < n; i++) this.data.columns.push(''); }
+        else if (n < curr) { this.data.columns = this.data.columns.slice(0, n); }
+        this.rebuild();
+    }
+    render() {
+        this.wrap = document.createElement('div');
+        this.wrap.style.cssText = 'display:grid;gap:12px;padding:8px;border:1px dashed #d1d5db;border-radius:6px;background:#f9fafb;';
+        this.rebuild();
+        return this.wrap;
+    }
+    rebuild() {
+        if (!this.wrap) return;
+        this.wrap.style.gridTemplateColumns = `repeat(${this.data.cols || 2}, 1fr)`;
+        this.wrap.innerHTML = '';
+        this.data.columns.forEach((html, idx) => {
+            const col = document.createElement('div');
+            col.contentEditable = 'true';
+            col.dataset.col = idx;
+            col.style.cssText = 'min-height:80px;padding:10px;background:#fff;border:1px solid #e5e7eb;border-radius:4px;outline:none;font-size:14px;';
+            col.setAttribute('data-placeholder', `Column ${idx + 1}`);
+            col.innerHTML = html || '';
+            col.addEventListener('input', () => { this.data.columns[idx] = col.innerHTML; });
+            this.wrap.appendChild(col);
+        });
+    }
+    save() {
+        return { cols: this.data.cols, columns: this.data.columns };
+    }
+    static get sanitize() {
+        return { cols: false, columns: { br: true, p: true, strong: true, em: true, a: { href: true, target: true }, ul: true, ol: true, li: true, span: { class: true, style: true }, div: { class: true, style: true } } };
+    }
+}
+
 function editorjsField(config) {
     return {
         editor: null,
@@ -298,6 +358,9 @@ function editorjsField(config) {
                     marker: Marker,
                     inlineCode: InlineCode,
                     underline: Underline,
+
+                    // Columns block (custom)
+                    columns: ColumnsTool,
                 },
 
                 onChange: async (api, event) => {
