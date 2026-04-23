@@ -206,7 +206,7 @@
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
         <script>
             document.addEventListener('DOMContentLoaded', function () {
-                var map = L.map('property-map').setView([{{ $property->latitude }}, {{ $property->longitude }}], 15);
+                var map = L.map('property-map').setView([{{ $property->latitude }}, {{ $property->longitude }}], 12);
                 L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', {
                     attribution: '&copy; OpenStreetMap'
                 }).addTo(map);
