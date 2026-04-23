@@ -130,7 +130,7 @@
 
 <script>
 /* ─── Custom ColumnsTool for EditorJS (2 / 3 / 4 columns) ─── */
-class ColumnsTool {
+window.ColumnsTool = class ColumnsTool {
     static get toolbox() {
         return { title: 'Columns', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="6" height="16" rx="1"/><rect x="10" y="4" width="4" height="16"/><rect x="15" y="4" width="6" height="16" rx="1"/></svg>' };
     }
@@ -384,7 +384,7 @@ function editorjsField(config) {
                     underline: Underline,
 
                     // Columns block (custom)
-                    columns: ColumnsTool,
+                    columns: window.ColumnsTool,
                 },
 
                 onChange: async (api, event) => {
