@@ -528,9 +528,33 @@ if (typeof window.editorjsField === 'undefined') {
                                                 <span x-text="fullscreen ? 'Κλείσιμο' : 'Fullscreen'"></span>
                                             </button>
                                         </div>
-                                        <div :class="fullscreen ? 'flex-1 overflow-y-auto p-8' : ''">
-                                            <div :class="fullscreen ? 'max-w-7xl mx-auto' : ''"
-                                                 x-effect="$el.querySelectorAll('.editorjs-container').forEach(el => el.classList.toggle('editorjs-fullscreen', fullscreen))">
+                                        <div :class="fullscreen ? 'flex-1 overflow-y-auto' : ''">
+                                            <div :class="fullscreen ? 'w-full px-8 py-6' : ''"
+                                                 x-effect="
+                                                    const w = $el.querySelector('.editorjs-container');
+                                                    if (w) {
+                                                        w.classList.toggle('editorjs-fullscreen', fullscreen);
+                                                        if (fullscreen) {
+                                                            ['.codex-editor', '.codex-editor__redactor'].forEach(sel => {
+                                                                const el = w.querySelector(sel);
+                                                                if (el) { el.style.maxWidth = '100%'; el.style.width = '100%'; }
+                                                            });
+                                                            w.querySelectorAll('.ce-block__content, .ce-toolbar__content').forEach(el => {
+                                                                el.style.maxWidth = '100%';
+                                                                el.style.margin = '0';
+                                                            });
+                                                        } else {
+                                                            ['.codex-editor', '.codex-editor__redactor'].forEach(sel => {
+                                                                const el = w.querySelector(sel);
+                                                                if (el) { el.style.maxWidth = ''; el.style.width = ''; }
+                                                            });
+                                                            w.querySelectorAll('.ce-block__content, .ce-toolbar__content').forEach(el => {
+                                                                el.style.maxWidth = '';
+                                                                el.style.margin = '';
+                                                            });
+                                                        }
+                                                    }
+                                                 ">
                                                 <x-editorjs-field
                                                     :name="'ve.' . $field->name"
                                                     :value="$sectionContent[$field->name] ?? ''"
