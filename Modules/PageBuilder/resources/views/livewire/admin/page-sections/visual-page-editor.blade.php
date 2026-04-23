@@ -1,5 +1,5 @@
 @push('scripts')
-{{-- Custom Columns block for EditorJS (2/3/4/5/6 cols) --}}
+{{-- Custom Columns block for EditorJS (2/3/4/5/6 cols) with nested EditorJS per column --}}
 <script>
 window.ColumnsTool = class ColumnsTool {
     static get toolbox() {
@@ -8,55 +8,130 @@ window.ColumnsTool = class ColumnsTool {
     static get isReadOnlySupported() { return true; }
     constructor({ data, api, config }) {
         this.api = api;
-        const d = data && data.columns ? data : {};
+        const d = data && typeof data === 'object' ? data : {};
         const cols = d.cols || 2;
-        let columns = Array.isArray(d.columns) ? d.columns.map(c => typeof c === 'string' ? c : '') : [];
-        while (columns.length < cols) columns.push('');
+        let columns = Array.isArray(d.columns) ? d.columns : [];
+        // Normalize each column to an EditorJS data object { blocks: [] }
+        columns = columns.map(c => {
+            if (c && typeof c === 'object' && Array.isArray(c.blocks)) return c;
+            if (typeof c === 'string' && c.trim()) return { blocks: [{ type: 'paragraph', data: { text: c } }] };
+            return { blocks: [] };
+        });
+        while (columns.length < cols) columns.push({ blocks: [] });
         this.data = { cols, columns };
+        this.subEditors = [];
     }
     renderSettings() {
         const wrapper = document.createElement('div');
-        wrapper.style.padding = '6px';
+        wrapper.style.cssText = 'padding:6px;display:flex;flex-wrap:wrap;gap:4px';
         [2, 3, 4, 5, 6].forEach(n => {
             const btn = document.createElement('div');
             btn.classList.add('cdx-settings-button');
-            btn.innerHTML = `${n}<span style="font-size:10px;margin-left:3px">cols</span>`;
-            btn.style.cssText = 'display:inline-flex;align-items:center;padding:6px 10px;margin-right:4px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600;border:1px solid #e5e7eb;';
+            btn.innerHTML = `${n} cols`;
+            btn.style.cssText = 'display:inline-flex;align-items:center;padding:6px 10px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600;border:1px solid #e5e7eb;background:#fff';
             if (this.data.cols === n) btn.style.background = '#dbeafe';
             btn.addEventListener('click', () => { this.setCols(n); });
             wrapper.appendChild(btn);
         });
         return wrapper;
     }
-    setCols(n) {
+    async setCols(n) {
+        // Save existing column data first
+        await this.syncAllColumnsData();
         this.data.cols = n;
         const curr = this.data.columns.length;
-        if (n > curr) { for (let i = curr; i < n; i++) this.data.columns.push(''); }
+        if (n > curr) { for (let i = curr; i < n; i++) this.data.columns.push({ blocks: [] }); }
         else if (n < curr) { this.data.columns = this.data.columns.slice(0, n); }
         this.rebuild();
     }
+    async syncAllColumnsData() {
+        for (let i = 0; i < this.subEditors.length; i++) {
+            const ed = this.subEditors[i];
+            if (ed && typeof ed.save === 'function') {
+                try { this.data.columns[i] = await ed.save(); } catch(e) {}
+            }
+        }
+    }
     render() {
         this.wrap = document.createElement('div');
-        this.wrap.style.cssText = 'display:grid;gap:12px;padding:8px;border:1px dashed #d1d5db;border-radius:6px;background:#f9fafb;';
+        this.wrap.style.cssText = 'display:grid;gap:12px;padding:12px;border:2px dashed #d1d5db;border-radius:8px;background:#f9fafb';
+        const label = document.createElement('div');
+        label.style.cssText = 'position:absolute;top:-10px;left:10px;background:#f9fafb;padding:0 6px;font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:0.05em';
+        label.textContent = `${this.data.cols} Columns`;
+        this.wrap.style.position = 'relative';
+        this.wrap.appendChild(label);
         this.rebuild();
         return this.wrap;
     }
     rebuild() {
         if (!this.wrap) return;
-        this.wrap.style.gridTemplateColumns = `repeat(${this.data.cols || 2}, 1fr)`;
+        // Destroy existing sub-editors
+        this.subEditors.forEach(ed => { try { ed.destroy?.(); } catch(e) {} });
+        this.subEditors = [];
+        // Keep label, clear rest
+        const label = this.wrap.firstChild;
         this.wrap.innerHTML = '';
-        this.data.columns.forEach((html, idx) => {
+        this.wrap.appendChild(label);
+        label.textContent = `${this.data.cols} Columns`;
+
+        this.wrap.style.gridTemplateColumns = `repeat(${this.data.cols || 2}, 1fr)`;
+
+        this.data.columns.forEach((colData, idx) => {
             const col = document.createElement('div');
-            col.contentEditable = 'true';
-            col.dataset.col = idx;
-            col.style.cssText = 'min-height:80px;padding:10px;background:#fff;border:1px solid #e5e7eb;border-radius:4px;outline:none;font-size:14px;';
-            col.setAttribute('data-placeholder', `Column ${idx + 1}`);
-            col.innerHTML = html || '';
-            col.addEventListener('input', () => { this.data.columns[idx] = col.innerHTML; });
+            col.style.cssText = 'background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:8px;min-height:120px';
+            const holder = document.createElement('div');
+            holder.id = `ej-col-${Math.random().toString(36).slice(2, 9)}`;
+            col.appendChild(holder);
             this.wrap.appendChild(col);
+
+            // Initialize nested EditorJS in this column
+            try {
+                const subTools = {
+                    header: { class: Header, config: { levels: [2, 3, 4], defaultLevel: 3 } },
+                    list: { class: NestedList, inlineToolbar: true },
+                    quote: { class: Quote, inlineToolbar: true },
+                    marker: Marker,
+                    inlineCode: InlineCode,
+                    underline: Underline,
+                };
+                // Add image tool only if uploader is configured
+                if (window.__editorImageTool) subTools.image = window.__editorImageTool;
+
+                const subEditor = new EditorJS({
+                    holder: holder,
+                    placeholder: `Column ${idx + 1}...`,
+                    data: colData || { blocks: [] },
+                    minHeight: 80,
+                    tools: subTools,
+                    onChange: async () => {
+                        try { this.data.columns[idx] = await subEditor.save(); } catch(e) {}
+                    },
+                });
+                this.subEditors.push(subEditor);
+            } catch (e) {
+                console.warn('Failed to init sub-editor:', e);
+                // Fallback to contenteditable
+                col.innerHTML = '';
+                const ce = document.createElement('div');
+                ce.contentEditable = 'true';
+                ce.style.cssText = 'min-height:80px;padding:8px;outline:none';
+                ce.setAttribute('data-placeholder', `Column ${idx + 1}`);
+                ce.addEventListener('input', () => {
+                    this.data.columns[idx] = { blocks: [{ type: 'paragraph', data: { text: ce.innerHTML } }] };
+                });
+                col.appendChild(ce);
+                this.subEditors.push(null);
+            }
         });
     }
-    save() { return { cols: this.data.cols, columns: this.data.columns }; }
+    async save() {
+        await this.syncAllColumnsData();
+        return { cols: this.data.cols, columns: this.data.columns };
+    }
+    destroy() {
+        this.subEditors.forEach(ed => { try { ed?.destroy?.(); } catch(e) {} });
+        this.subEditors = [];
+    }
 };
 </script>
 
@@ -144,6 +219,25 @@ if (typeof window.editorjsField === 'undefined') {
                 holderEl.querySelectorAll('.codex-editor').forEach(el => el.remove());
                 const self = this;
                 const initialData = this.parseInitialData();
+
+                // Expose image tool to window so nested editors (ColumnsTool) can reuse
+                if (!window.__editorImageTool) {
+                    window.__editorImageTool = {
+                        class: ImageTool,
+                        config: { uploader: {
+                            async uploadByFile(file) {
+                                const form = new FormData(); form.append('image', file);
+                                const res = await fetch(self.uploadImageUrl, { method: 'POST', headers: { 'X-CSRF-TOKEN': self.csrfToken }, body: form });
+                                return res.json();
+                            },
+                            async uploadByUrl(url) {
+                                const res = await fetch(self.fetchImageUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': self.csrfToken }, body: JSON.stringify({ url }) });
+                                return res.json();
+                            },
+                        }},
+                    };
+                }
+
                 this.editor = new EditorJS({
                     holder: this.uid,
                     placeholder: this.placeholder,

@@ -105,8 +105,21 @@ class EditorJsRenderer
         };
 
         $html = '<div class="grid '.$gridClass.' gap-6 my-6">';
-        foreach ($columns as $colHtml) {
-            $html .= '<div class="prose prose-sm max-w-none">'.$colHtml.'</div>';
+        foreach ($columns as $col) {
+            // Column content can be:
+            //  - An EditorJS data object {blocks: [...]} (preferred, allows nested blocks with images)
+            //  - A plain HTML string (legacy)
+            //  - An empty value
+            if (is_array($col) && isset($col['blocks']) && is_array($col['blocks'])) {
+                // Recursively render nested EditorJS blocks (supports images, headings, lists per column)
+                $colHtml = '';
+                foreach ($col['blocks'] as $block) {
+                    $colHtml .= $this->renderBlock($block);
+                }
+                $html .= '<div class="prose prose-sm max-w-none">'.$colHtml.'</div>';
+            } else {
+                $html .= '<div class="prose prose-sm max-w-none">'.(is_string($col) ? $col : '').'</div>';
+            }
         }
         $html .= '</div>';
 
