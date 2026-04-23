@@ -32,6 +32,19 @@ class AgentList extends Component
         session()->flash('success', "Agent '{$name}' deleted successfully.");
     }
 
+    /**
+     * Persist new order after drag-and-drop.
+     *
+     * @param  array<int, int>  $orderedIds  Array of agent IDs in new order
+     */
+    public function reorder(array $orderedIds): void
+    {
+        foreach ($orderedIds as $position => $id) {
+            Agent::where('id', $id)->update(['order' => $position]);
+        }
+        session()->flash('success', 'Order updated.');
+    }
+
     public function render()
     {
         $agents = Agent::query()

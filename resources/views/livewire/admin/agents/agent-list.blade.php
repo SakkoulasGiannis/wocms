@@ -42,6 +42,7 @@
         <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
                 <tr>
+                    <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-10"></th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">Photo</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
@@ -51,9 +52,18 @@
                     <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-48">Actions</th>
                 </tr>
             </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
+            <tbody class="bg-white divide-y divide-gray-200" id="agents-sortable-body">
                 @foreach($agents as $agent)
-                <tr wire:key="agent-{{ $agent->id }}" class="hover:bg-gray-50 transition">
+                <tr wire:key="agent-{{ $agent->id }}" data-agent-id="{{ $agent->id }}" class="hover:bg-gray-50 transition">
+                    <td class="px-3 py-4 text-center">
+                        <button type="button"
+                                class="agent-drag-handle cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-700 select-none"
+                                title="Drag to reorder">
+                            <svg class="w-5 h-5 inline-block" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M7 4a1 1 0 11-2 0 1 1 0 012 0zM7 10a1 1 0 11-2 0 1 1 0 012 0zM7 16a1 1 0 11-2 0 1 1 0 012 0zM15 4a1 1 0 11-2 0 1 1 0 012 0zM15 10a1 1 0 11-2 0 1 1 0 012 0zM15 16a1 1 0 11-2 0 1 1 0 012 0z"/>
+                            </svg>
+                        </button>
+                    </td>
                     <td class="px-6 py-4">
                         @if($agent->hasPhoto())
                             <img src="{{ $agent->getThumbUrl() }}" alt="{{ $agent->name }}"
@@ -115,6 +125,35 @@
             </tbody>
         </table>
     </div>
+
+    {{-- SortableJS drag-to-reorder --}}
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <script>
+        (function() {
+            function initSortable() {
+                const tbody = document.getElementById('agents-sortable-body');
+                if (!tbody || tbody._sortableInit) return;
+                tbody._sortableInit = true;
+                new Sortable(tbody, {
+                    handle: '.agent-drag-handle',
+                    animation: 150,
+                    ghostClass: 'opacity-50',
+                    chosenClass: 'bg-blue-50',
+                    onEnd: function () {
+                        const orderedIds = Array.from(tbody.querySelectorAll('tr[data-agent-id]')).map(tr => parseInt(tr.dataset.agentId));
+                        @this.call('reorder', orderedIds);
+                    },
+                });
+            }
+            initSortable();
+            document.addEventListener('livewire:navigated', initSortable);
+            Livewire.hook('morph.updated', () => {
+                const tbody = document.getElementById('agents-sortable-body');
+                if (tbody) tbody._sortableInit = false;
+                initSortable();
+            });
+        })();
+    </script>
     @else
     <div class="text-center py-12 bg-white rounded-lg shadow">
         <i class="fa fa-users text-gray-300 text-6xl mb-4"></i>
