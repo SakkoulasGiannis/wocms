@@ -512,12 +512,34 @@ if (typeof window.editorjsField === 'undefined') {
                                     @break
 
                                 @case('wysiwyg')
-                                    <x-editorjs-field
-                                        :name="'ve.' . $field->name"
-                                        :value="$sectionContent[$field->name] ?? ''"
-                                        wire-model="sectionContent.{{ $field->name }}"
-                                        :uid="'ejs-ve-' . $field->name . ($selectedSectionId ?? 'new')"
-                                    />
+                                    <div x-data="{ fullscreen: false }"
+                                         :class="fullscreen ? 'fixed inset-0 z-[1000] bg-white flex flex-col' : ''">
+                                        <div :class="fullscreen ? 'flex items-center justify-between px-6 py-3 border-b border-gray-200 bg-gray-50' : 'flex items-center justify-end mb-1'">
+                                            <span x-show="fullscreen" class="text-sm font-semibold text-gray-700">{{ $field->label }}</span>
+                                            <button type="button"
+                                                    @click="fullscreen = !fullscreen"
+                                                    class="inline-flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 font-medium">
+                                                <svg x-show="!fullscreen" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+                                                </svg>
+                                                <svg x-show="fullscreen" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                                </svg>
+                                                <span x-text="fullscreen ? 'Κλείσιμο' : 'Fullscreen'"></span>
+                                            </button>
+                                        </div>
+                                        <div :class="fullscreen ? 'flex-1 overflow-y-auto p-8' : ''">
+                                            <div :class="fullscreen ? 'max-w-4xl mx-auto' : ''">
+                                                <x-editorjs-field
+                                                    :name="'ve.' . $field->name"
+                                                    :value="$sectionContent[$field->name] ?? ''"
+                                                    wire-model="sectionContent.{{ $field->name }}"
+                                                    :uid="'ejs-ve-' . $field->name . ($selectedSectionId ?? 'new')"
+                                                    min-height="400px"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
                                     @break
 
                                 @case('repeater')
