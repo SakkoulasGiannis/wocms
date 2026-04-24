@@ -129,6 +129,65 @@
 {{-- <script src="https://cdn.jsdelivr.net/npm/editorjs-undo@2.0.1/dist/bundle.js"></script> --}}
 
 <script>
+/* ─── Block Tune: Custom CSS Classes (Tailwind) on the block element itself ─── */
+window.BlockClassesTune = class BlockClassesTune {
+    static get isTune() { return true; }
+
+    constructor({ api, data, block }) {
+        this.api = api;
+        this.block = block;
+        this.data = data && typeof data === 'object' ? data : {};
+    }
+
+    render() {
+        const el = document.createElement('div');
+        el.classList.add('ce-settings__button');
+        el.title = 'Add Tailwind / CSS classes to this block';
+        el.style.cssText = 'display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:12px';
+        el.innerHTML = '<span style="font-family:monospace;font-weight:700">.tw</span><span style="font-size:11px">Classes</span>';
+        el.addEventListener('click', () => this.openEditor());
+        return el;
+    }
+
+    openEditor() {
+        const current = this.data.classes || '';
+        const input = prompt('Tailwind / CSS classes for this block:\n(applied to the block element itself — h1, p, img, etc.)', current);
+        if (input === null) return;
+        this.data.classes = input.trim();
+        // Visually reflect on the block element in the editor
+        this.applyToBlock();
+    }
+
+    applyToBlock() {
+        try {
+            const blockIndex = this.api.blocks.getCurrentBlockIndex?.() ?? -1;
+            let blockEl = null;
+            if (this.block && this.block.holder) {
+                blockEl = this.block.holder;
+            } else if (blockIndex >= 0) {
+                const nodes = document.querySelectorAll('.ce-block');
+                blockEl = nodes[blockIndex];
+            }
+            if (!blockEl) return;
+            // Find the primary content element inside (h1-h6, p, img, ul/ol, blockquote, etc.)
+            const primary = blockEl.querySelector('h1,h2,h3,h4,h5,h6,p,blockquote,ul,ol,img,pre,figure');
+            if (primary) {
+                primary.className = (this.data.classes || '');
+            }
+        } catch (e) {}
+    }
+
+    save() {
+        return { classes: this.data.classes || '' };
+    }
+
+    wrap(blockContent) {
+        // Called by EditorJS when rendering; we use it to also reflect styles live
+        setTimeout(() => this.applyToBlock(), 50);
+        return blockContent;
+    }
+};
+
 /* ─── Inline Text Color tool ─── */
 window.ColorTool = class ColorTool {
     static get isInline() { return true; }
@@ -497,9 +556,13 @@ function editorjsField(config) {
                     underline: Underline,
                     ...(window.ColorTool ? { color: { class: window.ColorTool } } : {}),
 
+                    // Block tune — CSS classes per block
+                    ...(window.BlockClassesTune ? { blockClasses: window.BlockClassesTune } : {}),
+
                     // Columns block (custom)
                     ...(window.ColumnsTool ? { columns: { class: window.ColumnsTool } } : {}),
                 },
+                tunes: window.BlockClassesTune ? ['blockClasses'] : [],
 
                 onChange: (api, event) => {
                     // Debounce: wait 600ms after last change before syncing to Livewire (triggers server save + preview)

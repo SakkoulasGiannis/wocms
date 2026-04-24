@@ -1,4 +1,47 @@
 @push('scripts')
+{{-- Block Tune: per-block CSS classes (Tailwind) --}}
+<script>
+if (!window.BlockClassesTune) {
+window.BlockClassesTune = class BlockClassesTune {
+    static get isTune() { return true; }
+    constructor({ api, data, block }) {
+        this.api = api;
+        this.block = block;
+        this.data = data && typeof data === 'object' ? data : {};
+    }
+    render() {
+        const el = document.createElement('div');
+        el.classList.add('ce-settings__button');
+        el.title = 'Add Tailwind / CSS classes to this block';
+        el.style.cssText = 'display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:12px';
+        el.innerHTML = '<span style="font-family:monospace;font-weight:700">.tw</span><span style="font-size:11px">Classes</span>';
+        el.addEventListener('click', () => this.openEditor());
+        return el;
+    }
+    openEditor() {
+        const current = this.data.classes || '';
+        const input = prompt('Tailwind / CSS classes for this block:\n(applied to the block element itself — h1, p, img, etc.)', current);
+        if (input === null) return;
+        this.data.classes = input.trim();
+        this.applyToBlock();
+    }
+    applyToBlock() {
+        try {
+            const blockIndex = this.api.blocks.getCurrentBlockIndex?.() ?? -1;
+            let blockEl = null;
+            if (this.block && this.block.holder) blockEl = this.block.holder;
+            else if (blockIndex >= 0) { const nodes = document.querySelectorAll('.ce-block'); blockEl = nodes[blockIndex]; }
+            if (!blockEl) return;
+            const primary = blockEl.querySelector('h1,h2,h3,h4,h5,h6,p,blockquote,ul,ol,img,pre,figure');
+            if (primary) primary.className = (this.data.classes || '');
+        } catch (e) {}
+    }
+    save() { return { classes: this.data.classes || '' }; }
+    wrap(blockContent) { setTimeout(() => this.applyToBlock(), 50); return blockContent; }
+};
+}
+</script>
+
 {{-- Inline Text Color tool --}}
 <script>
 if (!window.ColorTool) {
@@ -83,12 +126,21 @@ window.ColumnsTool = class ColumnsTool {
             return { blocks: [] };
         });
         while (columns.length < cols) columns.push({ blocks: [] });
-        this.data = { cols, columns };
+        this.data = {
+            cols,
+            columns,
+            wrapperClass: d.wrapperClass || '',
+            columnClass: d.columnClass || '',
+        };
         this.subEditors = [];
     }
     renderSettings() {
         const wrapper = document.createElement('div');
-        wrapper.style.cssText = 'padding:6px;display:flex;flex-wrap:wrap;gap:4px';
+        wrapper.style.cssText = 'padding:8px;display:flex;flex-direction:column;gap:10px;width:280px';
+
+        // Column count buttons
+        const row1 = document.createElement('div');
+        row1.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px';
         [2, 3, 4, 5, 6].forEach(n => {
             const btn = document.createElement('div');
             btn.classList.add('cdx-settings-button');
@@ -96,9 +148,47 @@ window.ColumnsTool = class ColumnsTool {
             btn.style.cssText = 'display:inline-flex;align-items:center;padding:6px 10px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600;border:1px solid #e5e7eb;background:#fff';
             if (this.data.cols === n) btn.style.background = '#dbeafe';
             btn.addEventListener('click', () => { this.setCols(n); });
-            wrapper.appendChild(btn);
+            row1.appendChild(btn);
         });
+        wrapper.appendChild(row1);
+
+        // Wrapper CSS classes input
+        const wrapLabel = document.createElement('label');
+        wrapLabel.style.cssText = 'font-size:11px;font-weight:600;color:#374151;display:block;margin-bottom:2px';
+        wrapLabel.textContent = 'Wrapper classes (Tailwind)';
+        const wrapInput = document.createElement('input');
+        wrapInput.type = 'text';
+        wrapInput.placeholder = 'e.g. my-8 py-6 bg-slate-50 rounded-xl';
+        wrapInput.value = this.data.wrapperClass || '';
+        wrapInput.style.cssText = 'width:100%;padding:6px 8px;border:1px solid #e5e7eb;border-radius:4px;font-size:12px;font-family:monospace';
+        wrapInput.addEventListener('input', (e) => { this.data.wrapperClass = e.target.value; this.applyLiveClasses(); });
+        const wrapWrap = document.createElement('div'); wrapWrap.appendChild(wrapLabel); wrapWrap.appendChild(wrapInput);
+        wrapper.appendChild(wrapWrap);
+
+        // Column CSS classes input
+        const colLabel = document.createElement('label');
+        colLabel.style.cssText = 'font-size:11px;font-weight:600;color:#374151;display:block;margin-bottom:2px';
+        colLabel.textContent = 'Column classes (applied to each)';
+        const colInput = document.createElement('input');
+        colInput.type = 'text';
+        colInput.placeholder = 'e.g. p-6 bg-white rounded-lg shadow';
+        colInput.value = this.data.columnClass || '';
+        colInput.style.cssText = 'width:100%;padding:6px 8px;border:1px solid #e5e7eb;border-radius:4px;font-size:12px;font-family:monospace';
+        colInput.addEventListener('input', (e) => { this.data.columnClass = e.target.value; this.applyLiveClasses(); });
+        const colWrap = document.createElement('div'); colWrap.appendChild(colLabel); colWrap.appendChild(colInput);
+        wrapper.appendChild(colWrap);
+
         return wrapper;
+    }
+    applyLiveClasses() {
+        if (!this.wrap) return;
+        // Visual preview hint — apply as data attribute (actual classes are rendered by backend EditorJsRenderer)
+        this.wrap.dataset.wrapperClass = this.data.wrapperClass || '';
+        // For columns, store on each col element
+        Array.from(this.wrap.querySelectorAll(':scope > div')).forEach((col, idx) => {
+            if (idx === 0 && col.textContent.match(/^\d+ Columns$/i)) return; // skip label
+            col.dataset.columnClass = this.data.columnClass || '';
+        });
     }
     async setCols(n) {
         // Save existing column data first
@@ -339,8 +429,10 @@ if (typeof window.editorjsField === 'undefined') {
                         linkTool: { class: LinkTool, config: { endpoint: self.fetchImageUrl } },
                         raw: RawTool, marker: Marker, inlineCode: InlineCode, underline: Underline,
                         ...(window.ColorTool ? { color: { class: window.ColorTool } } : {}),
+                        ...(window.BlockClassesTune ? { blockClasses: window.BlockClassesTune } : {}),
                         ...(window.ColumnsTool ? { columns: { class: window.ColumnsTool } } : {}),
                     },
+                    tunes: window.BlockClassesTune ? ['blockClasses'] : [],
                     onChange: () => {
                         // Debounce: auto-save after 600ms of inactivity, sync immediately so preview refreshes
                         clearTimeout(self._saveTimer);

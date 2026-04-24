@@ -63,7 +63,10 @@ class EditorJsRenderer
         $alignStyle = $alignment ? " style=\"text-align:{$alignment};\"" : '';
         $alignClass = $alignment ? " text-{$alignment}" : '';
 
-        return match ($type) {
+        // Per-block custom classes tune (Tailwind or any CSS)
+        $extraClasses = trim($tunes['blockClasses']['classes'] ?? '');
+
+        $html = match ($type) {
             'paragraph' => $this->renderParagraph($data, $alignStyle),
             'header' => $this->renderHeader($data, $alignStyle),
             'list' => $this->renderList($data),
@@ -84,6 +87,40 @@ class EditorJsRenderer
             'columns' => $this->renderColumns($data),
             default => '',
         };
+
+        // Apply per-block classes tune to the rendered primary element
+        if ($extraClasses !== '' && $html !== '') {
+            $html = $this->injectClasses($html, $extraClasses);
+        }
+
+        return $html;
+    }
+
+    /**
+     * Inject extra classes into the first HTML element of the rendered block.
+     * Appends to existing class attribute, or adds one if missing.
+     */
+    protected function injectClasses(string $html, string $classes): string
+    {
+        $classes = htmlspecialchars($classes, ENT_QUOTES);
+
+        // Match first opening tag
+        return preg_replace_callback(
+            '/<([a-zA-Z][a-zA-Z0-9]*)\b([^>]*)>/',
+            function ($m) use ($classes) {
+                $tag = $m[1];
+                $attrs = $m[2];
+                if (preg_match('/\bclass\s*=\s*"([^"]*)"/', $attrs)) {
+                    $attrs = preg_replace('/\bclass\s*=\s*"([^"]*)"/', 'class="$1 '.$classes.'"', $attrs);
+                } else {
+                    $attrs .= ' class="'.$classes.'"';
+                }
+
+                return '<'.$tag.$attrs.'>';
+            },
+            $html,
+            1
+        );
     }
 
     protected function renderColumns(array $data): string
