@@ -1,4 +1,76 @@
 @push('scripts')
+{{-- Container block: responsive max-width per breakpoint --}}
+<script>
+if (!window.ContainerTool) {
+window.ContainerTool = class ContainerTool {
+    static get toolbox() { return { title: 'Container', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h12M6 14h8"/></svg>' }; }
+    static get isReadOnlySupported() { return true; }
+    static get WIDTHS() { return { full: { label: 'Full width', class: 'max-w-full' }, '8xl': { label: '8xl', class: 'max-w-8xl' }, '7xl': { label: '7xl', class: 'max-w-7xl' }, '6xl': { label: '6xl', class: 'max-w-6xl' }, '5xl': { label: '5xl', class: 'max-w-5xl' }, '4xl': { label: '4xl', class: 'max-w-4xl' }, '3xl': { label: '3xl', class: 'max-w-3xl' }, '2xl': { label: '2xl', class: 'max-w-2xl' }, 'xl': { label: 'xl', class: 'max-w-xl' }, prose: { label: 'Prose', class: 'max-w-prose' } }; }
+    constructor({ data, api }) {
+        this.api = api;
+        const d = data && typeof data === 'object' ? data : {};
+        this.data = { desktop: d.desktop || '7xl', tablet: d.tablet || 'full', mobile: d.mobile || 'full', wrapperClass: d.wrapperClass || '', innerClass: d.innerClass || '', content: d.content || { blocks: [] } };
+        this.subEditor = null;
+    }
+    renderSettings() {
+        const w = document.createElement('div');
+        w.style.cssText = 'padding:8px;display:flex;flex-direction:column;gap:10px;width:260px';
+        const mkSel = (lab, k) => {
+            const lbl = document.createElement('label'); lbl.textContent = lab; lbl.style.cssText = 'font-size:11px;font-weight:600;color:#374151;display:block;margin-bottom:2px';
+            const s = document.createElement('select'); s.style.cssText = 'width:100%;padding:6px 8px;border:1px solid #e5e7eb;border-radius:4px;font-size:12px';
+            Object.entries(ContainerTool.WIDTHS).forEach(([kk, v]) => { const o = document.createElement('option'); o.value = kk; o.textContent = v.label; if (this.data[k] === kk) o.selected = true; s.appendChild(o); });
+            s.addEventListener('change', (e) => { this.data[k] = e.target.value; this.updateLabel(); });
+            const ww = document.createElement('div'); ww.appendChild(lbl); ww.appendChild(s); return ww;
+        };
+        w.appendChild(mkSel('📱 Mobile', 'mobile'));
+        w.appendChild(mkSel('📱 Tablet', 'tablet'));
+        w.appendChild(mkSel('🖥️ Desktop', 'desktop'));
+        const mkInp = (lab, k, ph) => {
+            const lbl = document.createElement('label'); lbl.textContent = lab; lbl.style.cssText = 'font-size:11px;font-weight:600;color:#374151;display:block;margin-bottom:2px';
+            const i = document.createElement('input'); i.type = 'text'; i.placeholder = ph; i.value = this.data[k] || ''; i.style.cssText = 'width:100%;padding:6px 8px;border:1px solid #e5e7eb;border-radius:4px;font-size:12px;font-family:monospace';
+            i.addEventListener('input', (e) => { this.data[k] = e.target.value; });
+            const ww = document.createElement('div'); ww.appendChild(lbl); ww.appendChild(i); return ww;
+        };
+        w.appendChild(mkInp('Wrapper classes', 'wrapperClass', 'py-12 bg-slate-50'));
+        w.appendChild(mkInp('Inner classes', 'innerClass', 'mx-auto px-4'));
+        return w;
+    }
+    updateLabel() { if (this.labelEl) this.labelEl.textContent = `Container · M:${this.data.mobile} T:${this.data.tablet} D:${this.data.desktop}`; }
+    render() {
+        this.wrap = document.createElement('div');
+        this.wrap.style.cssText = 'position:relative;padding:16px;border:2px dashed #c084fc;border-radius:8px;background:#faf5ff';
+        this.labelEl = document.createElement('div');
+        this.labelEl.style.cssText = 'position:absolute;top:-10px;left:10px;background:#faf5ff;padding:0 6px;font-size:11px;color:#7c3aed;font-weight:600;text-transform:uppercase';
+        this.updateLabel();
+        this.wrap.appendChild(this.labelEl);
+        const h = document.createElement('div');
+        h.id = `ej-cont-${Math.random().toString(36).slice(2, 9)}`;
+        this.wrap.appendChild(h);
+        try {
+            const subTools = {
+                header: { class: Header, inlineToolbar: true, config: { levels: [1, 2, 3, 4, 5, 6], defaultLevel: 2 } },
+                list: { class: NestedList, inlineToolbar: true },
+                quote: { class: Quote, inlineToolbar: true },
+                marker: Marker, inlineCode: InlineCode, underline: Underline,
+                ...(window.ColorTool ? { color: { class: window.ColorTool } } : {}),
+                ...(window.BlockClassesTune ? { blockClasses: window.BlockClassesTune } : {}),
+            };
+            if (window.__editorImageTool) subTools.image = window.__editorImageTool;
+            this.subEditor = new EditorJS({
+                holder: h, placeholder: 'Container content...', data: this.data.content || { blocks: [] }, minHeight: 80, tools: subTools,
+                tunes: window.BlockClassesTune ? ['blockClasses'] : [],
+                onChange: async () => { try { this.data.content = await this.subEditor.save(); } catch (e) {} },
+            });
+        } catch (e) { console.warn('Container sub-editor init failed:', e); }
+        return this.wrap;
+    }
+    async save() { if (this.subEditor?.save) { try { this.data.content = await this.subEditor.save(); } catch (e) {} } return { ...this.data }; }
+    destroy() { try { this.subEditor?.destroy?.(); } catch (e) {} this.subEditor = null; }
+    static get sanitize() { return { desktop: false, tablet: false, mobile: false, wrapperClass: false, innerClass: false, content: false }; }
+};
+}
+</script>
+
 {{-- Block Tune: per-block CSS classes (Tailwind) --}}
 <script>
 if (!window.BlockClassesTune) {
@@ -431,6 +503,7 @@ if (typeof window.editorjsField === 'undefined') {
                         ...(window.ColorTool ? { color: { class: window.ColorTool } } : {}),
                         ...(window.BlockClassesTune ? { blockClasses: window.BlockClassesTune } : {}),
                         ...(window.ColumnsTool ? { columns: { class: window.ColumnsTool } } : {}),
+                        ...(window.ContainerTool ? { container: { class: window.ContainerTool } } : {}),
                     },
                     tunes: window.BlockClassesTune ? ['blockClasses'] : [],
                     onChange: () => {

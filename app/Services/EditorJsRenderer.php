@@ -85,6 +85,7 @@ class EditorJsRenderer
             'linkTool' => $this->renderLinkTool($data),
             'personality' => $this->renderPersonality($data),
             'columns' => $this->renderColumns($data),
+            'container' => $this->renderContainer($data),
             default => '',
         };
 
@@ -121,6 +122,42 @@ class EditorJsRenderer
             $html,
             1
         );
+    }
+
+    protected function renderContainer(array $data): string
+    {
+        $widths = [
+            'full' => 'max-w-full', '8xl' => 'max-w-8xl', '7xl' => 'max-w-7xl', '6xl' => 'max-w-6xl',
+            '5xl' => 'max-w-5xl', '4xl' => 'max-w-4xl', '3xl' => 'max-w-3xl', '2xl' => 'max-w-2xl',
+            'xl' => 'max-w-xl', 'prose' => 'max-w-prose',
+        ];
+
+        $mobile = $widths[$data['mobile'] ?? 'full'] ?? 'max-w-full';
+        $tablet = $widths[$data['tablet'] ?? 'full'] ?? 'max-w-full';
+        $desktop = $widths[$data['desktop'] ?? '7xl'] ?? 'max-w-7xl';
+
+        // Build responsive width classes: base=mobile, md:=tablet, lg:=desktop
+        $widthClasses = trim(
+            $mobile.
+            ($tablet !== $mobile ? ' md:'.$tablet : '').
+            ($desktop !== $tablet ? ' lg:'.$desktop : '')
+        );
+
+        $wrapperClass = trim($data['wrapperClass'] ?? '');
+        $innerClass = trim($data['innerClass'] ?? 'mx-auto px-4 sm:px-6 lg:px-8');
+
+        // Render nested content recursively
+        $content = $data['content'] ?? ['blocks' => []];
+        $innerHtml = '';
+        if (is_array($content) && isset($content['blocks']) && is_array($content['blocks'])) {
+            foreach ($content['blocks'] as $block) {
+                $innerHtml .= $this->renderBlock($block);
+            }
+        }
+
+        $wrapperAttrs = $wrapperClass ? ' class="'.e($wrapperClass).'"' : '';
+
+        return '<div'.$wrapperAttrs.'><div class="'.e($widthClasses.' '.$innerClass).'">'.$innerHtml.'</div></div>';
     }
 
     protected function renderColumns(array $data): string

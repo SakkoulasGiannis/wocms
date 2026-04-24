@@ -129,6 +129,157 @@
 {{-- <script src="https://cdn.jsdelivr.net/npm/editorjs-undo@2.0.1/dist/bundle.js"></script> --}}
 
 <script>
+/* ─── Container block: wraps content with responsive max-width + custom classes ─── */
+window.ContainerTool = class ContainerTool {
+    static get toolbox() {
+        return { title: 'Container', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h12M6 14h8"/></svg>' };
+    }
+    static get isReadOnlySupported() { return true; }
+
+    // Preset max-widths (map to Tailwind max-w-*)
+    static get WIDTHS() {
+        return {
+            'full':   { label: 'Full width',    class: 'max-w-full' },
+            '8xl':    { label: '8xl (88rem)',   class: 'max-w-8xl' },
+            '7xl':    { label: '7xl (80rem)',   class: 'max-w-7xl' },
+            '6xl':    { label: '6xl (72rem)',   class: 'max-w-6xl' },
+            '5xl':    { label: '5xl (64rem)',   class: 'max-w-5xl' },
+            '4xl':    { label: '4xl (56rem)',   class: 'max-w-4xl' },
+            '3xl':    { label: '3xl (48rem)',   class: 'max-w-3xl' },
+            '2xl':    { label: '2xl (42rem)',   class: 'max-w-2xl' },
+            'xl':     { label: 'xl (36rem)',    class: 'max-w-xl' },
+            'prose':  { label: 'Prose (65ch)',  class: 'max-w-prose' },
+        };
+    }
+
+    constructor({ data, api, config }) {
+        this.api = api;
+        const d = data && typeof data === 'object' ? data : {};
+        this.data = {
+            desktop: d.desktop || '7xl',
+            tablet: d.tablet || 'full',
+            mobile: d.mobile || 'full',
+            wrapperClass: d.wrapperClass || '',
+            innerClass: d.innerClass || '',
+            content: d.content || { blocks: [] },
+        };
+        this.subEditor = null;
+    }
+
+    renderSettings() {
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = 'padding:8px;display:flex;flex-direction:column;gap:10px;width:280px';
+
+        const makeSelect = (label, key) => {
+            const lab = document.createElement('label');
+            lab.style.cssText = 'font-size:11px;font-weight:600;color:#374151;display:block;margin-bottom:2px';
+            lab.textContent = label;
+            const sel = document.createElement('select');
+            sel.style.cssText = 'width:100%;padding:6px 8px;border:1px solid #e5e7eb;border-radius:4px;font-size:12px';
+            Object.entries(ContainerTool.WIDTHS).forEach(([k, v]) => {
+                const opt = document.createElement('option');
+                opt.value = k; opt.textContent = v.label;
+                if (this.data[key] === k) opt.selected = true;
+                sel.appendChild(opt);
+            });
+            sel.addEventListener('change', (e) => { this.data[key] = e.target.value; this.updateLabel(); });
+            const wrap = document.createElement('div');
+            wrap.appendChild(lab); wrap.appendChild(sel);
+            return wrap;
+        };
+
+        wrapper.appendChild(makeSelect('📱 Mobile', 'mobile'));
+        wrapper.appendChild(makeSelect('📱 Tablet', 'tablet'));
+        wrapper.appendChild(makeSelect('🖥️ Desktop', 'desktop'));
+
+        const makeInput = (label, key, placeholder) => {
+            const lab = document.createElement('label');
+            lab.style.cssText = 'font-size:11px;font-weight:600;color:#374151;display:block;margin-bottom:2px';
+            lab.textContent = label;
+            const inp = document.createElement('input');
+            inp.type = 'text';
+            inp.placeholder = placeholder;
+            inp.value = this.data[key] || '';
+            inp.style.cssText = 'width:100%;padding:6px 8px;border:1px solid #e5e7eb;border-radius:4px;font-size:12px;font-family:monospace';
+            inp.addEventListener('input', (e) => { this.data[key] = e.target.value; });
+            const wrap = document.createElement('div');
+            wrap.appendChild(lab); wrap.appendChild(inp);
+            return wrap;
+        };
+
+        wrapper.appendChild(makeInput('Wrapper classes (outer)', 'wrapperClass', 'py-12 bg-slate-50'));
+        wrapper.appendChild(makeInput('Inner classes (content)', 'innerClass', 'mx-auto px-4 sm:px-6 lg:px-8'));
+
+        return wrapper;
+    }
+
+    updateLabel() {
+        if (this.labelEl) {
+            this.labelEl.textContent = `Container · M:${this.data.mobile} T:${this.data.tablet} D:${this.data.desktop}`;
+        }
+    }
+
+    render() {
+        this.wrap = document.createElement('div');
+        this.wrap.style.cssText = 'position:relative;padding:16px;border:2px dashed #c084fc;border-radius:8px;background:#faf5ff';
+
+        this.labelEl = document.createElement('div');
+        this.labelEl.style.cssText = 'position:absolute;top:-10px;left:10px;background:#faf5ff;padding:0 6px;font-size:11px;color:#7c3aed;font-weight:600;text-transform:uppercase;letter-spacing:0.05em';
+        this.updateLabel();
+        this.wrap.appendChild(this.labelEl);
+
+        const holder = document.createElement('div');
+        holder.id = `ej-container-${Math.random().toString(36).slice(2, 9)}`;
+        this.wrap.appendChild(holder);
+
+        try {
+            const subTools = {
+                header: { class: Header, inlineToolbar: true, config: { levels: [1, 2, 3, 4, 5, 6], defaultLevel: 2 } },
+                list: { class: NestedList, inlineToolbar: true },
+                quote: { class: Quote, inlineToolbar: true },
+                marker: Marker,
+                inlineCode: InlineCode,
+                underline: Underline,
+                ...(window.ColorTool ? { color: { class: window.ColorTool } } : {}),
+                ...(window.BlockClassesTune ? { blockClasses: window.BlockClassesTune } : {}),
+            };
+            if (window.__editorImageTool) subTools.image = window.__editorImageTool;
+
+            this.subEditor = new EditorJS({
+                holder: holder,
+                placeholder: 'Container content...',
+                data: this.data.content || { blocks: [] },
+                minHeight: 80,
+                tools: subTools,
+                tunes: window.BlockClassesTune ? ['blockClasses'] : [],
+                onChange: async () => {
+                    try { this.data.content = await this.subEditor.save(); } catch (e) {}
+                },
+            });
+        } catch (e) {
+            console.warn('Container sub-editor init failed:', e);
+        }
+
+        return this.wrap;
+    }
+
+    async save() {
+        if (this.subEditor && typeof this.subEditor.save === 'function') {
+            try { this.data.content = await this.subEditor.save(); } catch (e) {}
+        }
+        return { ...this.data };
+    }
+
+    destroy() {
+        try { this.subEditor?.destroy?.(); } catch (e) {}
+        this.subEditor = null;
+    }
+
+    static get sanitize() {
+        return { desktop: false, tablet: false, mobile: false, wrapperClass: false, innerClass: false, content: false };
+    }
+};
+
 /* ─── Block Tune: Custom CSS Classes (Tailwind) on the block element itself ─── */
 window.BlockClassesTune = class BlockClassesTune {
     static get isTune() { return true; }
@@ -561,6 +712,9 @@ function editorjsField(config) {
 
                     // Columns block (custom)
                     ...(window.ColumnsTool ? { columns: { class: window.ColumnsTool } } : {}),
+
+                    // Container block (custom) — responsive max-width
+                    ...(window.ContainerTool ? { container: { class: window.ContainerTool } } : {}),
                 },
                 tunes: window.BlockClassesTune ? ['blockClasses'] : [],
 
