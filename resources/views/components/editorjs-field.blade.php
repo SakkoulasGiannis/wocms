@@ -129,6 +129,118 @@
 {{-- <script src="https://cdn.jsdelivr.net/npm/editorjs-undo@2.0.1/dist/bundle.js"></script> --}}
 
 <script>
+/* ─── Inline Text Color tool ─── */
+window.ColorTool = class ColorTool {
+    static get isInline() { return true; }
+    static get title() { return 'Text Color'; }
+    static get sanitize() { return { span: { style: true, class: true } }; }
+
+    constructor({ api }) {
+        this.api = api;
+        this.tag = 'SPAN';
+        this.palette = [
+            { name: 'Default', value: '' },
+            { name: 'Brand', value: 'var(--color-brand, #1563DF)' },
+            { name: 'Brand Dark', value: 'var(--color-brand-dark, #0d47a1)' },
+            { name: 'Red', value: '#dc2626' },
+            { name: 'Orange', value: '#ea580c' },
+            { name: 'Amber', value: '#d97706' },
+            { name: 'Green', value: '#16a34a' },
+            { name: 'Teal', value: '#0d9488' },
+            { name: 'Blue', value: '#2563eb' },
+            { name: 'Purple', value: '#9333ea' },
+            { name: 'Pink', value: '#db2777' },
+            { name: 'Gray', value: '#6b7280' },
+            { name: 'Black', value: '#111827' },
+        ];
+    }
+
+    render() {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.classList.add('ce-inline-tool');
+        btn.title = 'Text Color';
+        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16M6 16L12 4l6 12M8 12h8"/></svg>';
+        this.button = btn;
+        return btn;
+    }
+
+    renderActions() {
+        const wrap = document.createElement('div');
+        wrap.classList.add('ce-color-palette');
+        wrap.style.cssText = 'display:none;padding:6px;background:#fff;border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.08);display:flex;flex-wrap:wrap;gap:4px;max-width:240px';
+        this.palette.forEach(c => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.title = c.name;
+            btn.style.cssText = `width:24px;height:24px;border-radius:4px;cursor:pointer;border:1px solid #e5e7eb;${c.value ? `background:${c.value}` : 'background:linear-gradient(45deg,#fff 48%,#ef4444 48%,#ef4444 52%,#fff 52%)'}`;
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.applyColor(c.value);
+                this.hidePalette();
+            });
+            wrap.appendChild(btn);
+        });
+        wrap.style.display = 'none';
+        this.paletteEl = wrap;
+        return wrap;
+    }
+
+    showPalette() { if (this.paletteEl) this.paletteEl.style.display = 'flex'; }
+    hidePalette() { if (this.paletteEl) this.paletteEl.style.display = 'none'; }
+
+    surround(range) {
+        this.range = range;
+        if (this.paletteEl && this.paletteEl.style.display === 'flex') {
+            this.hidePalette();
+        } else {
+            this.showPalette();
+        }
+    }
+
+    applyColor(color) {
+        if (!this.range) {
+            const sel = window.getSelection();
+            if (sel && sel.rangeCount) this.range = sel.getRangeAt(0);
+        }
+        if (!this.range) return;
+
+        // Remove existing color wrapper if empty color (Default)
+        if (!color) {
+            const contents = this.range.extractContents();
+            // Strip color styles from all spans
+            const wrapper = document.createElement('div');
+            wrapper.appendChild(contents);
+            wrapper.querySelectorAll('span[style]').forEach(span => {
+                span.style.color = '';
+                if (!span.getAttribute('style')) span.removeAttribute('style');
+            });
+            const frag = document.createDocumentFragment();
+            while (wrapper.firstChild) frag.appendChild(wrapper.firstChild);
+            this.range.insertNode(frag);
+            return;
+        }
+
+        const span = document.createElement('span');
+        span.style.color = color;
+        span.appendChild(this.range.extractContents());
+        this.range.insertNode(span);
+
+        // Re-select the new span
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        const newRange = document.createRange();
+        newRange.selectNodeContents(span);
+        sel.addRange(newRange);
+    }
+
+    checkState() {
+        // Could highlight the button if selection is already colored — skipped for simplicity
+        return false;
+    }
+};
+
 /* ─── Custom ColumnsTool for EditorJS (2 / 3 / 4 columns) ─── */
 window.ColumnsTool = class ColumnsTool {
     static get toolbox() {
@@ -382,28 +494,33 @@ function editorjsField(config) {
                     marker: Marker,
                     inlineCode: InlineCode,
                     underline: Underline,
+                    ...(window.ColorTool ? { color: { class: window.ColorTool } } : {}),
 
                     // Columns block (custom)
                     ...(window.ColumnsTool ? { columns: { class: window.ColumnsTool } } : {}),
                 },
 
-                onChange: async (api, event) => {
-                    try {
-                        const outputData = await self.editor.save();
-                        const json = JSON.stringify(outputData);
-                        if (self.wireModel) {
-                            // Find Livewire component and set value
-                            const el = document.getElementById(self.uid);
-                            if (el) {
-                                const lwEl = el.closest('[wire\\:id]');
-                                if (lwEl && window.Livewire) {
-                                    Livewire.find(lwEl.getAttribute('wire:id'))?.set(self.wireModel, json, false);
+                onChange: (api, event) => {
+                    // Debounce: wait 600ms after last change before syncing to Livewire (triggers server save + preview)
+                    clearTimeout(self._saveTimer);
+                    self._saveTimer = setTimeout(async () => {
+                        try {
+                            const outputData = await self.editor.save();
+                            const json = JSON.stringify(outputData);
+                            if (self.wireModel) {
+                                const el = document.getElementById(self.uid);
+                                if (el) {
+                                    const lwEl = el.closest('[wire\\:id]');
+                                    if (lwEl && window.Livewire) {
+                                        // true = sync with server immediately (triggers updatedSectionContent → save + preview refresh)
+                                        Livewire.find(lwEl.getAttribute('wire:id'))?.set(self.wireModel, json, true);
+                                    }
                                 }
                             }
+                        } catch (e) {
+                            console.error('EditorJS save error:', e);
                         }
-                    } catch(e) {
-                        console.error('EditorJS save error:', e);
-                    }
+                    }, 600);
                 },
 
                 onReady: () => {

@@ -1,4 +1,69 @@
 @push('scripts')
+{{-- Inline Text Color tool --}}
+<script>
+if (!window.ColorTool) {
+window.ColorTool = class ColorTool {
+    static get isInline() { return true; }
+    static get title() { return 'Text Color'; }
+    static get sanitize() { return { span: { style: true, class: true } }; }
+    constructor({ api }) {
+        this.api = api;
+        this.palette = [
+            { name: 'Default', value: '' },
+            { name: 'Brand', value: 'var(--color-brand, #1563DF)' },
+            { name: 'Brand Dark', value: 'var(--color-brand-dark, #0d47a1)' },
+            { name: 'Red', value: '#dc2626' }, { name: 'Orange', value: '#ea580c' }, { name: 'Amber', value: '#d97706' },
+            { name: 'Green', value: '#16a34a' }, { name: 'Teal', value: '#0d9488' }, { name: 'Blue', value: '#2563eb' },
+            { name: 'Purple', value: '#9333ea' }, { name: 'Pink', value: '#db2777' }, { name: 'Gray', value: '#6b7280' }, { name: 'Black', value: '#111827' },
+        ];
+    }
+    render() {
+        const btn = document.createElement('button');
+        btn.type = 'button'; btn.classList.add('ce-inline-tool'); btn.title = 'Text Color';
+        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16M6 16L12 4l6 12M8 12h8"/></svg>';
+        return btn;
+    }
+    renderActions() {
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'padding:6px;background:#fff;border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.08);display:flex;flex-wrap:wrap;gap:4px;max-width:240px';
+        this.palette.forEach(c => {
+            const b = document.createElement('button');
+            b.type = 'button'; b.title = c.name;
+            b.style.cssText = `width:24px;height:24px;border-radius:4px;cursor:pointer;border:1px solid #e5e7eb;${c.value ? `background:${c.value}` : 'background:linear-gradient(45deg,#fff 48%,#ef4444 48%,#ef4444 52%,#fff 52%)'}`;
+            b.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); this.applyColor(c.value); this.hidePalette(); });
+            wrap.appendChild(b);
+        });
+        wrap.style.display = 'none';
+        this.paletteEl = wrap;
+        return wrap;
+    }
+    showPalette() { if (this.paletteEl) this.paletteEl.style.display = 'flex'; }
+    hidePalette() { if (this.paletteEl) this.paletteEl.style.display = 'none'; }
+    surround(range) {
+        this.range = range;
+        if (this.paletteEl && this.paletteEl.style.display === 'flex') this.hidePalette();
+        else this.showPalette();
+    }
+    applyColor(color) {
+        if (!this.range) { const sel = window.getSelection(); if (sel && sel.rangeCount) this.range = sel.getRangeAt(0); }
+        if (!this.range) return;
+        if (!color) {
+            const contents = this.range.extractContents();
+            const w = document.createElement('div'); w.appendChild(contents);
+            w.querySelectorAll('span[style]').forEach(s => { s.style.color = ''; if (!s.getAttribute('style')) s.removeAttribute('style'); });
+            const frag = document.createDocumentFragment(); while (w.firstChild) frag.appendChild(w.firstChild);
+            this.range.insertNode(frag);
+            return;
+        }
+        const span = document.createElement('span'); span.style.color = color;
+        span.appendChild(this.range.extractContents());
+        this.range.insertNode(span);
+    }
+    checkState() { return false; }
+};
+}
+</script>
+
 {{-- Custom Columns block for EditorJS (2/3/4/5/6 cols) with nested EditorJS per column --}}
 <script>
 window.ColumnsTool = class ColumnsTool {
@@ -273,20 +338,25 @@ if (typeof window.editorjsField === 'undefined') {
                         embed: { class: Embed, config: { services: { youtube: true, vimeo: true, twitter: true } } },
                         linkTool: { class: LinkTool, config: { endpoint: self.fetchImageUrl } },
                         raw: RawTool, marker: Marker, inlineCode: InlineCode, underline: Underline,
+                        ...(window.ColorTool ? { color: { class: window.ColorTool } } : {}),
                         ...(window.ColumnsTool ? { columns: { class: window.ColumnsTool } } : {}),
                     },
-                    onChange: async () => {
-                        try {
-                            const data = await self.editor.save();
-                            const json = JSON.stringify(data);
-                            if (self.wireModel) {
-                                const el = document.getElementById(self.uid);
-                                if (el) {
-                                    const lw = el.closest('[wire\\:id]');
-                                    if (lw && window.Livewire) Livewire.find(lw.getAttribute('wire:id'))?.set(self.wireModel, json, false);
+                    onChange: () => {
+                        // Debounce: auto-save after 600ms of inactivity, sync immediately so preview refreshes
+                        clearTimeout(self._saveTimer);
+                        self._saveTimer = setTimeout(async () => {
+                            try {
+                                const data = await self.editor.save();
+                                const json = JSON.stringify(data);
+                                if (self.wireModel) {
+                                    const el = document.getElementById(self.uid);
+                                    if (el) {
+                                        const lw = el.closest('[wire\\:id]');
+                                        if (lw && window.Livewire) Livewire.find(lw.getAttribute('wire:id'))?.set(self.wireModel, json, true);
+                                    }
                                 }
-                            }
-                        } catch(e) { console.error(e); }
+                            } catch (e) { console.error(e); }
+                        }, 600);
                     },
                     onReady: () => {
                         const el = document.getElementById(self.uid);
