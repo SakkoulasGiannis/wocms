@@ -778,6 +778,44 @@ window.BlockClassesTune = class BlockClassesTune {
     }
 };
 
+/* ─── Helpers used by TextAlignmentTune (selector + bulk save patch) ─── */
+window.findBlockPrimary = window.findBlockPrimary || function(blockEl) {
+    if (!blockEl) return null;
+    // EditorJS renders paragraphs as <div class="ce-paragraph">, headers as <h2 class="ce-header">,
+    // lists as <ul>/<ol>, quotes as <blockquote>, etc. Cover them all.
+    return blockEl.querySelector(
+        '.ce-paragraph, .ce-header, .cdx-quote__text, h1, h2, h3, h4, h5, h6, p, blockquote, ul, ol, figure, pre, [contenteditable="true"]'
+    );
+};
+window.applyAlignmentToBlockElement = window.applyAlignmentToBlockElement || function(blockEl, alignment) {
+    if (!blockEl) return;
+    const primary = window.findBlockPrimary(blockEl);
+    if (primary) primary.style.textAlign = alignment || '';
+    if (alignment) {
+        blockEl.dataset.textAlignment = alignment;
+    } else {
+        delete blockEl.dataset.textAlignment;
+    }
+};
+/**
+ * Walks an EditorJS save() output and injects tunes.textAlignment based on
+ * dataset.textAlignment that the tune wrote on each .ce-block (used for bulk
+ * multi-block alignment where only ONE tune instance is interacted with).
+ */
+window.patchAlignmentTunes = window.patchAlignmentTunes || function(outputData, containerEl) {
+    if (!outputData || !Array.isArray(outputData.blocks) || !containerEl) return;
+    outputData.blocks.forEach((block) => {
+        if (!block.id) return;
+        const el = containerEl.querySelector(`.ce-block[data-id="${block.id}"]`);
+        if (!el) return;
+        const al = el.dataset.textAlignment;
+        if (al && al !== '') {
+            block.tunes = block.tunes || {};
+            block.tunes.textAlignment = { alignment: al };
+        }
+    });
+};
+
 /* ─── Block Tune: Text Alignment (Left / Center / Right / Justify) ─── */
 window.TextAlignmentTune = class TextAlignmentTune {
     static get isTune() { return true; }
@@ -796,11 +834,24 @@ window.TextAlignmentTune = class TextAlignmentTune {
         this.block = block;
         this.data = (data && typeof data === 'object') ? data : {};
         this.buttons = [];
+        this.countLabel = null;
+    }
+
+    /** Find currently-selected blocks (multi-select). Always includes current block. */
+    getTargetBlocks() {
+        const selected = Array.from(document.querySelectorAll('.ce-block--selected'));
+        const own = (this.block && this.block.holder) ? this.block.holder : null;
+        if (selected.length > 0) {
+            // ensure own block is in the list (sometimes it's not marked selected)
+            if (own && !selected.includes(own)) selected.push(own);
+            return selected;
+        }
+        return own ? [own] : [];
     }
 
     render() {
         const wrap = document.createElement('div');
-        wrap.style.cssText = 'display:flex;gap:2px;padding:4px 6px;border-bottom:1px solid #f3f4f6';
+        wrap.style.cssText = 'display:flex;gap:2px;padding:4px 6px;border-bottom:1px solid #f3f4f6;flex-wrap:wrap;align-items:center';
 
         const lbl = document.createElement('span');
         lbl.textContent = 'Align';
@@ -812,24 +863,48 @@ window.TextAlignmentTune = class TextAlignmentTune {
             btn.type = 'button';
             btn.title = opt.label + ' align';
             btn.dataset.align = opt.key;
-            btn.style.cssText = 'flex:1;display:inline-flex;align-items:center;justify-content:center;padding:5px 6px;border:1px solid #e5e7eb;border-radius:4px;cursor:pointer;background:#fff;color:#374151;transition:all .12s';
+            btn.style.cssText = 'flex:1;min-width:32px;display:inline-flex;align-items:center;justify-content:center;padding:5px 6px;border:1px solid #e5e7eb;border-radius:4px;cursor:pointer;background:#fff;color:#374151;transition:all .12s';
             btn.innerHTML = opt.icon;
             btn.addEventListener('click', (e) => {
                 e.preventDefault(); e.stopPropagation();
-                // Toggle: clicking the active alignment clears it
                 const next = (this.data.alignment === opt.key) ? null : opt.key;
-                this.data.alignment = next;
-                this.applyToBlock();
-                this.refreshActive();
+                const targets = this.getTargetBlocks();
+                targets.forEach(blockEl => window.applyAlignmentToBlockElement(blockEl, next));
+                // Update our own data when our block is in the targets
+                const own = (this.block && this.block.holder) ? this.block.holder : null;
+                if (own && targets.includes(own)) {
+                    this.data.alignment = next;
+                    this.refreshActive();
+                }
+                this.dispatchChange();
+                if (targets.length > 1) {
+                    this.flashCount(`Applied to ${targets.length} blocks`);
+                }
             });
             this.buttons.push(btn);
             wrap.appendChild(btn);
         });
 
-        // Apply current state visually + restore on existing block
-        setTimeout(() => { this.refreshActive(); this.applyToBlock(); }, 30);
+        // Tiny status line that briefly shows how many blocks were affected
+        this.countLabel = document.createElement('div');
+        this.countLabel.style.cssText = 'font-size:10px;color:#10b981;width:100%;padding:2px 0 0;text-align:right;opacity:0;transition:opacity .25s ease';
+        wrap.appendChild(this.countLabel);
 
+        setTimeout(() => { this.refreshActive(); this.applyToBlock(); }, 30);
         return wrap;
+    }
+
+    flashCount(msg) {
+        if (!this.countLabel) return;
+        this.countLabel.textContent = '✓ ' + msg;
+        this.countLabel.style.opacity = '1';
+        clearTimeout(this._flashTimer);
+        this._flashTimer = setTimeout(() => { this.countLabel.style.opacity = '0'; }, 1800);
+    }
+
+    /** Triggers EditorJS to re-save (so onChange fires with patched tune data). */
+    dispatchChange() {
+        try { this.block?.dispatchChange?.(); } catch (e) {}
     }
 
     refreshActive() {
@@ -848,10 +923,7 @@ window.TextAlignmentTune = class TextAlignmentTune {
                 const idx = this.api.blocks.getCurrentBlockIndex?.() ?? -1;
                 if (idx >= 0) blockEl = document.querySelectorAll('.ce-block')[idx];
             }
-            if (!blockEl) return;
-            const primary = blockEl.querySelector('h1,h2,h3,h4,h5,h6,p,blockquote,ul,ol,li,figure,pre');
-            if (!primary) return;
-            primary.style.textAlign = this.data.alignment || '';
+            window.applyAlignmentToBlockElement(blockEl, this.data.alignment);
         } catch (e) {}
     }
 
@@ -1256,6 +1328,11 @@ function editorjsField(config) {
                     self._saveTimer = setTimeout(async () => {
                         try {
                             const outputData = await self.editor.save();
+                            // Inject textAlignment tune data for any blocks that were
+                            // bulk-aligned via dataset (multi-select scenario).
+                            if (typeof window.patchAlignmentTunes === 'function') {
+                                window.patchAlignmentTunes(outputData, document.getElementById(self.uid));
+                            }
                             const json = JSON.stringify(outputData);
                             if (self.wireModel) {
                                 const el = document.getElementById(self.uid);

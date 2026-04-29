@@ -213,6 +213,30 @@ window.BlockClassesTune = class BlockClassesTune {
 
 {{-- Block Tune: Text Alignment (fallback if component hasn't defined it) --}}
 <script>
+window.findBlockPrimary = window.findBlockPrimary || function(blockEl) {
+    if (!blockEl) return null;
+    return blockEl.querySelector('.ce-paragraph, .ce-header, .cdx-quote__text, h1, h2, h3, h4, h5, h6, p, blockquote, ul, ol, figure, pre, [contenteditable="true"]');
+};
+window.applyAlignmentToBlockElement = window.applyAlignmentToBlockElement || function(blockEl, alignment) {
+    if (!blockEl) return;
+    const primary = window.findBlockPrimary(blockEl);
+    if (primary) primary.style.textAlign = alignment || '';
+    if (alignment) blockEl.dataset.textAlignment = alignment; else delete blockEl.dataset.textAlignment;
+};
+window.patchAlignmentTunes = window.patchAlignmentTunes || function(outputData, containerEl) {
+    if (!outputData || !Array.isArray(outputData.blocks) || !containerEl) return;
+    outputData.blocks.forEach((block) => {
+        if (!block.id) return;
+        const el = containerEl.querySelector(`.ce-block[data-id="${block.id}"]`);
+        if (!el) return;
+        const al = el.dataset.textAlignment;
+        if (al && al !== '') {
+            block.tunes = block.tunes || {};
+            block.tunes.textAlignment = { alignment: al };
+        }
+    });
+};
+
 if (!window.TextAlignmentTune) {
 window.TextAlignmentTune = class TextAlignmentTune {
     static get isTune() { return true; }
@@ -227,11 +251,20 @@ window.TextAlignmentTune = class TextAlignmentTune {
     constructor({ api, data, block }) {
         this.api = api; this.block = block;
         this.data = (data && typeof data === 'object') ? data : {};
-        this.buttons = [];
+        this.buttons = []; this.countLabel = null;
+    }
+    getTargetBlocks() {
+        const selected = Array.from(document.querySelectorAll('.ce-block--selected'));
+        const own = (this.block && this.block.holder) ? this.block.holder : null;
+        if (selected.length > 0) {
+            if (own && !selected.includes(own)) selected.push(own);
+            return selected;
+        }
+        return own ? [own] : [];
     }
     render() {
         const wrap = document.createElement('div');
-        wrap.style.cssText = 'display:flex;gap:2px;padding:4px 6px;border-bottom:1px solid #f3f4f6';
+        wrap.style.cssText = 'display:flex;gap:2px;padding:4px 6px;border-bottom:1px solid #f3f4f6;flex-wrap:wrap;align-items:center';
         const lbl = document.createElement('span');
         lbl.textContent = 'Align';
         lbl.style.cssText = 'font-size:11px;color:#6b7280;align-self:center;margin-right:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em';
@@ -239,20 +272,35 @@ window.TextAlignmentTune = class TextAlignmentTune {
         TextAlignmentTune.OPTIONS.forEach(opt => {
             const btn = document.createElement('button');
             btn.type = 'button'; btn.title = opt.label + ' align'; btn.dataset.align = opt.key;
-            btn.style.cssText = 'flex:1;display:inline-flex;align-items:center;justify-content:center;padding:5px 6px;border:1px solid #e5e7eb;border-radius:4px;cursor:pointer;background:#fff;color:#374151;transition:all .12s';
+            btn.style.cssText = 'flex:1;min-width:32px;display:inline-flex;align-items:center;justify-content:center;padding:5px 6px;border:1px solid #e5e7eb;border-radius:4px;cursor:pointer;background:#fff;color:#374151;transition:all .12s';
             btn.innerHTML = opt.icon;
             btn.addEventListener('click', (e) => {
                 e.preventDefault(); e.stopPropagation();
                 const next = (this.data.alignment === opt.key) ? null : opt.key;
-                this.data.alignment = next;
-                this.applyToBlock();
-                this.refreshActive();
+                const targets = this.getTargetBlocks();
+                targets.forEach(blockEl => window.applyAlignmentToBlockElement(blockEl, next));
+                const own = (this.block && this.block.holder) ? this.block.holder : null;
+                if (own && targets.includes(own)) {
+                    this.data.alignment = next;
+                    this.refreshActive();
+                }
+                try { this.block?.dispatchChange?.(); } catch (er) {}
+                if (targets.length > 1) this.flashCount(`Applied to ${targets.length} blocks`);
             });
-            this.buttons.push(btn);
-            wrap.appendChild(btn);
+            this.buttons.push(btn); wrap.appendChild(btn);
         });
+        this.countLabel = document.createElement('div');
+        this.countLabel.style.cssText = 'font-size:10px;color:#10b981;width:100%;padding:2px 0 0;text-align:right;opacity:0;transition:opacity .25s ease';
+        wrap.appendChild(this.countLabel);
         setTimeout(() => { this.refreshActive(); this.applyToBlock(); }, 30);
         return wrap;
+    }
+    flashCount(msg) {
+        if (!this.countLabel) return;
+        this.countLabel.textContent = '✓ ' + msg;
+        this.countLabel.style.opacity = '1';
+        clearTimeout(this._flashTimer);
+        this._flashTimer = setTimeout(() => { this.countLabel.style.opacity = '0'; }, 1800);
     }
     refreshActive() {
         this.buttons.forEach(b => {
@@ -269,9 +317,7 @@ window.TextAlignmentTune = class TextAlignmentTune {
                 const idx = this.api.blocks.getCurrentBlockIndex?.() ?? -1;
                 if (idx >= 0) blockEl = document.querySelectorAll('.ce-block')[idx];
             }
-            if (!blockEl) return;
-            const primary = blockEl.querySelector('h1,h2,h3,h4,h5,h6,p,blockquote,ul,ol,li,figure,pre');
-            if (primary) primary.style.textAlign = this.data.alignment || '';
+            window.applyAlignmentToBlockElement(blockEl, this.data.alignment);
         } catch (e) {}
     }
     save() { return { alignment: this.data.alignment || null }; }
@@ -683,6 +729,9 @@ if (typeof window.editorjsField === 'undefined') {
                         self._saveTimer = setTimeout(async () => {
                             try {
                                 const data = await self.editor.save();
+                                if (typeof window.patchAlignmentTunes === 'function') {
+                                    window.patchAlignmentTunes(data, document.getElementById(self.uid));
+                                }
                                 const json = JSON.stringify(data);
                                 if (self.wireModel) {
                                     const el = document.getElementById(self.uid);
