@@ -1,11 +1,35 @@
 @push('scripts')
-{{-- Container block: responsive max-width per breakpoint --}}
+{{-- Container block: responsive max-width per breakpoint + live visual preview --}}
+<style>
+.editorjs-container .ce-block__content:has(.ctr-tool-wrap) {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+}
+.editorjs-container .ctr-tool-wrap {
+    margin-left: auto !important;
+    margin-right: auto !important;
+    transition: max-width .18s ease;
+}
+</style>
 <script>
-if (!window.ContainerTool) {
 window.ContainerTool = class ContainerTool {
     static get toolbox() { return { title: 'Container', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h12M6 14h8"/></svg>' }; }
     static get isReadOnlySupported() { return true; }
-    static get WIDTHS() { return { full: { label: 'Full width', class: 'max-w-full' }, '8xl': { label: '8xl', class: 'max-w-8xl' }, '7xl': { label: '7xl', class: 'max-w-7xl' }, '6xl': { label: '6xl', class: 'max-w-6xl' }, '5xl': { label: '5xl', class: 'max-w-5xl' }, '4xl': { label: '4xl', class: 'max-w-4xl' }, '3xl': { label: '3xl', class: 'max-w-3xl' }, '2xl': { label: '2xl', class: 'max-w-2xl' }, 'xl': { label: 'xl', class: 'max-w-xl' }, prose: { label: 'Prose', class: 'max-w-prose' } }; }
+    static get WIDTHS() {
+        return {
+            'full':   { label: 'Full width',    class: 'max-w-full',  css: '100%' },
+            '8xl':    { label: '8xl (88rem)',   class: 'max-w-8xl',   css: '88rem' },
+            '7xl':    { label: '7xl (80rem)',   class: 'max-w-7xl',   css: '80rem' },
+            '6xl':    { label: '6xl (72rem)',   class: 'max-w-6xl',   css: '72rem' },
+            '5xl':    { label: '5xl (64rem)',   class: 'max-w-5xl',   css: '64rem' },
+            '4xl':    { label: '4xl (56rem)',   class: 'max-w-4xl',   css: '56rem' },
+            '3xl':    { label: '3xl (48rem)',   class: 'max-w-3xl',   css: '48rem' },
+            '2xl':    { label: '2xl (42rem)',   class: 'max-w-2xl',   css: '42rem' },
+            'xl':     { label: 'xl (36rem)',    class: 'max-w-xl',    css: '36rem' },
+            'prose':  { label: 'Prose (65ch)',  class: 'max-w-prose', css: '65ch' },
+        };
+    }
     constructor({ data, api }) {
         this.api = api;
         const d = data && typeof data === 'object' ? data : {};
@@ -14,12 +38,12 @@ window.ContainerTool = class ContainerTool {
     }
     renderSettings() {
         const w = document.createElement('div');
-        w.style.cssText = 'padding:8px;display:flex;flex-direction:column;gap:10px;width:260px';
+        w.style.cssText = 'padding:8px;display:flex;flex-direction:column;gap:10px;width:280px';
         const mkSel = (lab, k) => {
             const lbl = document.createElement('label'); lbl.textContent = lab; lbl.style.cssText = 'font-size:11px;font-weight:600;color:#374151;display:block;margin-bottom:2px';
             const s = document.createElement('select'); s.style.cssText = 'width:100%;padding:6px 8px;border:1px solid #e5e7eb;border-radius:4px;font-size:12px';
             Object.entries(ContainerTool.WIDTHS).forEach(([kk, v]) => { const o = document.createElement('option'); o.value = kk; o.textContent = v.label; if (this.data[k] === kk) o.selected = true; s.appendChild(o); });
-            s.addEventListener('change', (e) => { this.data[k] = e.target.value; this.updateLabel(); });
+            s.addEventListener('change', (e) => { this.data[k] = e.target.value; this.updateLabel(); this.applyVisualWidth(); });
             const ww = document.createElement('div'); ww.appendChild(lbl); ww.appendChild(s); return ww;
         };
         w.appendChild(mkSel('📱 Mobile', 'mobile'));
@@ -27,25 +51,81 @@ window.ContainerTool = class ContainerTool {
         w.appendChild(mkSel('🖥️ Desktop', 'desktop'));
         const mkInp = (lab, k, ph) => {
             const lbl = document.createElement('label'); lbl.textContent = lab; lbl.style.cssText = 'font-size:11px;font-weight:600;color:#374151;display:block;margin-bottom:2px';
-            const i = document.createElement('input'); i.type = 'text'; i.placeholder = ph; i.value = this.data[k] || ''; i.style.cssText = 'width:100%;padding:6px 8px;border:1px solid #e5e7eb;border-radius:4px;font-size:12px;font-family:monospace';
-            i.addEventListener('input', (e) => { this.data[k] = e.target.value; });
-            const ww = document.createElement('div'); ww.appendChild(lbl); ww.appendChild(i); return ww;
+            const row = document.createElement('div'); row.style.cssText = 'display:flex;gap:4px';
+            const i = document.createElement('input'); i.type = 'text'; i.placeholder = ph; i.value = this.data[k] || ''; i.style.cssText = 'flex:1;padding:6px 8px;border:1px solid #e5e7eb;border-radius:4px;font-size:12px;font-family:monospace';
+            i.addEventListener('input', (e) => { this.data[k] = e.target.value; this.applyLiveClasses(); });
+            const pick = document.createElement('button');
+            pick.type = 'button'; pick.textContent = '.tw'; pick.title = 'Open Tailwind class picker';
+            pick.style.cssText = 'padding:6px 10px;border:1px solid #e5e7eb;border-radius:4px;background:#f9fafb;font-size:11px;font-family:monospace;font-weight:700;cursor:pointer;color:#4f46e5';
+            pick.addEventListener('click', () => {
+                if (typeof window.openTailwindClassPicker === 'function') {
+                    window.openTailwindClassPicker({
+                        current: this.data[k] || '',
+                        title: lab,
+                        onApply: (classes) => { this.data[k] = (classes || '').trim(); i.value = this.data[k]; this.applyLiveClasses(); },
+                    });
+                }
+            });
+            row.appendChild(i); row.appendChild(pick);
+            const ww = document.createElement('div'); ww.appendChild(lbl); ww.appendChild(row); return ww;
         };
-        w.appendChild(mkInp('Wrapper classes', 'wrapperClass', 'py-12 bg-slate-50'));
-        w.appendChild(mkInp('Inner classes', 'innerClass', 'mx-auto px-4'));
+        w.appendChild(mkInp('Wrapper classes (outer)', 'wrapperClass', 'py-12 bg-slate-50'));
+        w.appendChild(mkInp('Inner classes (content)', 'innerClass', 'mx-auto px-4 sm:px-6 lg:px-8'));
         return w;
     }
-    updateLabel() { if (this.labelEl) this.labelEl.textContent = `Container · M:${this.data.mobile} T:${this.data.tablet} D:${this.data.desktop}`; }
+    applyLiveClasses() {
+        // Apply classes live on the editor preview
+        if (this.wrap) {
+            const base = 'ctr-tool-wrap';
+            this.wrap.className = (base + ' ' + (this.data.wrapperClass || '')).trim();
+        }
+        if (this.innerEl) {
+            this.innerEl.className = (this.data.innerClass || '').trim();
+        }
+    }
+    updateLabel() {
+        if (this.labelEl) this.labelEl.textContent = `Container · M:${this.data.mobile} T:${this.data.tablet} D:${this.data.desktop}`;
+    }
+    applyVisualWidth() {
+        if (!this.wrap) return;
+        const w = ContainerTool.WIDTHS[this.data.desktop] || ContainerTool.WIDTHS['full'];
+        const parent = this.wrap.closest('.ce-block__content');
+        if (parent) {
+            parent.style.setProperty('max-width', 'none', 'important');
+            parent.style.setProperty('width', '100%', 'important');
+            parent.style.setProperty('margin', '0', 'important');
+        }
+        this.wrap.style.setProperty('max-width', w.css, 'important');
+        this.wrap.style.setProperty('width', '100%', 'important');
+        this.wrap.style.setProperty('margin-left', 'auto', 'important');
+        this.wrap.style.setProperty('margin-right', 'auto', 'important');
+        if (this.labelEl) {
+            const rect = this.wrap.getBoundingClientRect();
+            const px = Math.round(rect.width);
+            this.labelEl.textContent = `Container · M:${this.data.mobile} T:${this.data.tablet} D:${this.data.desktop} · ${px}px`;
+        }
+    }
     render() {
         this.wrap = document.createElement('div');
-        this.wrap.style.cssText = 'position:relative;padding:16px;border:2px dashed #c084fc;border-radius:8px;background:#faf5ff';
+        this.wrap.className = ('ctr-tool-wrap ' + (this.data.wrapperClass || '')).trim();
+        this.wrap.style.cssText = 'position:relative;padding:18px 10px 10px;border:1px dashed #d1d5db;border-radius:8px;background:transparent;box-sizing:border-box;transition:max-width .18s ease';
         this.labelEl = document.createElement('div');
-        this.labelEl.style.cssText = 'position:absolute;top:-10px;left:10px;background:#faf5ff;padding:0 6px;font-size:11px;color:#7c3aed;font-weight:600;text-transform:uppercase';
+        this.labelEl.style.cssText = 'position:absolute;top:-9px;left:10px;background:#fff;padding:0 6px;font-size:10px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;border-radius:2px';
         this.updateLabel();
         this.wrap.appendChild(this.labelEl);
+
+        // Inner element — receives the user's innerClass live
+        this.innerEl = document.createElement('div');
+        this.innerEl.className = (this.data.innerClass || '').trim();
+        this.wrap.appendChild(this.innerEl);
+
         const h = document.createElement('div');
         h.id = `ej-cont-${Math.random().toString(36).slice(2, 9)}`;
-        this.wrap.appendChild(h);
+        this.innerEl.appendChild(h);
+        setTimeout(() => this.applyVisualWidth(), 30);
+        setTimeout(() => this.applyVisualWidth(), 200);
+        this._onResize = () => this.applyVisualWidth();
+        window.addEventListener('resize', this._onResize);
         try {
             const subTools = {
                 header: { class: Header, inlineToolbar: true, config: { levels: [1, 2, 3, 4, 5, 6], defaultLevel: 2 } },
@@ -65,10 +145,12 @@ window.ContainerTool = class ContainerTool {
         return this.wrap;
     }
     async save() { if (this.subEditor?.save) { try { this.data.content = await this.subEditor.save(); } catch (e) {} } return { ...this.data }; }
-    destroy() { try { this.subEditor?.destroy?.(); } catch (e) {} this.subEditor = null; }
+    destroy() {
+        try { this.subEditor?.destroy?.(); } catch (e) {} this.subEditor = null;
+        if (this._onResize) { window.removeEventListener('resize', this._onResize); this._onResize = null; }
+    }
     static get sanitize() { return { desktop: false, tablet: false, mobile: false, wrapperClass: false, innerClass: false, content: false }; }
 };
-}
 </script>
 
 {{-- Block Tune: per-block CSS classes (Tailwind) --}}
@@ -92,10 +174,21 @@ window.BlockClassesTune = class BlockClassesTune {
     }
     openEditor() {
         const current = this.data.classes || '';
-        const input = prompt('Tailwind / CSS classes for this block:\n(applied to the block element itself — h1, p, img, etc.)', current);
-        if (input === null) return;
-        this.data.classes = input.trim();
-        this.applyToBlock();
+        if (typeof window.openTailwindClassPicker === 'function') {
+            window.openTailwindClassPicker({
+                current,
+                title: 'Tailwind / CSS classes for this block',
+                onApply: (classes) => {
+                    this.data.classes = (classes || '').trim();
+                    this.applyToBlock();
+                },
+            });
+        } else {
+            const input = prompt('Tailwind / CSS classes for this block:\n(applied to the block element itself — h1, p, img, etc.)', current);
+            if (input === null) return;
+            this.data.classes = input.trim();
+            this.applyToBlock();
+        }
     }
     applyToBlock() {
         try {
@@ -380,7 +473,8 @@ window.ColumnsTool = class ColumnsTool {
 <script src="https://cdn.jsdelivr.net/npm/@editorjs/marker@1.4.0/dist/marker.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@editorjs/inline-code@1.5.0/dist/inline-code.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@editorjs/underline@1.2.1/dist/underline.umd.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/editorjs-undo@2.0.1/dist/bundle.js"></script>
+{{-- editorjs-undo disabled — crashes with custom tools (reads .type of undefined) --}}
+{{-- <script src="https://cdn.jsdelivr.net/npm/editorjs-undo@2.0.1/dist/bundle.js"></script> --}}
 {{-- SortableJS --}}
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script>
@@ -903,7 +997,51 @@ if (typeof window.editorjsField === 'undefined') {
                                     @break
 
                                 @case('wysiwyg')
-                                    <div x-data="{ fullscreen: false }"
+                                    <div x-data="{
+                                            fullscreen: false,
+                                            _mo: null,
+                                            _forceWide(root) {
+                                                if (!root) return;
+                                                const widthSelectors = ['.codex-editor', '.codex-editor__redactor'];
+                                                widthSelectors.forEach(sel => root.querySelectorAll(sel).forEach(el => {
+                                                    el.style.setProperty('max-width','100%','important');
+                                                    el.style.setProperty('width','100%','important');
+                                                }));
+                                                const blockSelectors = ['.ce-block__content','.ce-toolbar__content'];
+                                                blockSelectors.forEach(sel => root.querySelectorAll(sel).forEach(el => {
+                                                    el.style.setProperty('max-width','100%','important');
+                                                    el.style.setProperty('width','100%','important');
+                                                    el.style.setProperty('margin','0','important');
+                                                }));
+                                            },
+                                            _clearWide(root) {
+                                                if (!root) return;
+                                                ['.codex-editor','.codex-editor__redactor','.ce-block__content','.ce-toolbar__content'].forEach(sel => {
+                                                    root.querySelectorAll(sel).forEach(el => {
+                                                        el.style.removeProperty('max-width');
+                                                        el.style.removeProperty('width');
+                                                        el.style.removeProperty('margin');
+                                                    });
+                                                });
+                                            },
+                                            applyFullscreen() {
+                                                document.body.classList.toggle('editorjs-fullscreen-mode', this.fullscreen);
+                                                const root = this.$el.querySelector('.editorjs-container');
+                                                if (!root) return;
+                                                if (this.fullscreen) {
+                                                    this._forceWide(root);
+                                                    if (this._mo) this._mo.disconnect();
+                                                    this._mo = new MutationObserver(() => this._forceWide(root));
+                                                    this._mo.observe(root, { childList: true, subtree: true });
+                                                } else {
+                                                    if (this._mo) { this._mo.disconnect(); this._mo = null; }
+                                                    this._clearWide(root);
+                                                }
+                                            },
+                                         }"
+                                         x-init="$watch('fullscreen', () => applyFullscreen())"
+                                         x-on:beforeunload.window="document.body.classList.remove('editorjs-fullscreen-mode'); if(_mo){_mo.disconnect();_mo=null;}"
+                                         x-on:livewire:navigated.window="document.body.classList.remove('editorjs-fullscreen-mode'); if(_mo){_mo.disconnect();_mo=null;}"
                                          :class="fullscreen ? 'fixed inset-0 z-[1000] bg-white flex flex-col editorjs-fullscreen-mode' : ''">
                                         <div :class="fullscreen ? 'flex items-center justify-between px-6 py-3 border-b border-gray-200 bg-gray-50' : 'flex items-center justify-end mb-1'">
                                             <span x-show="fullscreen" class="text-sm font-semibold text-gray-700">{{ $field->label }}</span>
@@ -919,34 +1057,9 @@ if (typeof window.editorjsField === 'undefined') {
                                                 <span x-text="fullscreen ? 'Κλείσιμο' : 'Fullscreen'"></span>
                                             </button>
                                         </div>
-                                        <div :class="fullscreen ? 'flex-1 overflow-y-auto' : ''" style=""
-                                             x-effect="if (fullscreen) $el.style.padding = '15px'; else $el.style.padding = ''">
-                                            <div :class="fullscreen ? 'w-full' : ''"
-                                                 x-effect="
-                                                    const w = $el.querySelector('.editorjs-container');
-                                                    if (w) {
-                                                        w.classList.toggle('editorjs-fullscreen', fullscreen);
-                                                        if (fullscreen) {
-                                                            ['.codex-editor', '.codex-editor__redactor'].forEach(sel => {
-                                                                const el = w.querySelector(sel);
-                                                                if (el) { el.style.maxWidth = '100%'; el.style.width = '100%'; }
-                                                            });
-                                                            w.querySelectorAll('.ce-block__content, .ce-toolbar__content').forEach(el => {
-                                                                el.style.maxWidth = '100%';
-                                                                el.style.margin = '0';
-                                                            });
-                                                        } else {
-                                                            ['.codex-editor', '.codex-editor__redactor'].forEach(sel => {
-                                                                const el = w.querySelector(sel);
-                                                                if (el) { el.style.maxWidth = ''; el.style.width = ''; }
-                                                            });
-                                                            w.querySelectorAll('.ce-block__content, .ce-toolbar__content').forEach(el => {
-                                                                el.style.maxWidth = '';
-                                                                el.style.margin = '';
-                                                            });
-                                                        }
-                                                    }
-                                                 ">
+                                        <div :class="fullscreen ? 'flex-1 overflow-y-auto' : ''"
+                                             :style="fullscreen ? 'padding:15px' : ''">
+                                            <div :class="fullscreen ? 'w-full' : ''">
                                                 <x-editorjs-field
                                                     :name="'ve.' . $field->name"
                                                     :value="$sectionContent[$field->name] ?? ''"
