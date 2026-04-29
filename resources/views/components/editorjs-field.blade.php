@@ -666,6 +666,7 @@ window.ContainerTool = class ContainerTool {
                 underline: Underline,
                 ...(window.ColorTool ? { color: { class: window.ColorTool } } : {}),
                 ...(window.BlockClassesTune ? { blockClasses: window.BlockClassesTune } : {}),
+                ...(window.TextAlignmentTune ? { textAlignment: window.TextAlignmentTune } : {}),
             };
             if (window.__editorImageTool) subTools.image = window.__editorImageTool;
 
@@ -675,7 +676,10 @@ window.ContainerTool = class ContainerTool {
                 data: this.data.content || { blocks: [] },
                 minHeight: 80,
                 tools: subTools,
-                tunes: window.BlockClassesTune ? ['blockClasses'] : [],
+                tunes: [
+                    ...(window.TextAlignmentTune ? ['textAlignment'] : []),
+                    ...(window.BlockClassesTune ? ['blockClasses'] : []),
+                ],
                 onChange: async () => {
                     try { this.data.content = await this.subEditor.save(); } catch (e) {}
                 },
@@ -769,6 +773,93 @@ window.BlockClassesTune = class BlockClassesTune {
 
     wrap(blockContent) {
         // Called by EditorJS when rendering; we use it to also reflect styles live
+        setTimeout(() => this.applyToBlock(), 50);
+        return blockContent;
+    }
+};
+
+/* ─── Block Tune: Text Alignment (Left / Center / Right / Justify) ─── */
+window.TextAlignmentTune = class TextAlignmentTune {
+    static get isTune() { return true; }
+
+    static get OPTIONS() {
+        return [
+            { key: 'left',    label: 'Left',    icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h12M3 18h15"/></svg>' },
+            { key: 'center',  label: 'Center',  icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M6 12h12M4 18h16"/></svg>' },
+            { key: 'right',   label: 'Right',   icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M9 12h12M6 18h15"/></svg>' },
+            { key: 'justify', label: 'Justify', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>' },
+        ];
+    }
+
+    constructor({ api, data, block }) {
+        this.api = api;
+        this.block = block;
+        this.data = (data && typeof data === 'object') ? data : {};
+        this.buttons = [];
+    }
+
+    render() {
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'display:flex;gap:2px;padding:4px 6px;border-bottom:1px solid #f3f4f6';
+
+        const lbl = document.createElement('span');
+        lbl.textContent = 'Align';
+        lbl.style.cssText = 'font-size:11px;color:#6b7280;align-self:center;margin-right:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em';
+        wrap.appendChild(lbl);
+
+        TextAlignmentTune.OPTIONS.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.title = opt.label + ' align';
+            btn.dataset.align = opt.key;
+            btn.style.cssText = 'flex:1;display:inline-flex;align-items:center;justify-content:center;padding:5px 6px;border:1px solid #e5e7eb;border-radius:4px;cursor:pointer;background:#fff;color:#374151;transition:all .12s';
+            btn.innerHTML = opt.icon;
+            btn.addEventListener('click', (e) => {
+                e.preventDefault(); e.stopPropagation();
+                // Toggle: clicking the active alignment clears it
+                const next = (this.data.alignment === opt.key) ? null : opt.key;
+                this.data.alignment = next;
+                this.applyToBlock();
+                this.refreshActive();
+            });
+            this.buttons.push(btn);
+            wrap.appendChild(btn);
+        });
+
+        // Apply current state visually + restore on existing block
+        setTimeout(() => { this.refreshActive(); this.applyToBlock(); }, 30);
+
+        return wrap;
+    }
+
+    refreshActive() {
+        this.buttons.forEach(b => {
+            const isActive = b.dataset.align === this.data.alignment;
+            b.style.background = isActive ? 'linear-gradient(135deg,#6366f1,#8b5cf6)' : '#fff';
+            b.style.color = isActive ? '#fff' : '#374151';
+            b.style.borderColor = isActive ? 'transparent' : '#e5e7eb';
+        });
+    }
+
+    applyToBlock() {
+        try {
+            let blockEl = (this.block && this.block.holder) ? this.block.holder : null;
+            if (!blockEl) {
+                const idx = this.api.blocks.getCurrentBlockIndex?.() ?? -1;
+                if (idx >= 0) blockEl = document.querySelectorAll('.ce-block')[idx];
+            }
+            if (!blockEl) return;
+            const primary = blockEl.querySelector('h1,h2,h3,h4,h5,h6,p,blockquote,ul,ol,li,figure,pre');
+            if (!primary) return;
+            primary.style.textAlign = this.data.alignment || '';
+        } catch (e) {}
+    }
+
+    save() {
+        return { alignment: this.data.alignment || null };
+    }
+
+    wrap(blockContent) {
         setTimeout(() => this.applyToBlock(), 50);
         return blockContent;
     }
@@ -1145,13 +1236,19 @@ function editorjsField(config) {
                     // Block tune — CSS classes per block
                     ...(window.BlockClassesTune ? { blockClasses: window.BlockClassesTune } : {}),
 
+                    // Block tune — text alignment (left / center / right / justify)
+                    ...(window.TextAlignmentTune ? { textAlignment: window.TextAlignmentTune } : {}),
+
                     // Columns block (custom)
                     ...(window.ColumnsTool ? { columns: { class: window.ColumnsTool } } : {}),
 
                     // Container block (custom) — responsive max-width
                     ...(window.ContainerTool ? { container: { class: window.ContainerTool } } : {}),
                 },
-                tunes: window.BlockClassesTune ? ['blockClasses'] : [],
+                tunes: [
+                    ...(window.TextAlignmentTune ? ['textAlignment'] : []),
+                    ...(window.BlockClassesTune ? ['blockClasses'] : []),
+                ],
 
                 onChange: (api, event) => {
                     // Debounce: wait 600ms after last change before syncing to Livewire (triggers server save + preview)
