@@ -107,20 +107,26 @@ body.editorjs-fullscreen-mode .editorjs-container .codex-editor__redactor {
     color: #1d4ed8;
 }
 /* Heading visual styles inside the editor — match what users expect on the frontend.
-   Selectors include both ce-header (EditorJS-applied) and bare tag, since BlockClassesTune
-   used to strip ce-header. We also need h5/h6 covered. */
+   Use !important + multiple selectors to win over Tailwind preflight which resets
+   `h1-h6 { font-size: inherit; font-weight: inherit; }` in the admin layout's app.css. */
+.editorjs-container h1,
 .editorjs-container h1.ce-header,
-.editorjs-container h1            { font-size: 2.25em;  font-weight: 800; line-height: 1.2;  margin: 0.4em 0; color: #0f172a; }
+.editorjs-container .ce-block h1            { font-size: 2.25rem  !important; font-weight: 800 !important; line-height: 1.2  !important; margin: 0.4em 0 !important; color: #0f172a !important; }
+.editorjs-container h2,
 .editorjs-container h2.ce-header,
-.editorjs-container h2            { font-size: 1.75em;  font-weight: 700; line-height: 1.25; margin: 0.4em 0; color: #0f172a; }
+.editorjs-container .ce-block h2            { font-size: 1.75rem  !important; font-weight: 700 !important; line-height: 1.25 !important; margin: 0.4em 0 !important; color: #0f172a !important; }
+.editorjs-container h3,
 .editorjs-container h3.ce-header,
-.editorjs-container h3            { font-size: 1.4em;   font-weight: 700; line-height: 1.3;  margin: 0.4em 0; color: #1f2937; }
+.editorjs-container .ce-block h3            { font-size: 1.4rem   !important; font-weight: 700 !important; line-height: 1.3  !important; margin: 0.4em 0 !important; color: #1f2937 !important; }
+.editorjs-container h4,
 .editorjs-container h4.ce-header,
-.editorjs-container h4            { font-size: 1.2em;   font-weight: 600; line-height: 1.35; margin: 0.4em 0; color: #1f2937; }
+.editorjs-container .ce-block h4            { font-size: 1.2rem   !important; font-weight: 600 !important; line-height: 1.35 !important; margin: 0.4em 0 !important; color: #1f2937 !important; }
+.editorjs-container h5,
 .editorjs-container h5.ce-header,
-.editorjs-container h5            { font-size: 1.05em;  font-weight: 600; line-height: 1.4;  margin: 0.4em 0; color: #374151; }
+.editorjs-container .ce-block h5            { font-size: 1.05rem  !important; font-weight: 600 !important; line-height: 1.4  !important; margin: 0.4em 0 !important; color: #374151 !important; }
+.editorjs-container h6,
 .editorjs-container h6.ce-header,
-.editorjs-container h6            { font-size: 0.95em;  font-weight: 600; line-height: 1.4;  margin: 0.4em 0; color: #4b5563; text-transform: uppercase; letter-spacing: 0.04em; }
+.editorjs-container .ce-block h6            { font-size: 0.95rem  !important; font-weight: 600 !important; line-height: 1.4  !important; margin: 0.4em 0 !important; color: #4b5563 !important; text-transform: uppercase !important; letter-spacing: 0.04em !important; }
 /* Prevent the minHeight ghost paragraph from showing a second placeholder */
 .editorjs-container .codex-editor--empty .ce-block:not(:first-child) [data-placeholder]::before,
 .editorjs-container .codex-editor--empty .ce-block:not(:first-child) [data-placeholder]:empty::before {
