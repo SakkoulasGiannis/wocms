@@ -201,8 +201,14 @@ window.BlockClassesTune = class BlockClassesTune {
             if (this.block && this.block.holder) blockEl = this.block.holder;
             else if (blockIndex >= 0) { const nodes = document.querySelectorAll('.ce-block'); blockEl = nodes[blockIndex]; }
             if (!blockEl) return;
-            const primary = blockEl.querySelector('h1,h2,h3,h4,h5,h6,p,blockquote,ul,ol,img,pre,figure');
-            if (primary) primary.className = (this.data.classes || '');
+            const primary = blockEl.querySelector('.ce-paragraph, .ce-header, .cdx-quote__text, h1, h2, h3, h4, h5, h6, p, blockquote, ul, ol, img, pre, figure');
+            if (!primary) return;
+            // ADDITIVE: preserve EditorJS internal classes (ce-header, ce-paragraph) — only manage user-applied tokens
+            const prev = (primary.dataset.btcClasses || '').split(/\s+/).filter(Boolean);
+            prev.forEach(c => primary.classList.remove(c));
+            const next = (this.data.classes || '').trim().split(/\s+/).filter(Boolean);
+            next.forEach(c => primary.classList.add(c));
+            primary.dataset.btcClasses = next.join(' ');
         } catch (e) {}
     }
     save() { return { classes: this.data.classes || '' }; }

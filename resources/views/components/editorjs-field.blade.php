@@ -106,10 +106,21 @@ body.editorjs-fullscreen-mode .editorjs-container .codex-editor__redactor {
     background: #dbeafe;
     color: #1d4ed8;
 }
-.editorjs-container h1.ce-header { font-size: 2em; font-weight: 700; }
-.editorjs-container h2.ce-header { font-size: 1.5em; font-weight: 700; }
-.editorjs-container h3.ce-header { font-size: 1.25em; font-weight: 600; }
-.editorjs-container h4.ce-header { font-size: 1.1em; font-weight: 600; }
+/* Heading visual styles inside the editor — match what users expect on the frontend.
+   Selectors include both ce-header (EditorJS-applied) and bare tag, since BlockClassesTune
+   used to strip ce-header. We also need h5/h6 covered. */
+.editorjs-container h1.ce-header,
+.editorjs-container h1            { font-size: 2.25em;  font-weight: 800; line-height: 1.2;  margin: 0.4em 0; color: #0f172a; }
+.editorjs-container h2.ce-header,
+.editorjs-container h2            { font-size: 1.75em;  font-weight: 700; line-height: 1.25; margin: 0.4em 0; color: #0f172a; }
+.editorjs-container h3.ce-header,
+.editorjs-container h3            { font-size: 1.4em;   font-weight: 700; line-height: 1.3;  margin: 0.4em 0; color: #1f2937; }
+.editorjs-container h4.ce-header,
+.editorjs-container h4            { font-size: 1.2em;   font-weight: 600; line-height: 1.35; margin: 0.4em 0; color: #1f2937; }
+.editorjs-container h5.ce-header,
+.editorjs-container h5            { font-size: 1.05em;  font-weight: 600; line-height: 1.4;  margin: 0.4em 0; color: #374151; }
+.editorjs-container h6.ce-header,
+.editorjs-container h6            { font-size: 0.95em;  font-weight: 600; line-height: 1.4;  margin: 0.4em 0; color: #4b5563; text-transform: uppercase; letter-spacing: 0.04em; }
 /* Prevent the minHeight ghost paragraph from showing a second placeholder */
 .editorjs-container .codex-editor--empty .ce-block:not(:first-child) [data-placeholder]::before,
 .editorjs-container .codex-editor--empty .ce-block:not(:first-child) [data-placeholder]:empty::before {
@@ -759,11 +770,20 @@ window.BlockClassesTune = class BlockClassesTune {
                 blockEl = nodes[blockIndex];
             }
             if (!blockEl) return;
-            // Find the primary content element inside (h1-h6, p, img, ul/ol, blockquote, etc.)
-            const primary = blockEl.querySelector('h1,h2,h3,h4,h5,h6,p,blockquote,ul,ol,img,pre,figure');
-            if (primary) {
-                primary.className = (this.data.classes || '');
-            }
+            // Find the primary content element (cover EditorJS's ce-paragraph div + headings + lists/etc.)
+            const primary = blockEl.querySelector(
+                '.ce-paragraph, .ce-header, .cdx-quote__text, h1, h2, h3, h4, h5, h6, p, blockquote, ul, ol, img, pre, figure'
+            );
+            if (!primary) return;
+
+            // ADDITIVE: remove previously-applied user classes, then add the new set.
+            // Never wipe className — that would kill EditorJS internals like .ce-header.
+            const prev = (primary.dataset.btcClasses || '').split(/\s+/).filter(Boolean);
+            prev.forEach(c => primary.classList.remove(c));
+
+            const next = (this.data.classes || '').trim().split(/\s+/).filter(Boolean);
+            next.forEach(c => primary.classList.add(c));
+            primary.dataset.btcClasses = next.join(' ');
         } catch (e) {}
     }
 
