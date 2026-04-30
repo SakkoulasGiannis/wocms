@@ -29,7 +29,7 @@
                     @click="activeTab = 'rent'"
                     :class="activeTab === 'rent' ? 'bg-brand text-white' : 'bg-white/80 text-slate-700 hover:bg-white'"
                     class="rounded-tl-xl px-6 py-2.5 text-sm font-semibold backdrop-blur-sm transition-colors">
-                For Rent
+                Vacation Rental
             </button>
             <button type="button"
                     @click="activeTab = 'sale'"
