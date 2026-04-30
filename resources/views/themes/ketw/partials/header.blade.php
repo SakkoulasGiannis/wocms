@@ -59,17 +59,17 @@
                                 </a>
 
                                 @if($hasChildren)
-                                    {{-- Dropdown --}}
+                                    {{-- Dropdown (homelengo-style: slide+fade with staggered items) --}}
                                     <div
                                         x-show="open"
-                                        x-transition:enter="transition ease-out duration-150"
-                                        x-transition:enter-start="opacity-0 translate-y-1"
+                                        x-transition:enter="transition ease-out duration-250"
+                                        x-transition:enter-start="opacity-0 -translate-y-3"
                                         x-transition:enter-end="opacity-100 translate-y-0"
-                                        x-transition:leave="transition ease-in duration-100"
-                                        x-transition:leave-start="opacity-100"
-                                        x-transition:leave-end="opacity-0"
-                                        class="absolute left-0 top-full min-w-[220px] rounded-lg border border-slate-200 bg-white py-2 shadow-lg"
-                                        style="display:none"
+                                        x-transition:leave="transition ease-in duration-150"
+                                        x-transition:leave-start="opacity-100 translate-y-0"
+                                        x-transition:leave-end="opacity-0 -translate-y-2"
+                                        class="absolute left-0 top-full min-w-[260px] rounded-2xl border border-slate-200/70 bg-white py-2 shadow-[0_10px_25px_rgba(54,95,104,0.12)]"
+                                        style="display:none; margin-top: 8px;"
                                     >
                                         @foreach($item->children as $child)
                                             @php $hasGrandchildren = $child->children->count() > 0; @endphp
@@ -84,11 +84,12 @@
                                                 <a
                                                     href="{{ $child->resolved_url }}"
                                                     target="{{ $child->target }}"
-                                                    class="flex items-center justify-between px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-brand"
+                                                    class="group relative flex items-center justify-between py-3 pl-6 pr-4 text-sm font-semibold text-slate-800 transition-all duration-300 ease-out hover:pl-12 hover:text-brand"
                                                 >
-                                                    {{ $child->title }}
+                                                    <span aria-hidden="true" class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 -translate-x-2 opacity-0 transition-all duration-300 ease-out text-brand group-hover:translate-x-0 group-hover:opacity-100">↘</span>
+                                                    <span>{{ $child->title }}</span>
                                                     @if($hasGrandchildren)
-                                                        <svg class="ml-2 h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                                        <svg class="ml-2 h-3 w-3 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                                                             <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
                                                         </svg>
                                                     @endif
@@ -97,16 +98,22 @@
                                                 @if($hasGrandchildren)
                                                     <div
                                                         x-show="subOpen"
-                                                        x-transition
-                                                        class="absolute left-full top-0 min-w-[200px] rounded-lg border border-slate-200 bg-white py-2 shadow-lg"
+                                                        x-transition:enter="transition ease-out duration-250"
+                                                        x-transition:enter-start="opacity-0 -translate-x-2"
+                                                        x-transition:enter-end="opacity-100 translate-x-0"
+                                                        x-transition:leave="transition ease-in duration-150"
+                                                        x-transition:leave-start="opacity-100"
+                                                        x-transition:leave-end="opacity-0"
+                                                        class="absolute left-full top-0 min-w-[220px] rounded-2xl border border-slate-200/70 bg-white py-2 shadow-[0_10px_25px_rgba(54,95,104,0.12)]"
                                                         style="display:none"
                                                     >
                                                         @foreach($child->children as $grandchild)
                                                             <a
                                                                 href="{{ $grandchild->resolved_url }}"
                                                                 target="{{ $grandchild->target }}"
-                                                                class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-brand"
+                                                                class="group relative block py-3 pl-6 pr-4 text-sm font-semibold text-slate-800 transition-all duration-300 ease-out hover:pl-12 hover:text-brand"
                                                             >
+                                                                <span aria-hidden="true" class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 -translate-x-2 opacity-0 transition-all duration-300 ease-out text-brand group-hover:translate-x-0 group-hover:opacity-100">↘</span>
                                                                 {{ $grandchild->title }}
                                                             </a>
                                                         @endforeach
