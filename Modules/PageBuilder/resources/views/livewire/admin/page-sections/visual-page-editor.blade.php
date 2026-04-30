@@ -1648,9 +1648,9 @@ if (typeof window.editorjsField === 'undefined') {
 .ve-children-list { transition: background 0.15s; }
 .ve-children-list.sortable-over { background: #f5f3ff; border-color: #a78bfa !important; }
 
-/* Editor heading visual styles — duplicated here so they're always loaded
-   on the visual editor page regardless of whether x-editorjs-field's @once @push fired.
-   !important wins over Tailwind preflight (h1-h6 → font-size: inherit) in app.css. */
+/* Editor heading visual styles — duplicated here so they always load on the
+   visual editor page (regardless of whether x-editorjs-field's stack push fired).
+   !important wins over Tailwind preflight (h1-h6 -> font-size: inherit) in app.css. */
 .editorjs-container h1, .editorjs-container h1.ce-header, .editorjs-container .ce-block h1 { font-size: 2.25rem !important; font-weight: 800 !important; line-height: 1.2  !important; margin: 0.4em 0 !important; color: #0f172a !important; }
 .editorjs-container h2, .editorjs-container h2.ce-header, .editorjs-container .ce-block h2 { font-size: 1.75rem !important; font-weight: 700 !important; line-height: 1.25 !important; margin: 0.4em 0 !important; color: #0f172a !important; }
 .editorjs-container h3, .editorjs-container h3.ce-header, .editorjs-container .ce-block h3 { font-size: 1.4rem  !important; font-weight: 700 !important; line-height: 1.3  !important; margin: 0.4em 0 !important; color: #1f2937 !important; }
