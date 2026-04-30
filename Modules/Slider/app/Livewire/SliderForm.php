@@ -61,7 +61,7 @@ class SliderForm extends Component
             'isActive' => 'boolean',
             'height' => 'required|string',
             'imageFit' => 'required|in:cover,contain,fill',
-            'overlayOpacity' => 'required|in:0,0.3,0.5,0.7,0.9',
+            'overlayOpacity' => 'required|numeric|between:0,1',
             'overlayColor' => 'required|in:black,brand,white',
             'autoplay' => 'boolean',
             'autoplayInterval' => 'required|integer|min:1000|max:30000',
