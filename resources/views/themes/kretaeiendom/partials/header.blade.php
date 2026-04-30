@@ -71,6 +71,81 @@
             transform: none !important;
         }
     }
+
+    /* ── Submenu items: hover decoration (homelengo style) ─────────────────── */
+    /* Submenu link base */
+    .main-header .main-menu .navigation > li > ul > li > a,
+    .main-header .main-menu .navigation > li > ul.sub-menu > li > a {
+        position: relative;
+        padding: 12px 24px;
+        display: block;
+        font-weight: 600;
+        font-size: 14px;
+        color: #0f172a;
+        text-decoration: none;
+        transition: color .3s ease, padding .3s ease;
+    }
+    /* Hidden ↘ icon at left, fades in on hover */
+    .main-header .main-menu .navigation > li > ul > li > a::before,
+    .main-header .main-menu .navigation > li > ul.sub-menu > li > a::before {
+        content: "↘";
+        position: absolute;
+        left: 24px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 14px;
+        line-height: 1;
+        opacity: 0;
+        color: #1563df;
+        font-family: "icomoon", sans-serif;
+        transition: opacity .3s ease;
+    }
+    /* Hover: blue text, indented padding, icon visible */
+    .main-header .main-menu .navigation > li > ul > li:hover > a,
+    .main-header .main-menu .navigation > li > ul.sub-menu > li:hover > a {
+        color: #1563df !important;
+        padding-left: 45px !important;
+    }
+    .main-header .main-menu .navigation > li > ul > li:hover > a::before,
+    .main-header .main-menu .navigation > li > ul.sub-menu > li:hover > a::before {
+        opacity: 1 !important;
+    }
+
+    /* Apply same to second-level submenu items */
+    .main-header .main-menu .navigation > li > ul > li > ul > li > a,
+    .main-header .main-menu .navigation > li > ul.sub-menu > li > ul.sub-menu > li > a {
+        position: relative;
+        padding: 12px 24px;
+        display: block;
+        font-weight: 600;
+        font-size: 14px;
+        color: #0f172a;
+        text-decoration: none;
+        transition: color .3s ease, padding .3s ease;
+    }
+    .main-header .main-menu .navigation > li > ul > li > ul > li > a::before,
+    .main-header .main-menu .navigation > li > ul.sub-menu > li > ul.sub-menu > li > a::before {
+        content: "↘";
+        position: absolute;
+        left: 24px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 14px;
+        line-height: 1;
+        opacity: 0;
+        color: #1563df;
+        font-family: "icomoon", sans-serif;
+        transition: opacity .3s ease;
+    }
+    .main-header .main-menu .navigation > li > ul > li > ul > li:hover > a,
+    .main-header .main-menu .navigation > li > ul.sub-menu > li > ul.sub-menu > li:hover > a {
+        color: #1563df !important;
+        padding-left: 45px !important;
+    }
+    .main-header .main-menu .navigation > li > ul > li > ul > li:hover > a::before,
+    .main-header .main-menu .navigation > li > ul.sub-menu > li > ul.sub-menu > li:hover > a::before {
+        opacity: 1 !important;
+    }
 </style>
 
 @php
