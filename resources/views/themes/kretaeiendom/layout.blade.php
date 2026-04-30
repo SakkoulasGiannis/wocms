@@ -39,6 +39,20 @@
         <style type="text/tailwindcss">
             @import "tailwindcss";
         </style>
+        {{-- Heading defaults — Tailwind v4 preflight resets h1-h6 sizes to inherit; restore them.
+             :not([class]) ensures these defaults apply only when no user class is set; if the
+             user adds Tailwind utilities (e.g. text-3xl) via BlockClassesTune, those win. --}}
+        <style>
+            html body h1:not([class]) { font-size: 2.5rem  !important; font-weight: 800 !important; line-height: 1.15 !important; margin: 0.5em 0 !important; }
+            html body h2:not([class]) { font-size: 2rem    !important; font-weight: 700 !important; line-height: 1.2  !important; margin: 0.5em 0 !important; }
+            html body h3:not([class]) { font-size: 1.5rem  !important; font-weight: 700 !important; line-height: 1.25 !important; margin: 0.5em 0 !important; }
+            html body h4:not([class]) { font-size: 1.25rem !important; font-weight: 600 !important; line-height: 1.3  !important; margin: 0.5em 0 !important; }
+            html body h5:not([class]) { font-size: 1.1rem  !important; font-weight: 600 !important; line-height: 1.4  !important; margin: 0.5em 0 !important; }
+            html body h6:not([class]) { font-size: 0.95rem !important; font-weight: 600 !important; line-height: 1.4  !important; margin: 0.5em 0 !important; text-transform: uppercase; letter-spacing: 0.04em; }
+            html body p:not([class])  { margin: 0.5em 0 !important; line-height: 1.65 !important; }
+            html body ul:not([class]) { padding-left: 1.5rem !important; margin: 0.5em 0 !important; list-style: disc !important; }
+            html body ol:not([class]) { padding-left: 1.5rem !important; margin: 0.5em 0 !important; list-style: decimal !important; }
+        </style>
     @endif
 </head>
 <body class="body">
