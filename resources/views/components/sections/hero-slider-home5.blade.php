@@ -185,8 +185,9 @@
             </div>
         @endforeach
 
-        {{-- Dark overlay for readability --}}
-        <div class="absolute inset-0 z-10 bg-gradient-to-r from-black/70 via-black/40 to-transparent"></div>
+        {{-- (No dark overlay — keep the slider image clean per design preference.
+              If text contrast becomes an issue, consider per-block text-shadow
+              instead of darkening the whole image.) --}}
 
         {{-- Content grid: left content + right thumbnails --}}
         <div class="relative z-20 mx-auto flex h-full max-w-8xl items-center px-4 sm:px-6 lg:px-8">
