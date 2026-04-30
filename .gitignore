@@ -70,3 +70,6 @@ resources/views/frontend/partials/footer.blade.php
 
 # Backups directory
 /backups/
+
+# Local-only deployment / server instructions for this specific site
+/.local-docs/

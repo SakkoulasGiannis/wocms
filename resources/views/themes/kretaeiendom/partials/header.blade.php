@@ -1,8 +1,76 @@
 <style>
-    .main-header .main-menu .navigation > li { padding-right: 18px; }
+    .main-header .main-menu .navigation > li { padding-right: 18px; position: relative; }
     .main-header .main-menu .navigation > li:last-child { padding-right: 0; }
     .main-header .main-menu .navigation > li > a { color: #0f507e; font-size: 15px; line-height: 19px; padding: 27px 10px; }
     .main-header .main-menu .navigation > li.dropdown2 > a::after { font-size: 14px; right: -16px; }
+
+    /* ── Submenu hover effect (homelengo-style smooth slide+fade) ─────────────── */
+    .main-header .main-menu .navigation > li > ul,
+    .main-header .main-menu .navigation > li > ul.sub-menu {
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(12px);
+        pointer-events: none;
+        transition: opacity .25s ease, transform .25s ease, visibility .25s ease;
+        z-index: 100;
+    }
+    .main-header .main-menu .navigation > li.dropdown2:hover > ul,
+    .main-header .main-menu .navigation > li.dropdown2:hover > ul.sub-menu,
+    .main-header .main-menu .navigation > li.dropdown2:focus-within > ul,
+    .main-header .main-menu .navigation > li.dropdown2:focus-within > ul.sub-menu {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+        pointer-events: auto;
+    }
+
+    /* Second-level submenu (slides in from the right of the parent item) */
+    .main-header .main-menu .navigation > li > ul > li > ul,
+    .main-header .main-menu .navigation > li > ul > li > ul.sub-menu {
+        opacity: 0;
+        visibility: hidden;
+        transform: translateX(8px);
+        pointer-events: none;
+        transition: opacity .25s ease, transform .25s ease, visibility .25s ease;
+    }
+    .main-header .main-menu .navigation > li > ul > li.dropdown2:hover > ul,
+    .main-header .main-menu .navigation > li > ul > li.dropdown2:hover > ul.sub-menu,
+    .main-header .main-menu .navigation > li > ul > li.dropdown2:focus-within > ul,
+    .main-header .main-menu .navigation > li > ul > li.dropdown2:focus-within > ul.sub-menu {
+        opacity: 1;
+        visibility: visible;
+        transform: translateX(0);
+        pointer-events: auto;
+    }
+
+    /* Item-level fade-in stagger (each row slides up slightly when parent opens) */
+    .main-header .main-menu .navigation > li > ul > li {
+        opacity: 0;
+        transform: translateY(6px);
+        transition: opacity .3s ease, transform .3s ease;
+    }
+    .main-header .main-menu .navigation > li.dropdown2:hover > ul > li {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    .main-header .main-menu .navigation > li.dropdown2:hover > ul > li:nth-child(1) { transition-delay: 40ms; }
+    .main-header .main-menu .navigation > li.dropdown2:hover > ul > li:nth-child(2) { transition-delay: 80ms; }
+    .main-header .main-menu .navigation > li.dropdown2:hover > ul > li:nth-child(3) { transition-delay: 120ms; }
+    .main-header .main-menu .navigation > li.dropdown2:hover > ul > li:nth-child(4) { transition-delay: 160ms; }
+    .main-header .main-menu .navigation > li.dropdown2:hover > ul > li:nth-child(5) { transition-delay: 200ms; }
+    .main-header .main-menu .navigation > li.dropdown2:hover > ul > li:nth-child(n+6) { transition-delay: 240ms; }
+
+    /* Ensure the dropdown stays above any decorative elements */
+    .main-header .main-menu .navigation > li > ul { z-index: 999 !important; }
+    .main-header .main-menu .navigation > li > ul > li > ul { z-index: 1000 !important; }
+
+    /* Mobile/small viewport — drop the desktop hover behavior; let the mobile menu use its own UX */
+    @media (max-width: 991px) {
+        .main-header .main-menu .navigation > li > ul,
+        .main-header .main-menu .navigation > li > ul.sub-menu {
+            transform: none !important;
+        }
+    }
 </style>
 
 @php
