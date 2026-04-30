@@ -41,7 +41,7 @@
 
         {{-- Search Form --}}
         <form method="get" :action="getAction()"
-              class="rounded-2xl rounded-t-none bg-white/95 p-4 shadow-xl backdrop-blur-sm ring-1 ring-black/5 sm:p-6">
+              class="rounded-2xl bg-white/95 p-4 shadow-xl backdrop-blur-sm ring-1 ring-black/5 sm:p-6">
 
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {{-- Type --}}
