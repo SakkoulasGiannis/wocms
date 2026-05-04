@@ -28,8 +28,13 @@
             @case('email')
             @case('url')
                 @if($isLiveField)
+                    {{-- Live binding: oninput fires server update via Livewire on every keystroke,
+                         debounced 350ms. Plus onblur as a safety net so the value is always synced
+                         when the user tabs away. Uses @this.set with true (live) so updated() fires. --}}
                     <input type="{{ $field->type }}"
-                           wire:model.live.debounce.350ms="fieldValues.{{ $field->name }}"
+                           value="{{ $this->fieldValues[$field->name] ?? '' }}"
+                           oninput="clearTimeout(this._slugT); const v = this.value; this._slugT = setTimeout(() => @this.set('fieldValues.{{ $field->name }}', v, true), 350)"
+                           onblur="clearTimeout(this._slugT); @this.set('fieldValues.{{ $field->name }}', this.value, true)"
                            class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border"
                            placeholder="{{ $field->default_value ?? '' }}">
                 @else

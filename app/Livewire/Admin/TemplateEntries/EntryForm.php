@@ -66,10 +66,12 @@ class EntryForm extends Component
      *
      * Behaviour:
      * - Only fires when creating a NEW entry (never when editing — would break URLs).
-     * - Only fires when the updated property is the field marked is_url_identifier.
-     * - Stops auto-syncing once the user has manually edited the slug for this session.
+     * - Stops auto-syncing once the user has manually edited the slug for this session
+     *   (detected via comparison with what we last auto-generated).
      */
-    protected bool $slugManuallyTouched = false;
+    public bool $slugManuallyTouched = false;
+
+    public string $autoSlugLastValue = '';
 
     public function updated($name, $value): void
     {
@@ -78,9 +80,13 @@ class EntryForm extends Component
         }
         $key = substr($name, strlen('fieldValues.'));
 
-        // If the user is editing the slug directly, remember that and stop auto-syncing.
+        // If the slug changed AND it's not the value we ourselves just generated,
+        // mark it manually touched so we stop auto-syncing.
         if ($key === 'slug') {
-            $this->slugManuallyTouched = true;
+            $current = (string) ($value ?? '');
+            if ($current !== '' && $current !== $this->autoSlugLastValue) {
+                $this->slugManuallyTouched = true;
+            }
 
             return;
         }
@@ -115,7 +121,9 @@ class EntryForm extends Component
             return;
         }
 
-        $this->fieldValues['slug'] = \Illuminate\Support\Str::slug((string) $value);
+        $newSlug = \Illuminate\Support\Str::slug((string) $value);
+        $this->autoSlugLastValue = $newSlug;
+        $this->fieldValues['slug'] = $newSlug;
     }
 
     /**
