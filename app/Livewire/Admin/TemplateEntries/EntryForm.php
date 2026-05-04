@@ -62,6 +62,56 @@ class EntryForm extends Component
     public $sectionImageUploads = [];
 
     /**
+     * Auto-generate slug from the URL-identifier field as the user types.
+     *
+     * Behaviour:
+     * - Only fires when creating a NEW entry (never when editing — would break URLs).
+     * - Only fires when the updated property is the field marked is_url_identifier.
+     * - Stops auto-syncing once the user has manually edited the slug for this session.
+     */
+    protected bool $slugManuallyTouched = false;
+
+    public function updated($name, $value): void
+    {
+        if (! str_starts_with($name, 'fieldValues.')) {
+            return;
+        }
+        $key = substr($name, strlen('fieldValues.'));
+
+        // If the user is editing the slug directly, remember that and stop auto-syncing.
+        if ($key === 'slug') {
+            $this->slugManuallyTouched = true;
+
+            return;
+        }
+
+        // Only auto-sync on CREATE.
+        if ($this->entry && $this->entry->exists) {
+            return;
+        }
+
+        if ($this->slugManuallyTouched) {
+            return;
+        }
+
+        if (! $this->template) {
+            return;
+        }
+
+        $urlField = $this->template->fields->where('is_url_identifier', true)->first();
+        if (! $urlField || $urlField->name !== $key) {
+            return;
+        }
+
+        $hasSlugField = $this->template->fields->where('name', 'slug')->isNotEmpty();
+        if (! $hasSlugField) {
+            return;
+        }
+
+        $this->fieldValues['slug'] = \Illuminate\Support\Str::slug((string) $value);
+    }
+
+    /**
      * Handle section image upload for a specific field
      */
     public function updatedSectionImageUploads($value, $key): void
