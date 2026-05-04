@@ -71,14 +71,34 @@
         ],
     ];
 
+    // Selected agent ids (from agents_picker field). Accepts array or JSON string.
+    $selectedAgentIds = $content['agent_ids'] ?? $content['agents_ids'] ?? [];
+    if (is_string($selectedAgentIds)) {
+        $decoded = json_decode($selectedAgentIds, true);
+        $selectedAgentIds = is_array($decoded) ? $decoded : [];
+    }
+    $selectedAgentIds = array_values(array_filter(array_map('intval', (array) $selectedAgentIds)));
+
     // Try database agents first
     $agents = [];
     if (class_exists(\App\Models\Agent::class)) {
         try {
-            $query = \App\Models\Agent::query()
-                ->where('active', true)
-                ->orderBy('order');
-            $dbAgents = $query->limit($count)->get();
+            if (! empty($selectedAgentIds)) {
+                // User explicitly picked specific agents — show only those, in the chosen order.
+                $dbAgents = \App\Models\Agent::query()
+                    ->whereIn('id', $selectedAgentIds)
+                    ->where('active', true)
+                    ->get()
+                    ->sortBy(fn ($a) => array_search($a->id, $selectedAgentIds))
+                    ->values();
+            } else {
+                // Fallback: first $count active agents by display order.
+                $dbAgents = \App\Models\Agent::query()
+                    ->where('active', true)
+                    ->orderBy('order')
+                    ->limit($count)
+                    ->get();
+            }
 
             if ($dbAgents->isNotEmpty()) {
                 $agents = $dbAgents->map(function ($agent) {

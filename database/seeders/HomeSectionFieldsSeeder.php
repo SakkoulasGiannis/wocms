@@ -70,7 +70,8 @@ class HomeSectionFieldsSeeder extends Seeder
         $this->seedFields('agents-grid', [
             ['name' => 'subtitle', 'label' => 'Subtitle', 'type' => 'text', 'order' => 0, 'default_value' => 'Our Teams'],
             ['name' => 'title', 'label' => 'Title', 'type' => 'text', 'order' => 1, 'default_value' => 'Meet Our Agents'],
-            ['name' => 'agents', 'label' => 'Agents', 'type' => 'repeater', 'order' => 2, 'settings' => json_encode(['sub_fields' => [
+            ['name' => 'agent_ids', 'label' => 'Pick agents to display', 'type' => 'agents_picker', 'order' => 2],
+            ['name' => 'agents', 'label' => 'Manual agents (overrides picker — leave empty to use picker)', 'type' => 'repeater', 'order' => 3, 'settings' => json_encode(['sub_fields' => [
                 ['name' => 'name', 'label' => 'Name', 'type' => 'text'],
                 ['name' => 'role', 'label' => 'Role', 'type' => 'text'],
                 ['name' => 'image', 'label' => 'Photo', 'type' => 'image'],

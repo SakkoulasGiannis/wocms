@@ -1204,6 +1204,70 @@ if (typeof window.editorjsField === 'undefined') {
                                     </div>
                                     @break
 
+                                @case('agents_picker')
+                                    @php
+                                        $allAgents = collect();
+                                        if (class_exists(\App\Models\Agent::class)) {
+                                            try {
+                                                $allAgents = \App\Models\Agent::query()
+                                                    ->where('active', true)
+                                                    ->orderBy('order')
+                                                    ->orderBy('name')
+                                                    ->get();
+                                            } catch (\Throwable $e) { /* table missing */ }
+                                        }
+                                        $apSelected = $sectionContent[$field->name] ?? [];
+                                        if (is_string($apSelected)) {
+                                            $decoded = json_decode($apSelected, true);
+                                            $apSelected = is_array($decoded) ? $decoded : [];
+                                        }
+                                        if (! is_array($apSelected)) $apSelected = [];
+                                        $apSelected = array_map('intval', $apSelected);
+                                    @endphp
+                                    <div class="space-y-1.5"
+                                         x-data="{ search: '' }">
+                                        @if($allAgents->isEmpty())
+                                            <div class="text-xs text-gray-500 italic px-2 py-3 bg-gray-50 rounded">
+                                                No agents in the database. Add some from
+                                                <a href="{{ route('admin.agents.index') }}" class="text-blue-600 underline" target="_blank">Agents admin</a>.
+                                            </div>
+                                        @else
+                                            <input type="text" x-model="search"
+                                                   placeholder="Filter agents..."
+                                                   class="w-full text-xs border border-gray-300 rounded px-2 py-1.5 mb-1">
+                                            <div class="max-h-72 overflow-y-auto border border-gray-200 rounded bg-white">
+                                                @foreach($allAgents as $agent)
+                                                    @php $checked = in_array((int) $agent->id, $apSelected, true); @endphp
+                                                    <label
+                                                        x-show="!search || `{{ str_replace('`', '', $agent->name . ' ' . ($agent->role ?? '')) }}`.toLowerCase().includes(search.toLowerCase())"
+                                                        class="flex items-center gap-2 px-2 py-1.5 border-b border-gray-100 last:border-0 hover:bg-blue-50 cursor-pointer text-xs">
+                                                        <input type="checkbox"
+                                                               value="{{ $agent->id }}"
+                                                               wire:model.live="sectionContent.{{ $field->name }}"
+                                                               class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                                        @if($agent->getPhotoUrl())
+                                                            <img src="{{ $agent->getPhotoUrl() }}" alt="{{ $agent->name }}" class="w-7 h-7 rounded-full object-cover">
+                                                        @else
+                                                            <div class="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-gray-500"><i class="fa fa-user text-[10px]"></i></div>
+                                                        @endif
+                                                        <span class="font-medium text-gray-800">{{ $agent->name }}</span>
+                                                        @if($agent->role)
+                                                            <span class="text-gray-400">— {{ $agent->role }}</span>
+                                                        @endif
+                                                    </label>
+                                                @endforeach
+                                            </div>
+                                            <div class="text-[11px] text-gray-500 px-1">
+                                                @if(count($apSelected) === 0)
+                                                    Nothing selected — fallback shows first <em>count</em> active agents.
+                                                @else
+                                                    {{ count($apSelected) }} selected. Display order matches the agents table (admin → Agents).
+                                                @endif
+                                            </div>
+                                        @endif
+                                    </div>
+                                    @break
+
                                 @case('repeater')
                                     @php
                                         $rfSettings = $field->settings;
