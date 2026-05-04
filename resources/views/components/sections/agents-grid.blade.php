@@ -15,9 +15,12 @@
     };
 
     $sectionClass = $content['section_class'] ?? 'py-16 bg-slate-50';
-    $subtitle = $content['subtitle'] ?? 'Our Teams';
-    $heading = $content['heading'] ?? $content['title'] ?? 'Meet Our Agents';
-    $description = $content['description'] ?? '';
+    // Title / subtitle are OPTIONAL — empty by default so the section can stand alone.
+    // The heading area only renders if at least one of them is non-empty.
+    $subtitle = trim((string) ($content['subtitle'] ?? ''));
+    $heading = trim((string) ($content['heading'] ?? $content['title'] ?? ''));
+    $description = trim((string) ($content['description'] ?? ''));
+    $hasHeading = $subtitle !== '' || $heading !== '' || $description !== '';
     $count = (int) ($settings['count'] ?? $content['count'] ?? 4);
 
     $fallbackAgents = [
@@ -153,18 +156,20 @@
 @if (! empty($agents))
     <section class="{{ $sectionClass }}">
         <div class="mx-auto max-w-8xl px-4 sm:px-6 lg:px-8">
-            {{-- Header --}}
-            <div class="mx-auto max-w-2xl text-center mb-12">
-                @if ($subtitle)
-                    <p class="text-sm font-semibold uppercase tracking-widest text-brand">{{ $subtitle }}</p>
-                @endif
-                @if ($heading)
-                    <h2 class="mt-3 text-3xl font-bold text-slate-900 md:text-4xl">{{ $heading }}</h2>
-                @endif
-                @if ($description)
-                    <p class="mt-4 text-lg text-slate-600">{{ $description }}</p>
-                @endif
-            </div>
+            @if ($hasHeading)
+                {{-- Header (only when subtitle / heading / description has content) --}}
+                <div class="mx-auto max-w-2xl text-center mb-12">
+                    @if ($subtitle !== '')
+                        <p class="text-sm font-semibold uppercase tracking-widest text-brand">{{ $subtitle }}</p>
+                    @endif
+                    @if ($heading !== '')
+                        <h2 class="mt-3 text-3xl font-bold text-slate-900 md:text-4xl">{{ $heading }}</h2>
+                    @endif
+                    @if ($description !== '')
+                        <p class="mt-4 text-lg text-slate-600">{{ $description }}</p>
+                    @endif
+                </div>
+            @endif
 
             {{-- Agents grid --}}
             <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">

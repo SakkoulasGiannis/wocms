@@ -1222,28 +1222,50 @@ if (typeof window.editorjsField === 'undefined') {
                                             $apSelected = is_array($decoded) ? $decoded : [];
                                         }
                                         if (! is_array($apSelected)) $apSelected = [];
-                                        $apSelected = array_map('intval', $apSelected);
+                                        $apSelected = array_map('intval', array_values($apSelected));
+                                        $apFieldKey = "sectionContent.{$field->name}";
                                     @endphp
+                                    {{-- Alpine-managed multi-select. We bypass wire:model (which falls
+                                         back to boolean mode when the initial value isn't an array) and
+                                         instead push the entire updated array via @this.set(). --}}
                                     <div class="space-y-1.5"
-                                         x-data="{ search: '' }">
+                                         x-data="{
+                                             search: '',
+                                             selected: @js($apSelected),
+                                             toggle(id) {
+                                                 const idx = this.selected.indexOf(id);
+                                                 if (idx === -1) this.selected.push(id);
+                                                 else this.selected.splice(idx, 1);
+                                                 $wire.set('{{ $apFieldKey }}', [...this.selected]);
+                                             },
+                                             clearAll() {
+                                                 this.selected = [];
+                                                 $wire.set('{{ $apFieldKey }}', []);
+                                             },
+                                         }">
                                         @if($allAgents->isEmpty())
                                             <div class="text-xs text-gray-500 italic px-2 py-3 bg-gray-50 rounded">
                                                 No agents in the database. Add some from
                                                 <a href="{{ route('admin.agents.index') }}" class="text-blue-600 underline" target="_blank">Agents admin</a>.
                                             </div>
                                         @else
-                                            <input type="text" x-model="search"
-                                                   placeholder="Filter agents..."
-                                                   class="w-full text-xs border border-gray-300 rounded px-2 py-1.5 mb-1">
+                                            <div class="flex items-center gap-2">
+                                                <input type="text" x-model="search"
+                                                       placeholder="Filter agents..."
+                                                       class="flex-1 text-xs border border-gray-300 rounded px-2 py-1.5">
+                                                <button type="button" x-show="selected.length > 0" @click="clearAll()"
+                                                        class="text-[11px] text-red-600 hover:underline px-1">Clear</button>
+                                            </div>
                                             <div class="max-h-72 overflow-y-auto border border-gray-200 rounded bg-white">
                                                 @foreach($allAgents as $agent)
-                                                    @php $checked = in_array((int) $agent->id, $apSelected, true); @endphp
+                                                    @php $aid = (int) $agent->id; @endphp
                                                     <label
                                                         x-show="!search || `{{ str_replace('`', '', $agent->name . ' ' . ($agent->role ?? '')) }}`.toLowerCase().includes(search.toLowerCase())"
+                                                        :class="selected.includes({{ $aid }}) ? 'bg-blue-50 border-blue-100' : ''"
                                                         class="flex items-center gap-2 px-2 py-1.5 border-b border-gray-100 last:border-0 hover:bg-blue-50 cursor-pointer text-xs">
                                                         <input type="checkbox"
-                                                               value="{{ $agent->id }}"
-                                                               wire:model.live="sectionContent.{{ $field->name }}"
+                                                               :checked="selected.includes({{ $aid }})"
+                                                               @click.stop="toggle({{ $aid }})"
                                                                class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
                                                         @if($agent->getPhotoUrl())
                                                             <img src="{{ $agent->getPhotoUrl() }}" alt="{{ $agent->name }}" class="w-7 h-7 rounded-full object-cover">
@@ -1257,13 +1279,11 @@ if (typeof window.editorjsField === 'undefined') {
                                                     </label>
                                                 @endforeach
                                             </div>
-                                            <div class="text-[11px] text-gray-500 px-1">
-                                                @if(count($apSelected) === 0)
-                                                    Nothing selected — fallback shows first <em>count</em> active agents.
-                                                @else
-                                                    {{ count($apSelected) }} selected. Display order matches the agents table (admin → Agents).
-                                                @endif
-                                            </div>
+                                            <div class="text-[11px] text-gray-500 px-1" x-text="
+                                                selected.length === 0
+                                                    ? 'Nothing selected — fallback shows first N active agents.'
+                                                    : (selected.length + ' selected. Display order matches the agents table (admin → Agents).')
+                                            "></div>
                                         @endif
                                     </div>
                                     @break

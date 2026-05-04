@@ -67,11 +67,12 @@ class HomeSectionFieldsSeeder extends Seeder
             ]])],
         ]);
 
+        // agents-grid is autonomous — title/subtitle are NOT included so the section
+        // shows a clean grid only. Use a separate Heading / Section Title block above
+        // when you need a header.
         $this->seedFields('agents-grid', [
-            ['name' => 'subtitle', 'label' => 'Subtitle', 'type' => 'text', 'order' => 0, 'default_value' => 'Our Teams'],
-            ['name' => 'title', 'label' => 'Title', 'type' => 'text', 'order' => 1, 'default_value' => 'Meet Our Agents'],
-            ['name' => 'agent_ids', 'label' => 'Pick agents to display', 'type' => 'agents_picker', 'order' => 2],
-            ['name' => 'agents', 'label' => 'Manual agents (overrides picker — leave empty to use picker)', 'type' => 'repeater', 'order' => 3, 'settings' => json_encode(['sub_fields' => [
+            ['name' => 'agent_ids', 'label' => 'Pick agents to display', 'type' => 'agents_picker', 'order' => 0],
+            ['name' => 'agents', 'label' => 'Manual agents (overrides picker — leave empty to use picker)', 'type' => 'repeater', 'order' => 1, 'settings' => json_encode(['sub_fields' => [
                 ['name' => 'name', 'label' => 'Name', 'type' => 'text'],
                 ['name' => 'role', 'label' => 'Role', 'type' => 'text'],
                 ['name' => 'image', 'label' => 'Photo', 'type' => 'image'],
