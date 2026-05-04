@@ -14,15 +14,31 @@
         <p class="text-xs text-gray-500 mb-2">{{ $field->description }}</p>
     @endif
 
+    @php
+        // Fields that drive the slug (title/name/heading or anything flagged as URL identifier)
+        // need a LIVE binding so the server-side updated() hook fires as the user types,
+        // populating the slug field automatically. The slug field itself is also live so we can
+        // detect manual edits (and stop auto-syncing). Other text fields stay on onchange to
+        // avoid unnecessary round-trips.
+        $isLiveField = $field->is_url_identifier
+            || in_array($field->name, ['title', 'name', 'heading', 'slug'], true);
+    @endphp
     @switch($field->type)
             @case('text')
             @case('email')
             @case('url')
-                <input type="{{ $field->type }}"
-                       value="{{ $this->fieldValues[$field->name] ?? '' }}"
-                       onchange="@this.set('fieldValues.{{ $field->name }}', this.value, false)"
-                       class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border"
-                       placeholder="{{ $field->default_value ?? '' }}">
+                @if($isLiveField)
+                    <input type="{{ $field->type }}"
+                           wire:model.live.debounce.350ms="fieldValues.{{ $field->name }}"
+                           class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border"
+                           placeholder="{{ $field->default_value ?? '' }}">
+                @else
+                    <input type="{{ $field->type }}"
+                           value="{{ $this->fieldValues[$field->name] ?? '' }}"
+                           onchange="@this.set('fieldValues.{{ $field->name }}', this.value, false)"
+                           class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border"
+                           placeholder="{{ $field->default_value ?? '' }}">
+                @endif
                 @break
 
             @case('textarea')

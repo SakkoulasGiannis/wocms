@@ -98,8 +98,15 @@ class EntryForm extends Component
             return;
         }
 
+        // Detect the slug-source field. Prefer the explicit is_url_identifier flag,
+        // but if no field has it set, fall back to common naming conventions
+        // (title / name / heading) — matches createContentNode's logic.
         $urlField = $this->template->fields->where('is_url_identifier', true)->first();
-        if (! $urlField || $urlField->name !== $key) {
+        if ($urlField) {
+            if ($urlField->name !== $key) {
+                return;
+            }
+        } elseif (! in_array($key, ['title', 'name', 'heading'], true)) {
             return;
         }
 
