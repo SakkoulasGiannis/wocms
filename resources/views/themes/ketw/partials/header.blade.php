@@ -13,7 +13,7 @@
     :class="scrolled ? 'shadow-md bg-white' : 'bg-white/95 backdrop-blur-sm'"
     class="sticky top-0 z-40 w-full transition-shadow"
 >
-    <div class="mx-auto max-w-8xl px-4 sm:px-6 lg:px-8">
+    <div class="mx-auto  px-4 sm:px-6 lg:px-8">
         <div class="flex h-20 items-center justify-between gap-6">
 
             {{-- Logo --}}
@@ -30,7 +30,7 @@
             </div>
 
             {{-- Desktop Navigation --}}
-            <nav class="hidden lg:flex lg:flex-1 lg:items-center lg:justify-center">
+            <nav class="hidden lg:flex lg:flex-1">
                 <ul class="flex items-center gap-1">
                     @if($headerMenu)
                         @foreach($headerMenu->rootItems as $item)
