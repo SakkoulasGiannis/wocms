@@ -220,8 +220,10 @@ body.editorjs-fullscreen-mode .editorjs-container .codex-editor__redactor {
 <script src="https://cdn.jsdelivr.net/npm/@editorjs/inline-code@1.5.0/dist/inline-code.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@editorjs/underline@1.2.1/dist/underline.umd.js"></script>
 
-{{-- Undo/Redo — disabled (causes errors with custom tools) --}}
-{{-- <script src="https://cdn.jsdelivr.net/npm/editorjs-undo@2.0.1/dist/bundle.js"></script> --}}
+{{-- Undo/Redo (Ctrl+Z / Ctrl+Shift+Z). Re-enabled with v2.0.28 — wrapped in try/catch
+     at the call site so any bug with our custom tools degrades gracefully instead of
+     breaking the whole editor. --}}
+<script src="https://cdn.jsdelivr.net/npm/editorjs-undo@2.0.28/dist/bundle.js"></script>
 
 <script>
 /* ─── Tailwind Class Picker: shared modal for block class tune ─── */
@@ -1518,10 +1520,16 @@ function editorjsField(config) {
                     // Stamp instance on DOM node so re-init guard can clean it up
                     const el = document.getElementById(self.uid);
                     if (el) el._editorjsInstance = self.editor;
-                    // Undo disabled — caused issues with custom tools
-                    console.log('[EditorJS] window.ColumnsTool:', typeof window.ColumnsTool);
-                    console.log('[EditorJS] Tools registered:', Object.keys(self.editor?.configuration?.tools || {}));
-                    console.log('[EditorJS] Tools in toolbox:', Array.from(document.querySelectorAll('.ce-popover-item__title')).map(el => el.textContent));
+
+                    // Undo / Redo (Ctrl+Z / Ctrl+Shift+Z). Wrapped — if the plugin
+                    // crashes on a particular block type we don't take the editor down.
+                    try {
+                        if (window.Undo) {
+                            self.undo = new window.Undo({ editor: self.editor });
+                        }
+                    } catch (e) {
+                        console.warn('[EditorJS] Undo init failed (non-fatal):', e);
+                    }
                 },
             });
         },
