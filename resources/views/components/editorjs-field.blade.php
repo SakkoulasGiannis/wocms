@@ -690,6 +690,7 @@ window.ContainerTool = class ContainerTool {
                 inlineCode: InlineCode,
                 underline: Underline,
                 ...(window.ColorTool ? { color: { class: window.ColorTool } } : {}),
+                ...(window.InlineAlignmentTool ? { inlineAlignment: { class: window.InlineAlignmentTool } } : {}),
                 ...(window.BlockClassesTune ? { blockClasses: window.BlockClassesTune } : {}),
                 ...(window.TextAlignmentTune ? { textAlignment: window.TextAlignmentTune } : {}),
                 ...(window.ImageSizeTune ? { imageSize: window.ImageSizeTune } : {}),
@@ -1105,6 +1106,134 @@ window.ImageSizeTune = class ImageSizeTune {
     }
 };
 
+/* ─── Inline Alignment tool — multi-block text-align via the inline toolbar ───
+   Lets the user select text across one or many blocks (click-drag) and apply
+   left/center/right/justify alignment from the inline toolbar (alongside
+   bold/italic/marker/etc.). Reuses the same dataset.textAlignment + save-patch
+   approach as TextAlignmentTune so the alignment persists in saved JSON. */
+window.InlineAlignmentTool = class InlineAlignmentTool {
+    static get isInline() { return true; }
+    static get title() { return 'Alignment'; }
+    static get sanitize() { return {}; }
+
+    constructor({ api }) {
+        this.api = api;
+        this.OPTIONS = [
+            { key: 'left',    label: 'Left',    icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h12M3 18h15"/></svg>' },
+            { key: 'center',  label: 'Center',  icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M6 12h12M4 18h16"/></svg>' },
+            { key: 'right',   label: 'Right',   icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M9 12h12M6 18h15"/></svg>' },
+            { key: 'justify', label: 'Justify', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>' },
+        ];
+    }
+
+    render() {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.classList.add('ce-inline-tool');
+        btn.title = 'Text alignment';
+        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h12M3 18h15"/></svg>';
+        return btn;
+    }
+
+    renderActions() {
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'display:flex;gap:2px;padding:4px;background:#fff;border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.08)';
+        this.OPTIONS.forEach(opt => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.title = opt.label + ' align';
+            b.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid #e5e7eb;border-radius:4px;cursor:pointer;background:#fff;color:#374151;transition:all .12s';
+            b.innerHTML = opt.icon;
+            b.addEventListener('click', (e) => {
+                e.preventDefault(); e.stopPropagation();
+                this.applyAlignmentToSelection(opt.key);
+                this.hideActions();
+            });
+            wrap.appendChild(b);
+        });
+        // Clear button
+        const clear = document.createElement('button');
+        clear.type = 'button';
+        clear.title = 'Clear alignment';
+        clear.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid #fecaca;border-radius:4px;cursor:pointer;background:#fff;color:#dc2626;transition:all .12s;font-weight:700;font-size:14px';
+        clear.innerHTML = '×';
+        clear.addEventListener('click', (e) => {
+            e.preventDefault(); e.stopPropagation();
+            this.applyAlignmentToSelection(null);
+            this.hideActions();
+        });
+        wrap.appendChild(clear);
+
+        wrap.style.display = 'none';
+        this.actionsEl = wrap;
+        return wrap;
+    }
+
+    showActions() { if (this.actionsEl) this.actionsEl.style.display = 'flex'; }
+    hideActions() { if (this.actionsEl) this.actionsEl.style.display = 'none'; }
+
+    surround(range) {
+        // Capture range BEFORE the popup eats focus / the selection is lost.
+        this.capturedRange = range;
+        if (this.actionsEl && this.actionsEl.style.display === 'flex') {
+            this.hideActions();
+        } else {
+            this.showActions();
+        }
+    }
+
+    applyAlignmentToSelection(alignment) {
+        // Find all .ce-block elements that contain the captured range. If no range,
+        // apply to the block where the cursor was.
+        let range = this.capturedRange;
+        if (!range) {
+            const sel = window.getSelection();
+            if (sel && sel.rangeCount) range = sel.getRangeAt(0);
+        }
+
+        const blocks = new Set();
+        if (range) {
+            // Walk the range's start container up to find .ce-block, then iterate forward.
+            const startBlock = (range.startContainer.nodeType === 1
+                ? range.startContainer
+                : range.startContainer.parentElement)?.closest('.ce-block');
+            const endBlock = (range.endContainer.nodeType === 1
+                ? range.endContainer
+                : range.endContainer.parentElement)?.closest('.ce-block');
+            if (startBlock) blocks.add(startBlock);
+            if (endBlock) blocks.add(endBlock);
+            // If the range spans multiple blocks, walk siblings from start to end.
+            if (startBlock && endBlock && startBlock !== endBlock) {
+                let cur = startBlock.nextElementSibling;
+                while (cur && cur !== endBlock) {
+                    if (cur.classList.contains('ce-block')) blocks.add(cur);
+                    cur = cur.nextElementSibling;
+                }
+            }
+        }
+
+        // Fallback: if no blocks resolved, apply to the currently focused block.
+        if (blocks.size === 0) {
+            const idx = this.api.blocks.getCurrentBlockIndex?.() ?? -1;
+            if (idx >= 0) {
+                const node = document.querySelectorAll('.ce-block')[idx];
+                if (node) blocks.add(node);
+            }
+        }
+
+        blocks.forEach(blockEl => {
+            if (typeof window.applyAlignmentToBlockElement === 'function') {
+                window.applyAlignmentToBlockElement(blockEl, alignment);
+            }
+        });
+
+        // Clear captured range so next click starts fresh.
+        this.capturedRange = null;
+    }
+
+    checkState() { return false; }
+};
+
 /* ─── Inline Text Color tool ─── */
 window.ColorTool = class ColorTool {
     static get isInline() { return true; }
@@ -1475,6 +1604,9 @@ function editorjsField(config) {
                     inlineCode: InlineCode,
                     underline: Underline,
                     ...(window.ColorTool ? { color: { class: window.ColorTool } } : {}),
+
+                    // Inline alignment (multi-block support — select text across lines, click button)
+                    ...(window.InlineAlignmentTool ? { inlineAlignment: { class: window.InlineAlignmentTool } } : {}),
 
                     // Block tune — CSS classes per block
                     ...(window.BlockClassesTune ? { blockClasses: window.BlockClassesTune } : {}),

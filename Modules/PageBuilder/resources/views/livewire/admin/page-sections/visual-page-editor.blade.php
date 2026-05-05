@@ -135,6 +135,7 @@ window.ContainerTool = class ContainerTool {
                 quote: { class: Quote, inlineToolbar: true },
                 marker: Marker, inlineCode: InlineCode, underline: Underline,
                 ...(window.ColorTool ? { color: { class: window.ColorTool } } : {}),
+                ...(window.InlineAlignmentTool ? { inlineAlignment: { class: window.InlineAlignmentTool } } : {}),
                 ...(window.BlockClassesTune ? { blockClasses: window.BlockClassesTune } : {}),
                 ...(window.TextAlignmentTune ? { textAlignment: window.TextAlignmentTune } : {}),
                 ...(window.ImageSizeTune ? { imageSize: window.ImageSizeTune } : {}),
