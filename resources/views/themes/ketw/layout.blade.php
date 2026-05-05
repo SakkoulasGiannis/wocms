@@ -32,6 +32,21 @@
         }
     </style>
 
+    {{-- Heading defaults — Tailwind v4 preflight resets h1-h6 to inherit; restore them here.
+         :not([class]) keeps these defaults out of the way when the user explicitly applies
+         Tailwind utilities (text-3xl, font-bold, etc.) via BlockClassesTune in the editor. --}}
+    <style>
+        html body h1:not([class]) { font-size: 2.5rem  !important; font-weight: 800 !important; line-height: 1.15 !important; margin: 0.5em 0 !important; color: #0f172a; }
+        html body h2:not([class]) { font-size: 2rem    !important; font-weight: 700 !important; line-height: 1.2  !important; margin: 0.5em 0 !important; color: #0f172a; }
+        html body h3:not([class]) { font-size: 1.5rem  !important; font-weight: 700 !important; line-height: 1.25 !important; margin: 0.5em 0 !important; color: #1f2937; }
+        html body h4:not([class]) { font-size: 1.25rem !important; font-weight: 600 !important; line-height: 1.3  !important; margin: 0.5em 0 !important; color: #1f2937; }
+        html body h5:not([class]) { font-size: 1.1rem  !important; font-weight: 600 !important; line-height: 1.4  !important; margin: 0.5em 0 !important; color: #374151; }
+        html body h6:not([class]) { font-size: 0.95rem !important; font-weight: 600 !important; line-height: 1.4  !important; margin: 0.5em 0 !important; color: #4b5563; text-transform: uppercase; letter-spacing: 0.04em; }
+        html body p:not([class])  { margin: 0.5em 0 !important; line-height: 1.65 !important; }
+        html body ul:not([class]) { padding-left: 1.5rem !important; margin: 0.5em 0 !important; list-style: disc !important; }
+        html body ol:not([class]) { padding-left: 1.5rem !important; margin: 0.5em 0 !important; list-style: decimal !important; }
+    </style>
+
     {{-- Custom Head Scripts from Settings --}}
     @if(\App\Models\Setting::get('custom_head_scripts'))
         {!! \App\Models\Setting::get('custom_head_scripts') !!}

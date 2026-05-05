@@ -30,7 +30,7 @@
             </div>
 
             {{-- Desktop Navigation --}}
-            <nav class="hidden lg:flex lg:flex-1">
+            <nav class="hidden lg:flex lg:flex-1 lg:items-center lg:justify-center">
                 <ul class="flex items-center gap-1">
                     @if($headerMenu)
                         @foreach($headerMenu->rootItems as $item)
