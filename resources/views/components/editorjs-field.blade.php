@@ -1106,6 +1106,136 @@ window.ImageSizeTune = class ImageSizeTune {
     }
 };
 
+/* ─── Floating multi-block alignment toolbar ─────────────────────────────────
+   EditorJS's native inline toolbar only shows for selections within ONE block.
+   This adds a custom floating bar that appears whenever the user has selected
+   text spanning two or more blocks. Click an alignment → applies to every block
+   the selection covers. */
+window.initMultiBlockAlignmentBar = window.initMultiBlockAlignmentBar || function(rootContainer) {
+    if (!rootContainer || rootContainer._mbAlignBarInited) return;
+    rootContainer._mbAlignBarInited = true;
+
+    // Build the floating bar once, append to <body>
+    let bar = document.getElementById('mb-align-bar');
+    if (!bar) {
+        bar = document.createElement('div');
+        bar.id = 'mb-align-bar';
+        bar.style.cssText = 'position:absolute;display:none;z-index:9999;background:#111827;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,0.25);padding:4px;gap:2px;align-items:center';
+        bar.setAttribute('role', 'toolbar');
+        bar.addEventListener('mousedown', (e) => e.preventDefault()); // keep selection alive
+        const opts = [
+            { key: 'left',    title: 'Align left',    icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h12M3 18h15"/></svg>' },
+            { key: 'center',  title: 'Center',        icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M6 12h12M4 18h16"/></svg>' },
+            { key: 'right',   title: 'Align right',   icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M9 12h12M6 18h15"/></svg>' },
+            { key: 'justify', title: 'Justify',       icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>' },
+        ];
+        opts.forEach(o => {
+            const b = document.createElement('button');
+            b.type = 'button'; b.title = o.title; b.dataset.align = o.key;
+            b.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:30px;height:28px;border:none;border-radius:5px;cursor:pointer;background:transparent;color:#fff;transition:all .12s';
+            b.innerHTML = o.icon;
+            b.addEventListener('mouseenter', () => b.style.background = 'rgba(99,102,241,0.5)');
+            b.addEventListener('mouseleave', () => b.style.background = 'transparent');
+            b.addEventListener('click', (e) => {
+                e.preventDefault(); e.stopPropagation();
+                applyToSelection(o.key);
+            });
+            bar.appendChild(b);
+        });
+        const clear = document.createElement('button');
+        clear.type = 'button'; clear.title = 'Clear alignment';
+        clear.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:30px;height:28px;border:none;border-radius:5px;cursor:pointer;background:transparent;color:#fca5a5;font-size:16px;font-weight:700;margin-left:2px';
+        clear.innerHTML = '×';
+        clear.addEventListener('mouseenter', () => clear.style.background = 'rgba(239,68,68,0.4)');
+        clear.addEventListener('mouseleave', () => clear.style.background = 'transparent');
+        clear.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); applyToSelection(null); });
+        bar.appendChild(clear);
+        document.body.appendChild(bar);
+    }
+
+    function getSelectionBlocks() {
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return [];
+        const range = sel.getRangeAt(0);
+        const startEl = (range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentElement);
+        const endEl   = (range.endContainer.nodeType === 1 ? range.endContainer : range.endContainer.parentElement);
+        const startBlock = startEl?.closest('.ce-block');
+        const endBlock   = endEl?.closest('.ce-block');
+        if (!startBlock || !endBlock) return [];
+        // Only show if selection truly spans 2+ blocks (or different start/end blocks)
+        if (startBlock === endBlock) return [];
+        // Make sure both are inside the same EditorJS root
+        if (!rootContainer.contains(startBlock) || !rootContainer.contains(endBlock)) return [];
+        const blocks = [startBlock];
+        let cur = startBlock.nextElementSibling;
+        while (cur && cur !== endBlock) {
+            if (cur.classList && cur.classList.contains('ce-block')) blocks.push(cur);
+            cur = cur.nextElementSibling;
+        }
+        blocks.push(endBlock);
+        return blocks;
+    }
+
+    function showBarFor(range) {
+        const rect = range.getBoundingClientRect();
+        if (!rect || rect.width === 0 || rect.height === 0) { hideBar(); return; }
+        bar.style.display = 'flex';
+        // Position above the top of the selection rectangle
+        const top = window.scrollY + rect.top - 40;
+        const left = window.scrollX + rect.left + (rect.width / 2) - (bar.offsetWidth / 2 || 80);
+        bar.style.top  = Math.max(8, top) + 'px';
+        bar.style.left = Math.max(8, left) + 'px';
+    }
+    function hideBar() { if (bar) bar.style.display = 'none'; }
+
+    function applyToSelection(alignment) {
+        const blocks = getSelectionBlocks();
+        blocks.forEach(b => {
+            if (typeof window.applyAlignmentToBlockElement === 'function') {
+                window.applyAlignmentToBlockElement(b, alignment);
+            }
+        });
+        // Tell each affected block to dispatchChange so EditorJS triggers onChange (save patch fires)
+        blocks.forEach(b => {
+            const idx = Array.from(rootContainer.querySelectorAll('.ce-block')).indexOf(b);
+            if (idx >= 0) {
+                try {
+                    const ed = rootContainer._editorjsInstance;
+                    if (ed && ed.blocks) {
+                        const apiBlock = ed.blocks.getBlockByIndex(idx);
+                        apiBlock?.dispatchChange?.();
+                    }
+                } catch (e) {}
+            }
+        });
+        hideBar();
+    }
+
+    function check() {
+        // Defer so EditorJS's own selection updates settle first
+        setTimeout(() => {
+            const blocks = getSelectionBlocks();
+            if (blocks.length >= 2) {
+                const sel = window.getSelection();
+                if (sel && sel.rangeCount) showBarFor(sel.getRangeAt(0));
+            } else {
+                hideBar();
+            }
+        }, 10);
+    }
+
+    rootContainer.addEventListener('mouseup', check);
+    rootContainer.addEventListener('keyup', (e) => {
+        // Hide on most key activity except shift (used to extend selection)
+        if (e.shiftKey || e.key === 'Shift') check();
+        else hideBar();
+    });
+    document.addEventListener('mousedown', (e) => {
+        if (bar && !bar.contains(e.target)) hideBar();
+    });
+    window.addEventListener('scroll', hideBar, true);
+};
+
 /* ─── Inline Alignment tool — multi-block text-align via the inline toolbar ───
    Lets the user select text across one or many blocks (click-drag) and apply
    left/center/right/justify alignment from the inline toolbar (alongside
@@ -1669,6 +1799,11 @@ function editorjsField(config) {
                         }
                     } catch (e) {
                         console.warn('[EditorJS] Undo init failed (non-fatal):', e);
+                    }
+
+                    // Floating multi-block alignment toolbar (text selection across blocks)
+                    if (el && typeof window.initMultiBlockAlignmentBar === 'function') {
+                        window.initMultiBlockAlignmentBar(el);
                     }
                 },
             });

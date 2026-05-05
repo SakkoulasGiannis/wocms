@@ -765,6 +765,9 @@ if (typeof window.editorjsField === 'undefined') {
                         const el = document.getElementById(self.uid);
                         if (el) el._editorjsInstance = self.editor;
                         try { if (window.Undo) new window.Undo({ editor: self.editor }); } catch (e) { console.warn('[EditorJS] Undo init failed (non-fatal):', e); }
+                        if (el && typeof window.initMultiBlockAlignmentBar === 'function') {
+                            window.initMultiBlockAlignmentBar(el);
+                        }
                     },
                 });
             },
