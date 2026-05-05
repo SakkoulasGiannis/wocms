@@ -508,6 +508,12 @@ window.ContainerTool = class ContainerTool {
         return { title: 'Container', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h12M6 14h8"/></svg>' };
     }
     static get isReadOnlySupported() { return true; }
+    /**
+     * Tell EditorJS this tool handles its own line breaks. Without this, pressing
+     * Enter inside the nested sub-editor bubbles up and the outer editor creates a
+     * new paragraph block AFTER the container — kicking the user out of typing.
+     */
+    static get enableLineBreaks() { return true; }
 
     // Preset max-widths (map to Tailwind max-w-* + CSS values for live preview)
     static get WIDTHS() {
@@ -1217,6 +1223,8 @@ window.ColumnsTool = class ColumnsTool {
         return { title: 'Columns', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="6" height="16" rx="1"/><rect x="10" y="4" width="4" height="16"/><rect x="15" y="4" width="6" height="16" rx="1"/></svg>' };
     }
     static get isReadOnlySupported() { return true; }
+    /** Same reason as ContainerTool — Enter in a nested column shouldn't kick the user out. */
+    static get enableLineBreaks() { return true; }
     constructor({ data, api, config }) {
         this.api = api;
         const d = data && data.columns ? data : {};

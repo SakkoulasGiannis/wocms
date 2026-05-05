@@ -16,6 +16,8 @@
 window.ContainerTool = class ContainerTool {
     static get toolbox() { return { title: 'Container', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h12M6 14h8"/></svg>' }; }
     static get isReadOnlySupported() { return true; }
+    /** Enter inside the nested sub-editor must NOT bubble up and create a new outer block. */
+    static get enableLineBreaks() { return true; }
     static get WIDTHS() {
         return {
             'full':   { label: 'Full width',    class: 'max-w-full',  css: '100%' },
@@ -410,6 +412,8 @@ window.ColumnsTool = class ColumnsTool {
         return { title: 'Columns', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="6" height="16" rx="1"/><rect x="10" y="4" width="4" height="16"/><rect x="15" y="4" width="6" height="16" rx="1"/></svg>' };
     }
     static get isReadOnlySupported() { return true; }
+    /** Same as Container — Enter in a column shouldn't bubble out to the outer editor. */
+    static get enableLineBreaks() { return true; }
     constructor({ data, api, config }) {
         this.api = api;
         const d = data && typeof data === 'object' ? data : {};
