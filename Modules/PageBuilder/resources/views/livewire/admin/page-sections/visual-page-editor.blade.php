@@ -135,8 +135,14 @@ window.ContainerTool = class ContainerTool {
                 ...(window.ColorTool ? { color: { class: window.ColorTool } } : {}),
                 ...(window.BlockClassesTune ? { blockClasses: window.BlockClassesTune } : {}),
                 ...(window.TextAlignmentTune ? { textAlignment: window.TextAlignmentTune } : {}),
+                ...(window.ImageSizeTune ? { imageSize: window.ImageSizeTune } : {}),
             };
-            if (window.__editorImageTool) subTools.image = window.__editorImageTool;
+            if (window.__editorImageTool) {
+                subTools.image = {
+                    ...window.__editorImageTool,
+                    tunes: window.ImageSizeTune ? ['imageSize'] : [],
+                };
+            }
             this.subEditor = new EditorJS({
                 holder: h, placeholder: 'Container content...', data: this.data.content || { blocks: [] }, minHeight: 80, tools: subTools,
                 tunes: [
@@ -698,7 +704,7 @@ if (typeof window.editorjsField === 'undefined') {
                         delimiter: Delimiter,
                         warning: { class: Warning, inlineToolbar: true },
                         table: { class: Table, inlineToolbar: true },
-                        image: { class: ImageTool, config: { uploader: {
+                        image: { class: ImageTool, tunes: window.ImageSizeTune ? ['imageSize'] : [], config: { uploader: {
                             async uploadByFile(file) {
                                 const form = new FormData(); form.append('image', file);
                                 const res = await fetch(self.uploadImageUrl, { method: 'POST', headers: { 'X-CSRF-TOKEN': self.csrfToken }, body: form });
@@ -722,6 +728,7 @@ if (typeof window.editorjsField === 'undefined') {
                         ...(window.ColorTool ? { color: { class: window.ColorTool } } : {}),
                         ...(window.BlockClassesTune ? { blockClasses: window.BlockClassesTune } : {}),
                         ...(window.TextAlignmentTune ? { textAlignment: window.TextAlignmentTune } : {}),
+                        ...(window.ImageSizeTune ? { imageSize: window.ImageSizeTune } : {}),
                         ...(window.ColumnsTool ? { columns: { class: window.ColumnsTool } } : {}),
                         ...(window.ContainerTool ? { container: { class: window.ContainerTool } } : {}),
                     },

@@ -684,8 +684,14 @@ window.ContainerTool = class ContainerTool {
                 ...(window.ColorTool ? { color: { class: window.ColorTool } } : {}),
                 ...(window.BlockClassesTune ? { blockClasses: window.BlockClassesTune } : {}),
                 ...(window.TextAlignmentTune ? { textAlignment: window.TextAlignmentTune } : {}),
+                ...(window.ImageSizeTune ? { imageSize: window.ImageSizeTune } : {}),
             };
-            if (window.__editorImageTool) subTools.image = window.__editorImageTool;
+            if (window.__editorImageTool) {
+                subTools.image = {
+                    ...window.__editorImageTool,
+                    tunes: window.ImageSizeTune ? ['imageSize'] : [],
+                };
+            }
 
             this.subEditor = new EditorJS({
                 holder: holder,
@@ -955,6 +961,134 @@ window.TextAlignmentTune = class TextAlignmentTune {
 
     save() {
         return { alignment: this.data.alignment || null };
+    }
+
+    wrap(blockContent) {
+        setTimeout(() => this.applyToBlock(), 50);
+        return blockContent;
+    }
+};
+
+/* ─── Block Tune: Image Size (resize images: 25 / 50 / 75 / 100% + custom) ─── */
+window.ImageSizeTune = class ImageSizeTune {
+    static get isTune() { return true; }
+
+    static get OPTIONS() {
+        return [
+            { key: '25',  label: '25%',  width: '25%' },
+            { key: '50',  label: '50%',  width: '50%' },
+            { key: '75',  label: '75%',  width: '75%' },
+            { key: '100', label: '100%', width: '100%' },
+        ];
+    }
+
+    constructor({ api, data, block }) {
+        this.api = api;
+        this.block = block;
+        this.data = (data && typeof data === 'object') ? data : {};
+        this.buttons = [];
+    }
+
+    render() {
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'display:flex;gap:2px;padding:4px 6px;border-bottom:1px solid #f3f4f6;flex-wrap:wrap;align-items:center';
+
+        const lbl = document.createElement('span');
+        lbl.textContent = 'Size';
+        lbl.style.cssText = 'font-size:11px;color:#6b7280;align-self:center;margin-right:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em';
+        wrap.appendChild(lbl);
+
+        ImageSizeTune.OPTIONS.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.title = `Resize image to ${opt.label}`;
+            btn.dataset.size = opt.key;
+            btn.style.cssText = 'flex:1;min-width:42px;padding:5px 8px;border:1px solid #e5e7eb;border-radius:4px;cursor:pointer;background:#fff;color:#374151;font-size:11px;font-weight:600;transition:all .12s';
+            btn.textContent = opt.label;
+            btn.addEventListener('click', (e) => {
+                e.preventDefault(); e.stopPropagation();
+                const next = (this.data.size === opt.key) ? null : opt.key;
+                this.data.size = next;
+                this.applyToBlock();
+                this.refreshActive();
+            });
+            this.buttons.push(btn);
+            wrap.appendChild(btn);
+        });
+
+        // Custom size input
+        const customWrap = document.createElement('div');
+        customWrap.style.cssText = 'display:flex;align-items:center;gap:4px;width:100%;margin-top:4px';
+        const customLbl = document.createElement('span');
+        customLbl.textContent = 'Custom:';
+        customLbl.style.cssText = 'font-size:11px;color:#6b7280';
+        const customInput = document.createElement('input');
+        customInput.type = 'text';
+        customInput.placeholder = '420px or 60%';
+        customInput.value = (this.data.custom || '');
+        customInput.style.cssText = 'flex:1;padding:4px 8px;border:1px solid #e5e7eb;border-radius:4px;font-size:11px;font-family:ui-monospace,monospace';
+        customInput.addEventListener('input', (e) => {
+            this.data.custom = e.target.value.trim();
+            this.data.size = this.data.custom ? 'custom' : null;
+            this.applyToBlock();
+            this.refreshActive();
+        });
+        customWrap.appendChild(customLbl);
+        customWrap.appendChild(customInput);
+        wrap.appendChild(customWrap);
+
+        setTimeout(() => { this.refreshActive(); this.applyToBlock(); }, 30);
+        return wrap;
+    }
+
+    refreshActive() {
+        this.buttons.forEach(b => {
+            const isActive = b.dataset.size === this.data.size;
+            b.style.background = isActive ? 'linear-gradient(135deg,#10b981,#059669)' : '#fff';
+            b.style.color = isActive ? '#fff' : '#374151';
+            b.style.borderColor = isActive ? 'transparent' : '#e5e7eb';
+        });
+    }
+
+    applyToBlock() {
+        try {
+            let blockEl = (this.block && this.block.holder) ? this.block.holder : null;
+            if (!blockEl) {
+                const idx = this.api.blocks.getCurrentBlockIndex?.() ?? -1;
+                if (idx >= 0) blockEl = document.querySelectorAll('.ce-block')[idx];
+            }
+            if (!blockEl) return;
+            const img = blockEl.querySelector('img');
+            if (!img) return;
+
+            let widthValue = '';
+            if (this.data.size === 'custom' && this.data.custom) {
+                widthValue = this.data.custom;
+            } else if (this.data.size) {
+                const opt = ImageSizeTune.OPTIONS.find(o => o.key === this.data.size);
+                if (opt) widthValue = opt.width;
+            }
+
+            if (widthValue) {
+                img.style.setProperty('width', widthValue, 'important');
+                img.style.setProperty('max-width', widthValue, 'important');
+                img.style.setProperty('height', 'auto', 'important');
+                // Preserve any existing alignment by NOT touching margin here
+                img.dataset.imgSize = this.data.size + (this.data.size === 'custom' ? ':' + this.data.custom : '');
+            } else {
+                img.style.removeProperty('width');
+                img.style.removeProperty('max-width');
+                img.style.removeProperty('height');
+                delete img.dataset.imgSize;
+            }
+        } catch (e) {}
+    }
+
+    save() {
+        return {
+            size: this.data.size || null,
+            custom: this.data.custom || null,
+        };
     }
 
     wrap(blockContent) {
@@ -1272,6 +1406,7 @@ function editorjsField(config) {
                     },
                     image: {
                         class: ImageTool,
+                        tunes: window.ImageSizeTune ? ['imageSize'] : [],
                         config: {
                             uploader: {
                                 async uploadByFile(file) {
@@ -1336,6 +1471,9 @@ function editorjsField(config) {
 
                     // Block tune — text alignment (left / center / right / justify)
                     ...(window.TextAlignmentTune ? { textAlignment: window.TextAlignmentTune } : {}),
+
+                    // Block tune — per-image resize (25/50/75/100% or custom)
+                    ...(window.ImageSizeTune ? { imageSize: window.ImageSizeTune } : {}),
 
                     // Columns block (custom)
                     ...(window.ColumnsTool ? { columns: { class: window.ColumnsTool } } : {}),

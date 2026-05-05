@@ -74,8 +74,8 @@ class EditorJsRenderer
             'quote' => $this->renderQuote($data),
             'code' => $this->renderCode($data),
             'delimiter' => '<hr class="editorjs-delimiter my-8"/>',
-            'image' => $this->renderImage($data),
-            'simpleImage' => $this->renderSimpleImage($data),
+            'image' => $this->renderImage($data, $tunes),
+            'simpleImage' => $this->renderSimpleImage($data, $tunes),
             'embed' => $this->renderEmbed($data),
             'table' => $this->renderTable($data),
             'raw' => $data['html'] ?? '',
@@ -279,7 +279,7 @@ class EditorJsRenderer
         return "<pre class=\"bg-gray-900 text-gray-100 rounded-lg p-4 my-4 overflow-x-auto\"><code class=\"{$langClass}\">{$code}</code></pre>\n";
     }
 
-    protected function renderImage(array $data): string
+    protected function renderImage(array $data, array $tunes = []): string
     {
         $url = $data['file']['url'] ?? $data['url'] ?? '';
         if (! $url) {
@@ -292,8 +292,26 @@ class EditorJsRenderer
         $stretched = ($data['stretched'] ?? false) ? 'w-full' : 'max-w-full';
         $classes = trim("my-4 rounded-lg {$withBorder} {$withBackground} {$stretched}");
 
+        // Image resize tune (25/50/75/100% or custom value like '420px' / '60%')
+        $sizeStyle = '';
+        $sizeKey = $tunes['imageSize']['size'] ?? null;
+        $custom = $tunes['imageSize']['custom'] ?? null;
+        $sizeMap = ['25' => '25%', '50' => '50%', '75' => '75%', '100' => '100%'];
+        $widthValue = null;
+        if ($sizeKey === 'custom' && $custom) {
+            $widthValue = trim((string) $custom);
+        } elseif ($sizeKey && isset($sizeMap[$sizeKey])) {
+            $widthValue = $sizeMap[$sizeKey];
+        }
+        if ($widthValue) {
+            // Basic safety — only allow simple width syntax (digits + px/% + rem etc.)
+            if (preg_match('/^[\d.]+(px|%|rem|em|vw)?$/', $widthValue)) {
+                $sizeStyle = ' style="width:'.$widthValue.';max-width:'.$widthValue.';height:auto;"';
+            }
+        }
+
         $html = '<figure class="my-4">';
-        $html .= "<img src=\"{$url}\" alt=\"".htmlspecialchars($caption)."\" class=\"{$classes}\">";
+        $html .= "<img src=\"{$url}\" alt=\"".htmlspecialchars($caption)."\" class=\"{$classes}\"{$sizeStyle}>";
         if ($caption) {
             $html .= "<figcaption class=\"text-center text-sm text-gray-500 mt-2\">{$caption}</figcaption>";
         }
@@ -301,9 +319,9 @@ class EditorJsRenderer
         return $html."</figure>\n";
     }
 
-    protected function renderSimpleImage(array $data): string
+    protected function renderSimpleImage(array $data, array $tunes = []): string
     {
-        return $this->renderImage($data);
+        return $this->renderImage($data, $tunes);
     }
 
     protected function renderEmbed(array $data): string
