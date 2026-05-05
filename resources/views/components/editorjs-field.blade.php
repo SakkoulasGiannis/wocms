@@ -1154,6 +1154,13 @@ window.initMultiBlockAlignmentBar = window.initMultiBlockAlignmentBar || functio
     }
 
     function getSelectionBlocks() {
+        // 1) EditorJS native multi-block selection — when user click-drags or
+        //    Shift+click across blocks, EditorJS clears the DOM range and marks
+        //    each block with `.ce-block--selected`. Detect that first.
+        const selectedBlocks = Array.from(rootContainer.querySelectorAll('.ce-block.ce-block--selected'));
+        if (selectedBlocks.length >= 2) return selectedBlocks;
+
+        // 2) Fall back to native text range — covers plain double-click + drag scenarios
         const sel = window.getSelection();
         if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return [];
         const range = sel.getRangeAt(0);
@@ -1162,9 +1169,7 @@ window.initMultiBlockAlignmentBar = window.initMultiBlockAlignmentBar || functio
         const startBlock = startEl?.closest('.ce-block');
         const endBlock   = endEl?.closest('.ce-block');
         if (!startBlock || !endBlock) return [];
-        // Only show if selection truly spans 2+ blocks (or different start/end blocks)
         if (startBlock === endBlock) return [];
-        // Make sure both are inside the same EditorJS root
         if (!rootContainer.contains(startBlock) || !rootContainer.contains(endBlock)) return [];
         const blocks = [startBlock];
         let cur = startBlock.nextElementSibling;
@@ -1174,6 +1179,26 @@ window.initMultiBlockAlignmentBar = window.initMultiBlockAlignmentBar || functio
         }
         blocks.push(endBlock);
         return blocks;
+    }
+
+    // Position the bar based on the union bounding rect of all selected blocks
+    // (since text range may be cleared by EditorJS).
+    function showBarForBlocks(blocks) {
+        if (!blocks || blocks.length === 0) { hideBar(); return; }
+        let minTop = Infinity, minLeft = Infinity, maxRight = -Infinity;
+        blocks.forEach(b => {
+            const r = b.getBoundingClientRect();
+            if (r.top < minTop) minTop = r.top;
+            if (r.left < minLeft) minLeft = r.left;
+            if (r.right > maxRight) maxRight = r.right;
+        });
+        if (!isFinite(minTop)) { hideBar(); return; }
+        bar.style.display = 'flex';
+        const top = window.scrollY + minTop - 40;
+        const centerX = (minLeft + maxRight) / 2;
+        const left = window.scrollX + centerX - (bar.offsetWidth / 2 || 80);
+        bar.style.top  = Math.max(8, top) + 'px';
+        bar.style.left = Math.max(8, left) + 'px';
     }
 
     function showBarFor(range) {
@@ -1216,24 +1241,34 @@ window.initMultiBlockAlignmentBar = window.initMultiBlockAlignmentBar || functio
         setTimeout(() => {
             const blocks = getSelectionBlocks();
             if (blocks.length >= 2) {
-                const sel = window.getSelection();
-                if (sel && sel.rangeCount) showBarFor(sel.getRangeAt(0));
+                showBarForBlocks(blocks);
             } else {
                 hideBar();
             }
-        }, 10);
+        }, 30);
     }
 
     rootContainer.addEventListener('mouseup', check);
     rootContainer.addEventListener('keyup', (e) => {
-        // Hide on most key activity except shift (used to extend selection)
         if (e.shiftKey || e.key === 'Shift') check();
         else hideBar();
     });
     document.addEventListener('mousedown', (e) => {
-        if (bar && !bar.contains(e.target)) hideBar();
+        if (bar && !bar.contains(e.target)) {
+            // Allow re-show on the very next mouseup if it lands on a block
+            setTimeout(() => {
+                if (rootContainer.querySelectorAll('.ce-block.ce-block--selected').length < 2) hideBar();
+            }, 0);
+        }
     });
     window.addEventListener('scroll', hideBar, true);
+
+    // MutationObserver — EditorJS adds .ce-block--selected without firing keyup/mouseup
+    // in some flows (e.g. Cmd+A twice). Watch class changes and reflect them.
+    try {
+        const mo = new MutationObserver(check);
+        mo.observe(rootContainer, { subtree: true, attributes: true, attributeFilter: ['class'] });
+    } catch (e) {}
 };
 
 /* ─── Inline Alignment tool — multi-block text-align via the inline toolbar ───
