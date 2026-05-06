@@ -715,6 +715,12 @@ window.ContainerTool = class ContainerTool {
                 onChange: async () => {
                     try { this.data.content = await this.subEditor.save(); } catch (e) {}
                 },
+                onReady: () => {
+                    // Hook the floating multi-block alignment toolbar onto this nested editor
+                    if (typeof window.initMultiBlockAlignmentBar === 'function') {
+                        window.initMultiBlockAlignmentBar(holder);
+                    }
+                },
             });
         } catch (e) {
             console.warn('Container sub-editor init failed:', e);

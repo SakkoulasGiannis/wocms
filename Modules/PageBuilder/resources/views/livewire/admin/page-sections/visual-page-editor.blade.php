@@ -153,6 +153,11 @@ window.ContainerTool = class ContainerTool {
                     ...(window.BlockClassesTune ? ['blockClasses'] : []),
                 ],
                 onChange: async () => { try { this.data.content = await this.subEditor.save(); } catch (e) {} },
+                onReady: () => {
+                    if (typeof window.initMultiBlockAlignmentBar === 'function') {
+                        window.initMultiBlockAlignmentBar(h);
+                    }
+                },
             });
         } catch (e) { console.warn('Container sub-editor init failed:', e); }
         return this.wrap;
@@ -561,6 +566,12 @@ window.ColumnsTool = class ColumnsTool {
                     tools: subTools,
                     onChange: async () => {
                         try { this.data.columns[idx] = await subEditor.save(); } catch(e) {}
+                    },
+                    onReady: () => {
+                        if (typeof window.initMultiBlockAlignmentBar === 'function') {
+                            const holderEl = (typeof holder === 'string') ? document.getElementById(holder) : holder;
+                            if (holderEl) window.initMultiBlockAlignmentBar(holderEl);
+                        }
                     },
                 });
                 this.subEditors.push(subEditor);
