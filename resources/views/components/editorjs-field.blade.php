@@ -1112,14 +1112,99 @@ window.ImageSizeTune = class ImageSizeTune {
     }
 };
 
+console.log('[mb-align] script LOADED — version 2026-05-06 with keyboard shortcuts');
+
+/* ─── Keyboard shortcuts: Ctrl/Cmd + Shift + L/E/R/J for align L/C/R/J ──────
+   Works in any EditorJS instance (outer + nested). Targets all blocks the
+   selection covers — both .ce-block--selected (EditorJS native multi-select)
+   AND the text-range fallback. Persists via dataset.textAlignment + the
+   patchAlignmentTunes save hook. */
+if (!window._mbAlignKeyboardInited) {
+    window._mbAlignKeyboardInited = true;
+    document.addEventListener('keydown', function(e) {
+        if (!(e.ctrlKey || e.metaKey) || !e.shiftKey) return;
+        const k = e.key.toLowerCase();
+        const map = { l: 'left', e: 'center', r: 'right', j: 'justify' };
+        const alignment = map[k];
+        if (!alignment) return;
+
+        // Only act if focus is inside an EditorJS instance
+        const active = document.activeElement;
+        const inEditor = (active && active.closest && active.closest('.codex-editor')) ||
+                         (window.getSelection()?.anchorNode?.parentElement?.closest?.('.codex-editor'));
+        if (!inEditor) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Resolve target blocks: try block-level selection → text range → current block
+        let blocks = [];
+        const root = inEditor.parentElement || inEditor;
+        const flagged = Array.from(root.querySelectorAll('.ce-block.ce-block--selected'));
+        if (flagged.length >= 1) {
+            blocks = flagged;
+        } else {
+            const sel = window.getSelection();
+            if (sel && sel.rangeCount && !sel.isCollapsed) {
+                const range = sel.getRangeAt(0);
+                const sEl = (range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentElement);
+                const eEl = (range.endContainer.nodeType === 1 ? range.endContainer : range.endContainer.parentElement);
+                const sBlock = sEl?.closest('.ce-block');
+                const eBlock = eEl?.closest('.ce-block');
+                if (sBlock) blocks.push(sBlock);
+                if (eBlock && eBlock !== sBlock) {
+                    let cur = sBlock?.nextElementSibling;
+                    while (cur && cur !== eBlock) {
+                        if (cur.classList?.contains('ce-block')) blocks.push(cur);
+                        cur = cur.nextElementSibling;
+                    }
+                    blocks.push(eBlock);
+                }
+            }
+            // Last resort: just the current block (the one with focus)
+            if (blocks.length === 0) {
+                const cur = active?.closest?.('.ce-block') || window.getSelection()?.anchorNode?.parentElement?.closest?.('.ce-block');
+                if (cur) blocks.push(cur);
+            }
+        }
+
+        if (blocks.length === 0) {
+            console.warn('[mb-align] keyboard: no blocks resolved');
+            return;
+        }
+
+        blocks.forEach(b => {
+            if (typeof window.applyAlignmentToBlockElement === 'function') {
+                window.applyAlignmentToBlockElement(b, alignment);
+            }
+        });
+        // Try to dispatch change so EditorJS re-saves with the alignment tune.
+        try {
+            const editor = root._editorjsInstance || (inEditor.closest('[id]'))?._editorjsInstance;
+            if (editor && editor.blocks) {
+                blocks.forEach(b => {
+                    const idx = Array.from(root.querySelectorAll('.ce-block')).indexOf(b);
+                    if (idx >= 0) editor.blocks.getBlockByIndex(idx)?.dispatchChange?.();
+                });
+            }
+        } catch (_) {}
+
+        console.log('[mb-align] keyboard:', alignment, '→', blocks.length, 'block(s)');
+    }, true); // capture phase so we beat browser defaults
+}
+
 /* ─── Floating multi-block alignment toolbar ─────────────────────────────────
    EditorJS's native inline toolbar only shows for selections within ONE block.
    This adds a custom floating bar that appears whenever the user has selected
    text spanning two or more blocks. Click an alignment → applies to every block
    the selection covers. */
 window.initMultiBlockAlignmentBar = window.initMultiBlockAlignmentBar || function(rootContainer) {
-    if (!rootContainer || rootContainer._mbAlignBarInited) return;
+    if (!rootContainer || rootContainer._mbAlignBarInited) {
+        console.log('[mb-align] init SKIPPED — already inited or no root');
+        return;
+    }
     rootContainer._mbAlignBarInited = true;
+    console.log('[mb-align] init OK on root', rootContainer.id || rootContainer);
 
     // Build the floating bar once, append to <body>
     let bar = document.getElementById('mb-align-bar');
@@ -1246,6 +1331,15 @@ window.initMultiBlockAlignmentBar = window.initMultiBlockAlignmentBar || functio
         // Defer so EditorJS's own selection updates settle first
         setTimeout(() => {
             const blocks = getSelectionBlocks();
+            const selFlagged = rootContainer.querySelectorAll('.ce-block.ce-block--selected').length;
+            const sel = window.getSelection();
+            console.log('[mb-align] check', {
+                rootId: rootContainer.id || '?',
+                blocksFound: blocks.length,
+                ceBlockSelectedCount: selFlagged,
+                selRangeCount: sel?.rangeCount,
+                selCollapsed: sel?.isCollapsed,
+            });
             if (blocks.length >= 2) {
                 showBarForBlocks(blocks);
             } else {
