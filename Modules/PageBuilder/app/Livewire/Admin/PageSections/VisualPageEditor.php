@@ -504,16 +504,33 @@ class VisualPageEditor extends Component
             $newItem[$sf['name']] = '';
         }
 
-        $items = $this->sectionContent[$fieldName] ?? [];
-        $items[] = $newItem;
-        $this->sectionContent[$fieldName] = $items;
+        // Repeater items may be stored as a JSON-encoded string in sectionContent
+        // (legacy / fresh-section state). Decode before appending so `$items[] = …`
+        // doesn't blow up with "[] operator not supported for strings".
+        $raw = $this->sectionContent[$fieldName] ?? [];
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            $raw = is_array($decoded) ? $decoded : [];
+        }
+        if (! is_array($raw)) {
+            $raw = [];
+        }
+        $raw[] = $newItem;
+        $this->sectionContent[$fieldName] = array_values($raw);
     }
 
     public function removeRepeaterItem(string $fieldName, int $index): void
     {
-        $items = $this->sectionContent[$fieldName] ?? [];
-        unset($items[$index]);
-        $this->sectionContent[$fieldName] = array_values($items);
+        $raw = $this->sectionContent[$fieldName] ?? [];
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            $raw = is_array($decoded) ? $decoded : [];
+        }
+        if (! is_array($raw)) {
+            $raw = [];
+        }
+        unset($raw[$index]);
+        $this->sectionContent[$fieldName] = array_values($raw);
     }
 
     public function updatedSectionImageUploads($value, string $key): void
