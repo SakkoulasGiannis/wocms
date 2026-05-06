@@ -348,6 +348,186 @@ window.TextAlignmentTune = class TextAlignmentTune {
 }
 </script>
 
+{{-- Space block (fallback definition for visual-page-editor) --}}
+<script>
+if (!window.SpaceTool) {
+window.SpaceTool = class SpaceTool {
+    static get toolbox() {
+        return { title: 'Space', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 7l7-4 7 4M5 17l7 4 7-4"/></svg>' };
+    }
+    static get isReadOnlySupported() { return true; }
+    static get PRESETS() {
+        return [
+            { key: 'xs', label: 'XS',  value: '0.5rem' },
+            { key: 'sm', label: 'SM',  value: '1rem'   },
+            { key: 'md', label: 'MD',  value: '2rem'   },
+            { key: 'lg', label: 'LG',  value: '4rem'   },
+            { key: 'xl', label: 'XL',  value: '6rem'   },
+        ];
+    }
+    constructor({ data, api }) {
+        this.api = api;
+        const d = (data && typeof data === 'object') ? data : {};
+        this.data = { height: d.height || '2rem' };
+    }
+    render() {
+        this.wrap = document.createElement('div');
+        this.wrap.style.cssText = 'position:relative;border:1px dashed #cbd5e1;border-radius:6px;background:#f8fafc;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;transition:height .15s ease';
+        this.label = document.createElement('span');
+        this.wrap.appendChild(this.label);
+        this.applyHeight();
+        return this.wrap;
+    }
+    applyHeight() {
+        if (!this.wrap) return;
+        this.wrap.style.height = this.data.height || '2rem';
+        if (this.label) this.label.textContent = `↕ Space · ${this.data.height || '2rem'}`;
+    }
+    renderSettings() {
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'padding:8px;display:flex;flex-direction:column;gap:6px;width:240px';
+        const lbl = document.createElement('div');
+        lbl.textContent = 'Quick presets'; lbl.style.cssText = 'font-size:11px;font-weight:600;color:#374151;text-transform:uppercase;letter-spacing:0.04em';
+        wrap.appendChild(lbl);
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;gap:2px';
+        SpaceTool.PRESETS.forEach(p => {
+            const b = document.createElement('button');
+            b.type = 'button'; b.textContent = p.label; b.title = p.value;
+            b.style.cssText = `flex:1;padding:6px 4px;border:1px solid #e5e7eb;border-radius:4px;cursor:pointer;background:${this.data.height === p.value ? 'linear-gradient(135deg,#10b981,#059669)' : '#fff'};color:${this.data.height === p.value ? '#fff' : '#374151'};font-size:11px;font-weight:600`;
+            b.addEventListener('click', () => {
+                this.data.height = p.value; this.applyHeight();
+                Array.from(row.children).forEach(c => {
+                    const isActive = c.title === this.data.height;
+                    c.style.background = isActive ? 'linear-gradient(135deg,#10b981,#059669)' : '#fff';
+                    c.style.color = isActive ? '#fff' : '#374151';
+                });
+                if (custom) custom.value = this.data.height;
+            });
+            row.appendChild(b);
+        });
+        wrap.appendChild(row);
+        const cl = document.createElement('div');
+        cl.textContent = 'Custom (rem / px / vh / %)';
+        cl.style.cssText = 'font-size:11px;font-weight:600;color:#374151;margin-top:4px;text-transform:uppercase;letter-spacing:0.04em';
+        wrap.appendChild(cl);
+        const custom = document.createElement('input');
+        custom.type = 'text'; custom.placeholder = '3rem'; custom.value = this.data.height || '';
+        custom.style.cssText = 'width:100%;padding:6px 8px;border:1px solid #e5e7eb;border-radius:4px;font-size:12px;font-family:ui-monospace,monospace';
+        custom.addEventListener('input', (e) => {
+            const v = e.target.value.trim();
+            if (v) { this.data.height = v; this.applyHeight(); }
+        });
+        wrap.appendChild(custom);
+        return wrap;
+    }
+    save() { return { height: this.data.height || '2rem' }; }
+    static get sanitize() { return { height: false }; }
+};
+}
+</script>
+
+{{-- Image Size Tune (fallback definition for visual-page-editor) --}}
+<script>
+if (!window.ImageSizeTune) {
+window.ImageSizeTune = class ImageSizeTune {
+    static get isTune() { return true; }
+    static get OPTIONS() {
+        return [
+            { key: '25',  label: '25%',  width: '25%' },
+            { key: '50',  label: '50%',  width: '50%' },
+            { key: '75',  label: '75%',  width: '75%' },
+            { key: '100', label: '100%', width: '100%' },
+        ];
+    }
+    constructor({ api, data, block }) {
+        this.api = api; this.block = block;
+        this.data = (data && typeof data === 'object') ? data : {};
+        this.buttons = [];
+    }
+    render() {
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'display:flex;gap:2px;padding:4px 6px;border-bottom:1px solid #f3f4f6;flex-wrap:wrap;align-items:center';
+        const lbl = document.createElement('span');
+        lbl.textContent = 'Size';
+        lbl.style.cssText = 'font-size:11px;color:#6b7280;align-self:center;margin-right:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em';
+        wrap.appendChild(lbl);
+        ImageSizeTune.OPTIONS.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.type = 'button'; btn.title = `Resize image to ${opt.label}`; btn.dataset.size = opt.key;
+            btn.style.cssText = 'flex:1;min-width:42px;padding:5px 8px;border:1px solid #e5e7eb;border-radius:4px;cursor:pointer;background:#fff;color:#374151;font-size:11px;font-weight:600;transition:all .12s';
+            btn.textContent = opt.label;
+            btn.addEventListener('click', (e) => {
+                e.preventDefault(); e.stopPropagation();
+                const next = (this.data.size === opt.key) ? null : opt.key;
+                this.data.size = next;
+                this.applyToBlock();
+                this.refreshActive();
+            });
+            this.buttons.push(btn); wrap.appendChild(btn);
+        });
+        const customWrap = document.createElement('div');
+        customWrap.style.cssText = 'display:flex;align-items:center;gap:4px;width:100%;margin-top:4px';
+        const customLbl = document.createElement('span'); customLbl.textContent = 'Custom:';
+        customLbl.style.cssText = 'font-size:11px;color:#6b7280';
+        const customInput = document.createElement('input');
+        customInput.type = 'text'; customInput.placeholder = '420px or 60%';
+        customInput.value = (this.data.custom || '');
+        customInput.style.cssText = 'flex:1;padding:4px 8px;border:1px solid #e5e7eb;border-radius:4px;font-size:11px;font-family:ui-monospace,monospace';
+        customInput.addEventListener('input', (e) => {
+            this.data.custom = e.target.value.trim();
+            this.data.size = this.data.custom ? 'custom' : null;
+            this.applyToBlock();
+            this.refreshActive();
+        });
+        customWrap.appendChild(customLbl); customWrap.appendChild(customInput);
+        wrap.appendChild(customWrap);
+        setTimeout(() => { this.refreshActive(); this.applyToBlock(); }, 30);
+        return wrap;
+    }
+    refreshActive() {
+        this.buttons.forEach(b => {
+            const isActive = b.dataset.size === this.data.size;
+            b.style.background = isActive ? 'linear-gradient(135deg,#10b981,#059669)' : '#fff';
+            b.style.color = isActive ? '#fff' : '#374151';
+            b.style.borderColor = isActive ? 'transparent' : '#e5e7eb';
+        });
+    }
+    applyToBlock() {
+        try {
+            let blockEl = (this.block && this.block.holder) ? this.block.holder : null;
+            if (!blockEl) {
+                const idx = this.api.blocks.getCurrentBlockIndex?.() ?? -1;
+                if (idx >= 0) blockEl = document.querySelectorAll('.ce-block')[idx];
+            }
+            if (!blockEl) return;
+            const img = blockEl.querySelector('img');
+            if (!img) return;
+            let widthValue = '';
+            if (this.data.size === 'custom' && this.data.custom) widthValue = this.data.custom;
+            else if (this.data.size) {
+                const opt = ImageSizeTune.OPTIONS.find(o => o.key === this.data.size);
+                if (opt) widthValue = opt.width;
+            }
+            if (widthValue) {
+                img.style.setProperty('width', widthValue, 'important');
+                img.style.setProperty('max-width', widthValue, 'important');
+                img.style.setProperty('height', 'auto', 'important');
+                img.dataset.imgSize = this.data.size + (this.data.size === 'custom' ? ':' + this.data.custom : '');
+            } else {
+                img.style.removeProperty('width');
+                img.style.removeProperty('max-width');
+                img.style.removeProperty('height');
+                delete img.dataset.imgSize;
+            }
+        } catch (e) {}
+    }
+    save() { return { size: this.data.size || null, custom: this.data.custom || null }; }
+    wrap(blockContent) { setTimeout(() => this.applyToBlock(), 50); return blockContent; }
+};
+}
+</script>
+
 {{-- Inline Text Color tool --}}
 <script>
 if (!window.ColorTool) {
