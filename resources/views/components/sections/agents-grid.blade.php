@@ -23,6 +23,16 @@
     $hasHeading = $subtitle !== '' || $heading !== '' || $description !== '';
     $count = (int) ($settings['count'] ?? $content['count'] ?? 4);
 
+    // Alignment of the grid items within their cells (Tailwind classes).
+    // Accepts: 'left', 'center', 'right'. When fewer agents than columns,
+    // this controls where the partial row sits visually.
+    $alignment = strtolower(trim((string) ($content['alignment'] ?? 'left')));
+    $alignmentClass = match ($alignment) {
+        'center' => 'justify-items-center text-center',
+        'right'  => 'justify-items-end text-right',
+        default  => 'justify-items-start text-left',
+    };
+
     $fallbackAgents = [
         [
             'name' => 'Nikos Papadakis',
@@ -176,7 +186,7 @@
             @endif
 
             {{-- Agents grid --}}
-            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 {{ $alignmentClass }}">
                 @foreach ($agents as $i => $agent)
                     <div
                         class="group overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
