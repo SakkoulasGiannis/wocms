@@ -1945,4 +1945,229 @@ document.addEventListener('livewire:initialized', function () {
     }
 });
 </script>
+
+{{-- Floating multi-block alignment toolbar (always loaded for the visual page editor,
+     even when <x-editorjs-field> hasn't rendered yet). Self-contained — depends only
+     on findBlockPrimary / applyAlignmentToBlockElement helpers from the canonical
+     component, and re-defines them lazily if missing. --}}
+<script>
+(function setupMBAlignmentBar() {
+    if (window._mbAlignVPE) return;
+    window._mbAlignVPE = true;
+    console.log('[mb-align/VPE] script LOADED — visual-page-editor variant');
+
+    // Ensure helpers exist (idempotent — safe if also defined elsewhere)
+    if (typeof window.findBlockPrimary !== 'function') {
+        window.findBlockPrimary = function(blockEl) {
+            if (!blockEl) return null;
+            return blockEl.querySelector('.ce-paragraph, .ce-header, .cdx-quote__text, h1, h2, h3, h4, h5, h6, p, blockquote, ul, ol, figure, pre, [contenteditable="true"]');
+        };
+    }
+    if (typeof window.applyAlignmentToBlockElement !== 'function') {
+        window.applyAlignmentToBlockElement = function(blockEl, alignment) {
+            if (!blockEl) return;
+            const primary = window.findBlockPrimary(blockEl);
+            if (primary) primary.style.textAlign = alignment || '';
+            if (alignment) blockEl.dataset.textAlignment = alignment;
+            else delete blockEl.dataset.textAlignment;
+        };
+    }
+    if (typeof window.patchAlignmentTunes !== 'function') {
+        window.patchAlignmentTunes = function(outputData, containerEl) {
+            if (!outputData || !Array.isArray(outputData.blocks) || !containerEl) return;
+            outputData.blocks.forEach((block) => {
+                if (!block.id) return;
+                const el = containerEl.querySelector(`.ce-block[data-id="${block.id}"]`);
+                if (!el) return;
+                const al = el.dataset.textAlignment;
+                if (al && al !== '') {
+                    block.tunes = block.tunes || {};
+                    block.tunes.textAlignment = { alignment: al };
+                }
+            });
+        };
+    }
+
+    let bar = null;
+    let lastBlocks = [];
+    let lastEditor = null;
+
+    function buildBar() {
+        const el = document.createElement('div');
+        el.id = 'mb-align-bar';
+        el.style.cssText = 'position:absolute;display:none;z-index:2147483647;background:#111827;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.35);padding:4px;gap:2px;align-items:center;user-select:none';
+        el.setAttribute('role', 'toolbar');
+        el.addEventListener('mousedown', (e) => e.preventDefault());
+
+        const opts = [
+            { key: 'left',    title: 'Align left',    icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h12M3 18h15"/></svg>' },
+            { key: 'center',  title: 'Center',        icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M6 12h12M4 18h16"/></svg>' },
+            { key: 'right',   title: 'Align right',   icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M9 12h12M6 18h15"/></svg>' },
+            { key: 'justify', title: 'Justify',       icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>' },
+        ];
+        opts.forEach(o => {
+            const b = document.createElement('button');
+            b.type = 'button'; b.title = o.title; b.dataset.align = o.key;
+            b.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:34px;height:30px;border:none;border-radius:5px;cursor:pointer;background:transparent;color:#fff;transition:background .12s';
+            b.innerHTML = o.icon;
+            b.addEventListener('mouseenter', () => b.style.background = 'rgba(99,102,241,0.5)');
+            b.addEventListener('mouseleave', () => b.style.background = 'transparent');
+            b.addEventListener('click', (ev) => {
+                ev.preventDefault(); ev.stopPropagation();
+                applyToCurrentSelection(o.key);
+            });
+            el.appendChild(b);
+        });
+        const clear = document.createElement('button');
+        clear.type = 'button'; clear.title = 'Clear alignment';
+        clear.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:34px;height:30px;border:none;border-radius:5px;cursor:pointer;background:transparent;color:#fca5a5;font-size:18px;font-weight:700;margin-left:2px';
+        clear.innerHTML = '×';
+        clear.addEventListener('mouseenter', () => clear.style.background = 'rgba(239,68,68,0.4)');
+        clear.addEventListener('mouseleave', () => clear.style.background = 'transparent');
+        clear.addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); applyToCurrentSelection(null); });
+        el.appendChild(clear);
+        return el;
+    }
+
+    function ensureBar() {
+        const fullscreenHost = document.querySelector('.editorjs-fullscreen-mode');
+        const targetParent = fullscreenHost || document.body;
+        if (!targetParent) return null;
+        if (bar && (!document.contains(bar) || bar.parentElement !== targetParent)) {
+            try { bar.remove(); } catch (e) {}
+            bar = null;
+        }
+        if (!bar) {
+            bar = buildBar();
+            targetParent.appendChild(bar);
+            console.log('[mb-align/VPE] bar attached to', targetParent === document.body ? '<body>' : '.editorjs-fullscreen-mode');
+        }
+        return bar;
+    }
+
+    function findBlocksForSelection() {
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount && !sel.isCollapsed) {
+            const range = sel.getRangeAt(0);
+            const sEl = (range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentElement);
+            const eEl = (range.endContainer.nodeType === 1 ? range.endContainer : range.endContainer.parentElement);
+            const sBlock = sEl?.closest?.('.ce-block');
+            const eBlock = eEl?.closest?.('.ce-block');
+            if (sBlock) {
+                const editorRoot = sBlock.closest('.codex-editor');
+                const blocks = [sBlock];
+                if (eBlock && eBlock !== sBlock) {
+                    let cur = sBlock.nextElementSibling;
+                    while (cur && cur !== eBlock) {
+                        if (cur.classList?.contains('ce-block')) blocks.push(cur);
+                        cur = cur.nextElementSibling;
+                    }
+                    blocks.push(eBlock);
+                }
+                return { blocks, root: editorRoot };
+            }
+        }
+        const allEditors = document.querySelectorAll('.codex-editor');
+        for (const ed of allEditors) {
+            const flagged = Array.from(ed.querySelectorAll('.ce-block.ce-block--selected'));
+            if (flagged.length >= 1) return { blocks: flagged, root: ed };
+        }
+        return { blocks: [], root: null };
+    }
+
+    function showBarForBlocks(blocks) {
+        const el = ensureBar();
+        if (!el || !blocks.length) { hideBar(); return; }
+        let minTop = Infinity, minLeft = Infinity, maxRight = -Infinity;
+        blocks.forEach(b => {
+            const r = b.getBoundingClientRect();
+            if (r.top < minTop) minTop = r.top;
+            if (r.left < minLeft) minLeft = r.left;
+            if (r.right > maxRight) maxRight = r.right;
+        });
+        if (!isFinite(minTop)) { hideBar(); return; }
+        const inFullscreen = el.parentElement?.classList?.contains('editorjs-fullscreen-mode');
+        el.style.visibility = 'hidden';
+        el.style.display = 'flex';
+        const barWidth = el.offsetWidth || 180;
+        let top, left;
+        if (inFullscreen) {
+            const parentRect = el.parentElement.getBoundingClientRect();
+            top  = (minTop  - parentRect.top) - 44;
+            left = ((minLeft + maxRight) / 2 - parentRect.left) - (barWidth / 2);
+        } else {
+            top  = window.scrollY + minTop - 44;
+            left = window.scrollX + (minLeft + maxRight) / 2 - (barWidth / 2);
+        }
+        el.style.top  = Math.max(8, top) + 'px';
+        el.style.left = Math.max(8, left) + 'px';
+        el.style.visibility = 'visible';
+    }
+    function hideBar() { if (bar) bar.style.display = 'none'; }
+
+    function applyToCurrentSelection(alignment) {
+        const blocks = lastBlocks.length ? lastBlocks : findBlocksForSelection().blocks;
+        const root = lastEditor || findBlocksForSelection().root;
+        if (!blocks.length) return;
+        blocks.forEach(b => window.applyAlignmentToBlockElement(b, alignment));
+        try {
+            const editorRootEl = root?.parentElement || root;
+            const editor = editorRootEl?._editorjsInstance;
+            if (editor && editor.blocks && root) {
+                const allBlocks = Array.from(root.querySelectorAll('.ce-block'));
+                blocks.forEach(b => {
+                    const idx = allBlocks.indexOf(b);
+                    if (idx >= 0) editor.blocks.getBlockByIndex(idx)?.dispatchChange?.();
+                });
+            }
+        } catch (e) {}
+        hideBar();
+    }
+
+    let checkTimer = null;
+    function check(reason) {
+        clearTimeout(checkTimer);
+        checkTimer = setTimeout(() => {
+            const { blocks, root } = findBlocksForSelection();
+            console.log('[mb-align/VPE] check from', reason, '→', blocks.length, 'block(s)');
+            if (blocks.length >= 1) {
+                lastBlocks = blocks;
+                lastEditor = root;
+                showBarForBlocks(blocks);
+            } else {
+                hideBar();
+                lastBlocks = [];
+                lastEditor = null;
+            }
+        }, 120);
+    }
+
+    document.addEventListener('selectionchange', () => check('selectionchange'));
+    document.addEventListener('mouseup', () => check('mouseup'));
+    document.addEventListener('keyup', () => check('keyup'));
+    try {
+        const mo = new MutationObserver((muts) => {
+            for (const m of muts) {
+                if (m.type === 'attributes' && m.attributeName === 'class') {
+                    const t = m.target;
+                    if (t.classList?.contains?.('ce-block')) { check('mutation'); return; }
+                }
+            }
+        });
+        const startObserver = () => mo.observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'] });
+        if (document.body) startObserver();
+        else document.addEventListener('DOMContentLoaded', startObserver);
+    } catch (e) {}
+
+    window.addEventListener('scroll', () => { if (lastBlocks.length) showBarForBlocks(lastBlocks); }, true);
+    document.addEventListener('mousedown', (e) => {
+        if (bar && !bar.contains(e.target)) {
+            setTimeout(() => {
+                const { blocks } = findBlocksForSelection();
+                if (!blocks.length) hideBar();
+            }, 100);
+        }
+    });
+})();
+</script>
 @endpush
