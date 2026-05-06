@@ -139,6 +139,8 @@ window.ContainerTool = class ContainerTool {
                 ...(window.BlockClassesTune ? { blockClasses: window.BlockClassesTune } : {}),
                 ...(window.TextAlignmentTune ? { textAlignment: window.TextAlignmentTune } : {}),
                 ...(window.ImageSizeTune ? { imageSize: window.ImageSizeTune } : {}),
+                ...(window.ColumnsTool ? { columns: { class: window.ColumnsTool } } : {}),
+                ...(window.SpaceTool   ? { space:   { class: window.SpaceTool   } } : {}),
             };
             if (window.__editorImageTool) {
                 subTools.image = {
