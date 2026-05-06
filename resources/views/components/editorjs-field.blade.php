@@ -1194,61 +1194,71 @@ if (!window._mbAlignKeyboardInited) {
 }
 
 /* ─── Floating alignment toolbar (GLOBAL, document-level) ────────────────────
-   Single instance — listens to selectionchange on the document. Whenever the
-   user has a non-collapsed text selection inside ANY EditorJS instance (outer
-   or nested), the toolbar appears above the selection. Works for single-block
-   AND multi-block selection. No per-editor init required.
-
-   This replaces the old per-editor init approach which kept missing nested
-   editors and fragile MutationObserver edge cases. */
+   Bulletproof variant: bar element is built lazily on first need + re-attached
+   if it's ever removed from the DOM (Livewire morphdom can wipe body children).
+   In fullscreen mode the bar is appended to the fullscreen wrapper so it sits
+   on top of the position:fixed editor; otherwise to <body>. */
 (function setupGlobalAlignmentBar() {
-    if (window._mbAlignBarReady) return;
-    window._mbAlignBarReady = true;
-
-    // ─ Build the bar once ─
-    const bar = document.createElement('div');
-    bar.id = 'mb-align-bar';
-    bar.style.cssText = 'position:absolute;display:none;z-index:99999;background:#111827;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.35);padding:4px;gap:2px;align-items:center;user-select:none';
-    bar.setAttribute('role', 'toolbar');
-    bar.addEventListener('mousedown', (e) => e.preventDefault()); // keep selection alive
-
-    const opts = [
-        { key: 'left',    title: 'Align left',    icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h12M3 18h15"/></svg>' },
-        { key: 'center',  title: 'Center',        icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M6 12h12M4 18h16"/></svg>' },
-        { key: 'right',   title: 'Align right',   icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M9 12h12M6 18h15"/></svg>' },
-        { key: 'justify', title: 'Justify',       icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>' },
-    ];
-    opts.forEach(o => {
-        const b = document.createElement('button');
-        b.type = 'button'; b.title = o.title; b.dataset.align = o.key;
-        b.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:34px;height:30px;border:none;border-radius:5px;cursor:pointer;background:transparent;color:#fff;transition:background .12s';
-        b.innerHTML = o.icon;
-        b.addEventListener('mouseenter', () => b.style.background = 'rgba(99,102,241,0.5)');
-        b.addEventListener('mouseleave', () => b.style.background = 'transparent');
-        b.addEventListener('click', (e) => {
-            e.preventDefault(); e.stopPropagation();
-            applyToCurrentSelection(o.key);
-        });
-        bar.appendChild(b);
-    });
-    const clear = document.createElement('button');
-    clear.type = 'button'; clear.title = 'Clear alignment';
-    clear.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:34px;height:30px;border:none;border-radius:5px;cursor:pointer;background:transparent;color:#fca5a5;font-size:18px;font-weight:700;margin-left:2px';
-    clear.innerHTML = '×';
-    clear.addEventListener('mouseenter', () => clear.style.background = 'rgba(239,68,68,0.4)');
-    clear.addEventListener('mouseleave', () => clear.style.background = 'transparent');
-    clear.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); applyToCurrentSelection(null); });
-    bar.appendChild(clear);
-
-    if (document.body) {
-        document.body.appendChild(bar);
-    } else {
-        document.addEventListener('DOMContentLoaded', () => document.body.appendChild(bar));
-    }
-
-    // ─ Last-known state (since EditorJS may clear the DOM Range as soon as we click) ─
+    let bar = null;
     let lastBlocks = [];
     let lastEditor = null;
+
+    function buildBar() {
+        const el = document.createElement('div');
+        el.id = 'mb-align-bar';
+        el.style.cssText = 'position:absolute;display:none;z-index:2147483647;background:#111827;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.35);padding:4px;gap:2px;align-items:center;user-select:none';
+        el.setAttribute('role', 'toolbar');
+        el.addEventListener('mousedown', (e) => e.preventDefault());
+
+        const opts = [
+            { key: 'left',    title: 'Align left',    icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h12M3 18h15"/></svg>' },
+            { key: 'center',  title: 'Center',        icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M6 12h12M4 18h16"/></svg>' },
+            { key: 'right',   title: 'Align right',   icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M9 12h12M6 18h15"/></svg>' },
+            { key: 'justify', title: 'Justify',       icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>' },
+        ];
+        opts.forEach(o => {
+            const b = document.createElement('button');
+            b.type = 'button'; b.title = o.title; b.dataset.align = o.key;
+            b.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:34px;height:30px;border:none;border-radius:5px;cursor:pointer;background:transparent;color:#fff;transition:background .12s';
+            b.innerHTML = o.icon;
+            b.addEventListener('mouseenter', () => b.style.background = 'rgba(99,102,241,0.5)');
+            b.addEventListener('mouseleave', () => b.style.background = 'transparent');
+            b.addEventListener('click', (ev) => {
+                ev.preventDefault(); ev.stopPropagation();
+                applyToCurrentSelection(o.key);
+            });
+            el.appendChild(b);
+        });
+        const clear = document.createElement('button');
+        clear.type = 'button'; clear.title = 'Clear alignment';
+        clear.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:34px;height:30px;border:none;border-radius:5px;cursor:pointer;background:transparent;color:#fca5a5;font-size:18px;font-weight:700;margin-left:2px';
+        clear.innerHTML = '×';
+        clear.addEventListener('mouseenter', () => clear.style.background = 'rgba(239,68,68,0.4)');
+        clear.addEventListener('mouseleave', () => clear.style.background = 'transparent');
+        clear.addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); applyToCurrentSelection(null); });
+        el.appendChild(clear);
+        return el;
+    }
+
+    function ensureBar() {
+        // Decide where to append: fullscreen wrapper if active, else <body>
+        const fullscreenHost = document.querySelector('.editorjs-fullscreen-mode') ||
+                               document.querySelector('[class*="editorjs-fullscreen"]');
+        const targetParent = fullscreenHost || document.body;
+        if (!targetParent) return null;
+
+        // If bar exists but is detached or in wrong parent, re-create
+        if (bar && (!document.contains(bar) || bar.parentElement !== targetParent)) {
+            try { bar.remove(); } catch (e) {}
+            bar = null;
+        }
+        if (!bar) {
+            bar = buildBar();
+            targetParent.appendChild(bar);
+            console.log('[mb-align] bar attached to', targetParent === document.body ? '<body>' : '.editorjs-fullscreen-mode');
+        }
+        return bar;
+    }
 
     function findBlocksForSelection() {
         const sel = window.getSelection();
@@ -1287,7 +1297,8 @@ if (!window._mbAlignKeyboardInited) {
     }
 
     function showBarForBlocks(blocks) {
-        if (!blocks.length) { hideBar(); return; }
+        const el = ensureBar();
+        if (!el || !blocks.length) { hideBar(); return; }
         let minTop = Infinity, minLeft = Infinity, maxRight = -Infinity;
         blocks.forEach(b => {
             const r = b.getBoundingClientRect();
@@ -1296,18 +1307,25 @@ if (!window._mbAlignKeyboardInited) {
             if (r.right > maxRight) maxRight = r.right;
         });
         if (!isFinite(minTop)) { hideBar(); return; }
-        // Make bar visible to measure offsetWidth
-        bar.style.visibility = 'hidden';
-        bar.style.display = 'flex';
-        const barWidth = bar.offsetWidth || 180;
-        const top = window.scrollY + minTop - 44;
-        const centerX = (minLeft + maxRight) / 2;
-        const left = window.scrollX + centerX - (barWidth / 2);
-        bar.style.top  = Math.max(8, top) + 'px';
-        bar.style.left = Math.max(8, left) + 'px';
-        bar.style.visibility = 'visible';
+        // In fullscreen, the bar's offsetParent is the fullscreen wrapper; use clientRect-relative coords
+        const inFullscreen = el.parentElement && el.parentElement.classList?.contains('editorjs-fullscreen-mode');
+        el.style.visibility = 'hidden';
+        el.style.display = 'flex';
+        const barWidth = el.offsetWidth || 180;
+        let top, left;
+        if (inFullscreen) {
+            const parentRect = el.parentElement.getBoundingClientRect();
+            top  = (minTop  - parentRect.top) - 44;
+            left = ((minLeft + maxRight) / 2 - parentRect.left) - (barWidth / 2);
+        } else {
+            top  = window.scrollY + minTop - 44;
+            left = window.scrollX + (minLeft + maxRight) / 2 - (barWidth / 2);
+        }
+        el.style.top  = Math.max(8, top) + 'px';
+        el.style.left = Math.max(8, left) + 'px';
+        el.style.visibility = 'visible';
     }
-    function hideBar() { bar.style.display = 'none'; }
+    function hideBar() { if (bar) bar.style.display = 'none'; }
 
     function applyToCurrentSelection(alignment) {
         // Use the LAST captured selection state (clicking the bar may have collapsed the range)
