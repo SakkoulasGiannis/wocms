@@ -1354,10 +1354,11 @@ if (!window._mbAlignKeyboardInited) {
 
     // ─ React to selection changes ─
     let checkTimer = null;
-    function check() {
+    function check(reason) {
         clearTimeout(checkTimer);
         checkTimer = setTimeout(() => {
             const { blocks, root } = findBlocksForSelection();
+            console.log('[mb-align] check from', reason, '→', blocks.length, 'block(s)');
             if (blocks.length >= 1) {
                 lastBlocks = blocks;
                 lastEditor = root;
@@ -1367,17 +1368,37 @@ if (!window._mbAlignKeyboardInited) {
                 lastBlocks = [];
                 lastEditor = null;
             }
-        }, 50);
+        }, 120);
     }
 
-    document.addEventListener('selectionchange', check);
-    document.addEventListener('mouseup', check);
-    document.addEventListener('keyup', check);
+    document.addEventListener('selectionchange', () => check('selectionchange'));
+    document.addEventListener('mouseup', () => check('mouseup'));
+    document.addEventListener('keyup', () => check('keyup'));
+
+    // Watch the DOM for .ce-block--selected class additions — EditorJS often
+    // adds the class slightly AFTER mouseup, missing the initial check.
+    try {
+        const mo = new MutationObserver((muts) => {
+            for (const m of muts) {
+                if (m.type === 'attributes' && m.attributeName === 'class') {
+                    const t = m.target;
+                    if (t.classList?.contains('ce-block')) {
+                        check('mutation');
+                        return;
+                    }
+                }
+            }
+        });
+        const startObserver = () => mo.observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'] });
+        if (document.body) startObserver();
+        else document.addEventListener('DOMContentLoaded', startObserver);
+    } catch (e) {}
+
     window.addEventListener('scroll', () => {
         if (lastBlocks.length) showBarForBlocks(lastBlocks);
     }, true);
     document.addEventListener('mousedown', (e) => {
-        if (!bar.contains(e.target)) {
+        if (bar && !bar.contains(e.target)) {
             // Don't hide immediately — selection might happen on this very click
             setTimeout(() => {
                 const { blocks } = findBlocksForSelection();
