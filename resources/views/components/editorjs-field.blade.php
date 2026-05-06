@@ -1193,89 +1193,101 @@ if (!window._mbAlignKeyboardInited) {
     }, true); // capture phase so we beat browser defaults
 }
 
-/* ─── Floating multi-block alignment toolbar ─────────────────────────────────
-   EditorJS's native inline toolbar only shows for selections within ONE block.
-   This adds a custom floating bar that appears whenever the user has selected
-   text spanning two or more blocks. Click an alignment → applies to every block
-   the selection covers. */
-window.initMultiBlockAlignmentBar = window.initMultiBlockAlignmentBar || function(rootContainer) {
-    if (!rootContainer || rootContainer._mbAlignBarInited) {
-        console.log('[mb-align] init SKIPPED — already inited or no root');
-        return;
-    }
-    rootContainer._mbAlignBarInited = true;
-    console.log('[mb-align] init OK on root', rootContainer.id || rootContainer);
+/* ─── Floating alignment toolbar (GLOBAL, document-level) ────────────────────
+   Single instance — listens to selectionchange on the document. Whenever the
+   user has a non-collapsed text selection inside ANY EditorJS instance (outer
+   or nested), the toolbar appears above the selection. Works for single-block
+   AND multi-block selection. No per-editor init required.
 
-    // Build the floating bar once, append to <body>
-    let bar = document.getElementById('mb-align-bar');
-    if (!bar) {
-        bar = document.createElement('div');
-        bar.id = 'mb-align-bar';
-        bar.style.cssText = 'position:absolute;display:none;z-index:9999;background:#111827;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,0.25);padding:4px;gap:2px;align-items:center';
-        bar.setAttribute('role', 'toolbar');
-        bar.addEventListener('mousedown', (e) => e.preventDefault()); // keep selection alive
-        const opts = [
-            { key: 'left',    title: 'Align left',    icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h12M3 18h15"/></svg>' },
-            { key: 'center',  title: 'Center',        icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M6 12h12M4 18h16"/></svg>' },
-            { key: 'right',   title: 'Align right',   icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M9 12h12M6 18h15"/></svg>' },
-            { key: 'justify', title: 'Justify',       icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>' },
-        ];
-        opts.forEach(o => {
-            const b = document.createElement('button');
-            b.type = 'button'; b.title = o.title; b.dataset.align = o.key;
-            b.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:30px;height:28px;border:none;border-radius:5px;cursor:pointer;background:transparent;color:#fff;transition:all .12s';
-            b.innerHTML = o.icon;
-            b.addEventListener('mouseenter', () => b.style.background = 'rgba(99,102,241,0.5)');
-            b.addEventListener('mouseleave', () => b.style.background = 'transparent');
-            b.addEventListener('click', (e) => {
-                e.preventDefault(); e.stopPropagation();
-                applyToSelection(o.key);
-            });
-            bar.appendChild(b);
+   This replaces the old per-editor init approach which kept missing nested
+   editors and fragile MutationObserver edge cases. */
+(function setupGlobalAlignmentBar() {
+    if (window._mbAlignBarReady) return;
+    window._mbAlignBarReady = true;
+
+    // ─ Build the bar once ─
+    const bar = document.createElement('div');
+    bar.id = 'mb-align-bar';
+    bar.style.cssText = 'position:absolute;display:none;z-index:99999;background:#111827;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.35);padding:4px;gap:2px;align-items:center;user-select:none';
+    bar.setAttribute('role', 'toolbar');
+    bar.addEventListener('mousedown', (e) => e.preventDefault()); // keep selection alive
+
+    const opts = [
+        { key: 'left',    title: 'Align left',    icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h12M3 18h15"/></svg>' },
+        { key: 'center',  title: 'Center',        icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M6 12h12M4 18h16"/></svg>' },
+        { key: 'right',   title: 'Align right',   icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M9 12h12M6 18h15"/></svg>' },
+        { key: 'justify', title: 'Justify',       icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>' },
+    ];
+    opts.forEach(o => {
+        const b = document.createElement('button');
+        b.type = 'button'; b.title = o.title; b.dataset.align = o.key;
+        b.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:34px;height:30px;border:none;border-radius:5px;cursor:pointer;background:transparent;color:#fff;transition:background .12s';
+        b.innerHTML = o.icon;
+        b.addEventListener('mouseenter', () => b.style.background = 'rgba(99,102,241,0.5)');
+        b.addEventListener('mouseleave', () => b.style.background = 'transparent');
+        b.addEventListener('click', (e) => {
+            e.preventDefault(); e.stopPropagation();
+            applyToCurrentSelection(o.key);
         });
-        const clear = document.createElement('button');
-        clear.type = 'button'; clear.title = 'Clear alignment';
-        clear.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:30px;height:28px;border:none;border-radius:5px;cursor:pointer;background:transparent;color:#fca5a5;font-size:16px;font-weight:700;margin-left:2px';
-        clear.innerHTML = '×';
-        clear.addEventListener('mouseenter', () => clear.style.background = 'rgba(239,68,68,0.4)');
-        clear.addEventListener('mouseleave', () => clear.style.background = 'transparent');
-        clear.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); applyToSelection(null); });
-        bar.appendChild(clear);
+        bar.appendChild(b);
+    });
+    const clear = document.createElement('button');
+    clear.type = 'button'; clear.title = 'Clear alignment';
+    clear.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:34px;height:30px;border:none;border-radius:5px;cursor:pointer;background:transparent;color:#fca5a5;font-size:18px;font-weight:700;margin-left:2px';
+    clear.innerHTML = '×';
+    clear.addEventListener('mouseenter', () => clear.style.background = 'rgba(239,68,68,0.4)');
+    clear.addEventListener('mouseleave', () => clear.style.background = 'transparent');
+    clear.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); applyToCurrentSelection(null); });
+    bar.appendChild(clear);
+
+    if (document.body) {
         document.body.appendChild(bar);
+    } else {
+        document.addEventListener('DOMContentLoaded', () => document.body.appendChild(bar));
     }
 
-    function getSelectionBlocks() {
-        // 1) EditorJS native multi-block selection — when user click-drags or
-        //    Shift+click across blocks, EditorJS clears the DOM range and marks
-        //    each block with `.ce-block--selected`. Detect that first.
-        const selectedBlocks = Array.from(rootContainer.querySelectorAll('.ce-block.ce-block--selected'));
-        if (selectedBlocks.length >= 2) return selectedBlocks;
+    // ─ Last-known state (since EditorJS may clear the DOM Range as soon as we click) ─
+    let lastBlocks = [];
+    let lastEditor = null;
 
-        // 2) Fall back to native text range — covers plain double-click + drag scenarios
+    function findBlocksForSelection() {
         const sel = window.getSelection();
-        if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return [];
-        const range = sel.getRangeAt(0);
-        const startEl = (range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentElement);
-        const endEl   = (range.endContainer.nodeType === 1 ? range.endContainer : range.endContainer.parentElement);
-        const startBlock = startEl?.closest('.ce-block');
-        const endBlock   = endEl?.closest('.ce-block');
-        if (!startBlock || !endBlock) return [];
-        if (startBlock === endBlock) return [];
-        if (!rootContainer.contains(startBlock) || !rootContainer.contains(endBlock)) return [];
-        const blocks = [startBlock];
-        let cur = startBlock.nextElementSibling;
-        while (cur && cur !== endBlock) {
-            if (cur.classList && cur.classList.contains('ce-block')) blocks.push(cur);
-            cur = cur.nextElementSibling;
+        // Try DOM Range first
+        if (sel && sel.rangeCount && !sel.isCollapsed) {
+            const range = sel.getRangeAt(0);
+            const sEl = (range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentElement);
+            const eEl = (range.endContainer.nodeType === 1 ? range.endContainer : range.endContainer.parentElement);
+            const sBlock = sEl?.closest?.('.ce-block');
+            const eBlock = eEl?.closest?.('.ce-block');
+            if (sBlock) {
+                // Find the OWNING editor root for this block
+                const editorRoot = sBlock.closest('.codex-editor');
+                if (!editorRoot) return { blocks: [], root: null };
+                const blocks = [sBlock];
+                if (eBlock && eBlock !== sBlock) {
+                    let cur = sBlock.nextElementSibling;
+                    while (cur && cur !== eBlock) {
+                        if (cur.classList?.contains('ce-block')) blocks.push(cur);
+                        cur = cur.nextElementSibling;
+                    }
+                    blocks.push(eBlock);
+                }
+                return { blocks, root: editorRoot };
+            }
         }
-        blocks.push(endBlock);
-        return blocks;
+        // Try EditorJS native block selection (.ce-block--selected)
+        const allEditors = document.querySelectorAll('.codex-editor');
+        for (const ed of allEditors) {
+            const flagged = Array.from(ed.querySelectorAll('.ce-block.ce-block--selected'));
+            if (flagged.length >= 1) {
+                return { blocks: flagged, root: ed };
+            }
+        }
+        return { blocks: [], root: null };
     }
 
-    // Position the bar based on the union bounding rect of all selected blocks
-    // (since text range may be cleared by EditorJS).
     function showBarForBlocks(blocks) {
-        if (!blocks || blocks.length === 0) { hideBar(); return; }
+        if (!blocks.length) { hideBar(); return; }
         let minTop = Infinity, minLeft = Infinity, maxRight = -Infinity;
         blocks.forEach(b => {
             const r = b.getBoundingClientRect();
@@ -1284,92 +1296,82 @@ window.initMultiBlockAlignmentBar = window.initMultiBlockAlignmentBar || functio
             if (r.right > maxRight) maxRight = r.right;
         });
         if (!isFinite(minTop)) { hideBar(); return; }
+        // Make bar visible to measure offsetWidth
+        bar.style.visibility = 'hidden';
         bar.style.display = 'flex';
-        const top = window.scrollY + minTop - 40;
+        const barWidth = bar.offsetWidth || 180;
+        const top = window.scrollY + minTop - 44;
         const centerX = (minLeft + maxRight) / 2;
-        const left = window.scrollX + centerX - (bar.offsetWidth / 2 || 80);
+        const left = window.scrollX + centerX - (barWidth / 2);
         bar.style.top  = Math.max(8, top) + 'px';
         bar.style.left = Math.max(8, left) + 'px';
+        bar.style.visibility = 'visible';
     }
+    function hideBar() { bar.style.display = 'none'; }
 
-    function showBarFor(range) {
-        const rect = range.getBoundingClientRect();
-        if (!rect || rect.width === 0 || rect.height === 0) { hideBar(); return; }
-        bar.style.display = 'flex';
-        // Position above the top of the selection rectangle
-        const top = window.scrollY + rect.top - 40;
-        const left = window.scrollX + rect.left + (rect.width / 2) - (bar.offsetWidth / 2 || 80);
-        bar.style.top  = Math.max(8, top) + 'px';
-        bar.style.left = Math.max(8, left) + 'px';
-    }
-    function hideBar() { if (bar) bar.style.display = 'none'; }
-
-    function applyToSelection(alignment) {
-        const blocks = getSelectionBlocks();
+    function applyToCurrentSelection(alignment) {
+        // Use the LAST captured selection state (clicking the bar may have collapsed the range)
+        const blocks = lastBlocks.length ? lastBlocks : findBlocksForSelection().blocks;
+        const root = lastEditor || findBlocksForSelection().root;
+        if (!blocks.length) return;
         blocks.forEach(b => {
             if (typeof window.applyAlignmentToBlockElement === 'function') {
                 window.applyAlignmentToBlockElement(b, alignment);
             }
         });
-        // Tell each affected block to dispatchChange so EditorJS triggers onChange (save patch fires)
-        blocks.forEach(b => {
-            const idx = Array.from(rootContainer.querySelectorAll('.ce-block')).indexOf(b);
-            if (idx >= 0) {
-                try {
-                    const ed = rootContainer._editorjsInstance;
-                    if (ed && ed.blocks) {
-                        const apiBlock = ed.blocks.getBlockByIndex(idx);
-                        apiBlock?.dispatchChange?.();
-                    }
-                } catch (e) {}
+        // Trigger save patch via Block.dispatchChange()
+        try {
+            const editorRootEl = root?.parentElement || root;
+            const editor = editorRootEl?._editorjsInstance;
+            if (editor && editor.blocks && root) {
+                const allBlocks = Array.from(root.querySelectorAll('.ce-block'));
+                blocks.forEach(b => {
+                    const idx = allBlocks.indexOf(b);
+                    if (idx >= 0) editor.blocks.getBlockByIndex(idx)?.dispatchChange?.();
+                });
             }
-        });
+        } catch (e) {}
         hideBar();
     }
 
+    // ─ React to selection changes ─
+    let checkTimer = null;
     function check() {
-        // Defer so EditorJS's own selection updates settle first
-        setTimeout(() => {
-            const blocks = getSelectionBlocks();
-            const selFlagged = rootContainer.querySelectorAll('.ce-block.ce-block--selected').length;
-            const sel = window.getSelection();
-            console.log('[mb-align] check', {
-                rootId: rootContainer.id || '?',
-                blocksFound: blocks.length,
-                ceBlockSelectedCount: selFlagged,
-                selRangeCount: sel?.rangeCount,
-                selCollapsed: sel?.isCollapsed,
-            });
-            if (blocks.length >= 2) {
+        clearTimeout(checkTimer);
+        checkTimer = setTimeout(() => {
+            const { blocks, root } = findBlocksForSelection();
+            if (blocks.length >= 1) {
+                lastBlocks = blocks;
+                lastEditor = root;
                 showBarForBlocks(blocks);
             } else {
                 hideBar();
+                lastBlocks = [];
+                lastEditor = null;
             }
-        }, 30);
+        }, 50);
     }
 
-    rootContainer.addEventListener('mouseup', check);
-    rootContainer.addEventListener('keyup', (e) => {
-        if (e.shiftKey || e.key === 'Shift') check();
-        else hideBar();
-    });
+    document.addEventListener('selectionchange', check);
+    document.addEventListener('mouseup', check);
+    document.addEventListener('keyup', check);
+    window.addEventListener('scroll', () => {
+        if (lastBlocks.length) showBarForBlocks(lastBlocks);
+    }, true);
     document.addEventListener('mousedown', (e) => {
-        if (bar && !bar.contains(e.target)) {
-            // Allow re-show on the very next mouseup if it lands on a block
+        if (!bar.contains(e.target)) {
+            // Don't hide immediately — selection might happen on this very click
             setTimeout(() => {
-                if (rootContainer.querySelectorAll('.ce-block.ce-block--selected').length < 2) hideBar();
-            }, 0);
+                const { blocks } = findBlocksForSelection();
+                if (!blocks.length) hideBar();
+            }, 100);
         }
     });
-    window.addEventListener('scroll', hideBar, true);
+})();
 
-    // MutationObserver — EditorJS adds .ce-block--selected without firing keyup/mouseup
-    // in some flows (e.g. Cmd+A twice). Watch class changes and reflect them.
-    try {
-        const mo = new MutationObserver(check);
-        mo.observe(rootContainer, { subtree: true, attributes: true, attributeFilter: ['class'] });
-    } catch (e) {}
-};
+// Backward compat — old initMultiBlockAlignmentBar(rootContainer) calls become no-ops
+// (the global setup above handles all editor instances automatically).
+window.initMultiBlockAlignmentBar = function() { /* now global, no-op */ };
 
 /* ─── Inline Alignment tool — multi-block text-align via the inline toolbar ───
    Lets the user select text across one or many blocks (click-drag) and apply
