@@ -48,8 +48,8 @@
                         $q = trim((string) ($faq['question'] ?? ''));
                         $a = trim((string) ($faq['answer'] ?? ''));
                     @endphp
-                    <li class="rounded-2xl border border-[#e4e4e4] bg-white overflow-hidden transition-all duration-300"
-                        :class="open === {{ $i }} ? 'shadow-md' : ''">
+                    <li class="rounded-2xl border border-[#e4e4e4] bg-white overflow-hidden transition-all duration-300 ease-out"
+                        :class="open === {{ $i }} ? 'shadow-[0_10px_30px_rgba(15,23,42,0.10)] border-transparent' : 'shadow-none'">
                         <button type="button"
                                 @click="open = (open === {{ $i }} ? null : {{ $i }})"
                                 :aria-expanded="open === {{ $i }}"
