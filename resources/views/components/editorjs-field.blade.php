@@ -502,6 +502,87 @@ window.openTailwindClassPicker = function(options) {
     setTimeout(() => searchInput.focus(), 50);
 };
 
+/* ─── Space block: vertical spacer with configurable height (rem/px/custom) ─── */
+window.SpaceTool = class SpaceTool {
+    static get toolbox() {
+        return { title: 'Space', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 7l7-4 7 4M5 17l7 4 7-4"/></svg>' };
+    }
+    static get isReadOnlySupported() { return true; }
+    static get PRESETS() {
+        return [
+            { key: 'xs', label: 'XS',  value: '0.5rem' },
+            { key: 'sm', label: 'SM',  value: '1rem'   },
+            { key: 'md', label: 'MD',  value: '2rem'   },
+            { key: 'lg', label: 'LG',  value: '4rem'   },
+            { key: 'xl', label: 'XL',  value: '6rem'   },
+        ];
+    }
+    constructor({ data, api }) {
+        this.api = api;
+        const d = (data && typeof data === 'object') ? data : {};
+        this.data = { height: d.height || '2rem' };
+    }
+    render() {
+        this.wrap = document.createElement('div');
+        this.wrap.style.cssText = 'position:relative;border:1px dashed #cbd5e1;border-radius:6px;background:#f8fafc;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;transition:height .15s ease';
+        this.label = document.createElement('span');
+        this.wrap.appendChild(this.label);
+        this.applyHeight();
+        return this.wrap;
+    }
+    applyHeight() {
+        if (!this.wrap) return;
+        this.wrap.style.height = this.data.height || '2rem';
+        if (this.label) this.label.textContent = `↕ Space · ${this.data.height || '2rem'}`;
+    }
+    renderSettings() {
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'padding:8px;display:flex;flex-direction:column;gap:6px;width:240px';
+        const lbl = document.createElement('div');
+        lbl.textContent = 'Quick presets';
+        lbl.style.cssText = 'font-size:11px;font-weight:600;color:#374151;text-transform:uppercase;letter-spacing:0.04em';
+        wrap.appendChild(lbl);
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;gap:2px';
+        SpaceTool.PRESETS.forEach(p => {
+            const b = document.createElement('button');
+            b.type = 'button'; b.textContent = p.label; b.title = p.value;
+            b.style.cssText = `flex:1;padding:6px 4px;border:1px solid #e5e7eb;border-radius:4px;cursor:pointer;background:${this.data.height === p.value ? 'linear-gradient(135deg,#10b981,#059669)' : '#fff'};color:${this.data.height === p.value ? '#fff' : '#374151'};font-size:11px;font-weight:600`;
+            b.addEventListener('click', () => {
+                this.data.height = p.value;
+                this.applyHeight();
+                Array.from(row.children).forEach(c => {
+                    const isActive = c.title === this.data.height;
+                    c.style.background = isActive ? 'linear-gradient(135deg,#10b981,#059669)' : '#fff';
+                    c.style.color = isActive ? '#fff' : '#374151';
+                });
+                if (custom) custom.value = this.data.height;
+            });
+            row.appendChild(b);
+        });
+        wrap.appendChild(row);
+
+        const cl = document.createElement('div');
+        cl.textContent = 'Custom (rem / px / vh / %)';
+        cl.style.cssText = 'font-size:11px;font-weight:600;color:#374151;margin-top:4px;text-transform:uppercase;letter-spacing:0.04em';
+        wrap.appendChild(cl);
+        const custom = document.createElement('input');
+        custom.type = 'text'; custom.placeholder = '3rem'; custom.value = this.data.height || '';
+        custom.style.cssText = 'width:100%;padding:6px 8px;border:1px solid #e5e7eb;border-radius:4px;font-size:12px;font-family:ui-monospace,monospace';
+        custom.addEventListener('input', (e) => {
+            const v = e.target.value.trim();
+            if (v) {
+                this.data.height = v;
+                this.applyHeight();
+            }
+        });
+        wrap.appendChild(custom);
+        return wrap;
+    }
+    save() { return { height: this.data.height || '2rem' }; }
+    static get sanitize() { return { height: false }; }
+};
+
 /* ─── Container block: wraps content with responsive max-width + custom classes ─── */
 window.ContainerTool = class ContainerTool {
     static get toolbox() {
@@ -1928,6 +2009,9 @@ function editorjsField(config) {
 
                     // Container block (custom) — responsive max-width
                     ...(window.ContainerTool ? { container: { class: window.ContainerTool } } : {}),
+
+                    // Space block (custom) — vertical spacer
+                    ...(window.SpaceTool ? { space: { class: window.SpaceTool } } : {}),
                 },
                 tunes: [
                     ...(window.TextAlignmentTune ? ['textAlignment'] : []),

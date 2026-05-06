@@ -747,6 +747,7 @@ if (typeof window.editorjsField === 'undefined') {
                         ...(window.ImageSizeTune ? { imageSize: window.ImageSizeTune } : {}),
                         ...(window.ColumnsTool ? { columns: { class: window.ColumnsTool } } : {}),
                         ...(window.ContainerTool ? { container: { class: window.ContainerTool } } : {}),
+                        ...(window.SpaceTool ? { space: { class: window.SpaceTool } } : {}),
                     },
                     tunes: [
                         ...(window.TextAlignmentTune ? ['textAlignment'] : []),

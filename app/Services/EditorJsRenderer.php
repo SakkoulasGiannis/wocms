@@ -86,6 +86,7 @@ class EditorJsRenderer
             'personality' => $this->renderPersonality($data),
             'columns' => $this->renderColumns($data),
             'container' => $this->renderContainer($data),
+            'space' => $this->renderSpace($data),
             default => '',
         };
 
@@ -200,9 +201,47 @@ class EditorJsRenderer
         return $html;
     }
 
+    /**
+     * Boost inline `style="color: …"` (and bg/font-weight) on spans to `!important`
+     * so theme stylesheets / Tailwind preflight can't override the user's choice.
+     * Idempotent — won't double-add !important if already present.
+     */
+    protected function boostInlineStyles(string $html): string
+    {
+        if ($html === '' || stripos($html, '<span') === false) {
+            return $html;
+        }
+
+        return preg_replace_callback(
+            '/(<span\b[^>]*\bstyle\s*=\s*")([^"]*)(")/i',
+            function ($m) {
+                $styleStr = $m[2];
+                // For each "prop:value" pair, add !important if not already present
+                $newStyle = preg_replace_callback(
+                    '/([a-zA-Z\-]+)\s*:\s*([^;]+?)(\s*!important)?\s*(;|$)/',
+                    function ($p) {
+                        $prop = trim($p[1]);
+                        $val  = trim($p[2]);
+                        // Only boost color / background-color / font-weight (the ones inline tools commonly set)
+                        $boostTargets = ['color', 'background-color', 'font-weight'];
+                        if (in_array(strtolower($prop), $boostTargets, true) && empty($p[3])) {
+                            return "{$prop}: {$val} !important;";
+                        }
+
+                        return "{$prop}: {$val}".($p[3] ?? '').';';
+                    },
+                    $styleStr
+                );
+
+                return $m[1].$newStyle.$m[3];
+            },
+            $html
+        ) ?? $html;
+    }
+
     protected function renderParagraph(array $data, string $alignStyle): string
     {
-        $text = $data['text'] ?? '';
+        $text = $this->boostInlineStyles($data['text'] ?? '');
 
         return "<p{$alignStyle}>{$text}</p>\n";
     }
@@ -210,7 +249,7 @@ class EditorJsRenderer
     protected function renderHeader(array $data, string $alignStyle): string
     {
         $level = min(max((int) ($data['level'] ?? 2), 1), 6);
-        $text = $data['text'] ?? '';
+        $text = $this->boostInlineStyles($data['text'] ?? '');
 
         return "<h{$level}{$alignStyle}>{$text}</h{$level}>\n";
     }
@@ -224,7 +263,7 @@ class EditorJsRenderer
 
         foreach ($items as $item) {
             $text = is_array($item) ? ($item['content'] ?? '') : $item;
-            $html .= "  <li>{$text}</li>\n";
+            $html .= '  <li>'.$this->boostInlineStyles($text)."</li>\n";
         }
 
         return $html."</{$style}>\n";
@@ -248,7 +287,7 @@ class EditorJsRenderer
 
         foreach ($items as $item) {
             $content = is_array($item) ? ($item['content'] ?? '') : $item;
-            $html .= "  <li>{$content}";
+            $html .= '  <li>'.$this->boostInlineStyles($content);
 
             if (is_array($item) && ! empty($item['items'])) {
                 $html .= $this->renderNestedItems($item['items'], $style);
@@ -260,10 +299,21 @@ class EditorJsRenderer
         return $html."</{$style}>\n";
     }
 
+    protected function renderSpace(array $data): string
+    {
+        $height = trim((string) ($data['height'] ?? '2rem'));
+        // Allow only safe size values (digits + px/rem/em/%/vh/vw)
+        if (! preg_match('/^[\d.]+(px|rem|em|%|vh|vw)?$/', $height)) {
+            $height = '2rem';
+        }
+
+        return '<div aria-hidden="true" style="height:'.$height.'" class="ce-space"></div>'."\n";
+    }
+
     protected function renderQuote(array $data): string
     {
-        $text = $data['text'] ?? '';
-        $caption = $data['caption'] ?? '';
+        $text = $this->boostInlineStyles($data['text'] ?? '');
+        $caption = $this->boostInlineStyles($data['caption'] ?? '');
         $align = $data['alignment'] ?? 'left';
         $captionHtml = $caption ? "<cite class=\"block mt-2 text-sm text-gray-500\">{$caption}</cite>" : '';
 
