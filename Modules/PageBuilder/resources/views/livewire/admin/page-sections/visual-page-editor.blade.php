@@ -804,6 +804,8 @@ window.ColumnsTool = class ColumnsTool {
 <script src="https://cdn.jsdelivr.net/npm/@editorjs/underline@1.2.1/dist/underline.umd.js"></script>
 {{-- Undo/Redo (Ctrl+Z / Ctrl+Shift+Z) — re-enabled v2.0.28 with try/catch at call site --}}
 <script src="https://cdn.jsdelivr.net/npm/editorjs-undo@2.0.28/dist/bundle.js"></script>
+{{-- Drag & drop reorder of blocks --}}
+<script src="https://cdn.jsdelivr.net/npm/editorjs-drag-drop@1.1.16/dist/bundle.js"></script>
 {{-- SortableJS --}}
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script>
@@ -959,6 +961,7 @@ if (typeof window.editorjsField === 'undefined') {
                         const el = document.getElementById(self.uid);
                         if (el) el._editorjsInstance = self.editor;
                         try { if (window.Undo) new window.Undo({ editor: self.editor }); } catch (e) { console.warn('[EditorJS] Undo init failed (non-fatal):', e); }
+                        try { if (window.DragDrop) new window.DragDrop(self.editor); } catch (e) { console.warn('[EditorJS] DragDrop init failed (non-fatal):', e); }
                         if (el && typeof window.initMultiBlockAlignmentBar === 'function') {
                             window.initMultiBlockAlignmentBar(el);
                         }

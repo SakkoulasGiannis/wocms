@@ -225,6 +225,9 @@ body.editorjs-fullscreen-mode .editorjs-container .codex-editor__redactor {
      breaking the whole editor. --}}
 <script src="https://cdn.jsdelivr.net/npm/editorjs-undo@2.0.28/dist/bundle.js"></script>
 
+{{-- Drag & drop reorder — drag blocks to rearrange (image above text, etc.) --}}
+<script src="https://cdn.jsdelivr.net/npm/editorjs-drag-drop@1.1.16/dist/bundle.js"></script>
+
 <script>
 /* ─── Tailwind Class Picker: shared modal for block class tune ─── */
 window.TAILWIND_CLASS_CATALOG = window.TAILWIND_CLASS_CATALOG || {
@@ -2061,6 +2064,14 @@ function editorjsField(config) {
                         }
                     } catch (e) {
                         console.warn('[EditorJS] Undo init failed (non-fatal):', e);
+                    }
+                    // Drag & drop reorder — pick up a block by its drag handle and drop elsewhere
+                    try {
+                        if (window.DragDrop) {
+                            self.dragDrop = new window.DragDrop(self.editor);
+                        }
+                    } catch (e) {
+                        console.warn('[EditorJS] DragDrop init failed (non-fatal):', e);
                     }
 
                     // Floating multi-block alignment toolbar (text selection across blocks)
