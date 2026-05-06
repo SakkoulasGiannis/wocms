@@ -150,7 +150,11 @@
         $agents = $fallbackAgents;
     }
 
-    $agents = array_slice($agents, 0, $count);
+    // Slice only when there's no explicit picker selection — user-picked agents
+    // should ALL display (the grid wraps to next rows automatically).
+    if (empty($selectedAgentIds)) {
+        $agents = array_slice($agents, 0, $count);
+    }
 @endphp
 
 @if (! empty($agents))
