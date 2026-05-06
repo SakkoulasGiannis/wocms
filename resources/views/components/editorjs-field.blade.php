@@ -229,6 +229,49 @@ body.editorjs-fullscreen-mode .editorjs-container .codex-editor__redactor {
 <script src="https://cdn.jsdelivr.net/npm/editorjs-drag-drop@1.1.16/dist/bundle.js"></script>
 
 <script>
+/* ─── Patch EditorJS Header sanitize to allow inline color spans ─────────────
+   Default Header.sanitize returns `text: {}` which strips ALL inline HTML
+   on save — so color spans, marker, underline, inline code etc. survive in
+   paragraphs but NOT in headings. We widen sanitize to allow the same set
+   of inline tags as Paragraph + our own span[style][class]. */
+(function patchHeaderSanitize() {
+    const tryPatch = () => {
+        if (!window.Header) return false;
+        try {
+            Object.defineProperty(window.Header, 'sanitize', {
+                get() {
+                    return {
+                        level: false,
+                        text: {
+                            br: true,
+                            b: true,
+                            i: true,
+                            u: true,
+                            s: true,
+                            mark: true,
+                            code: true,
+                            a: { href: true, target: true, rel: true },
+                            span: { style: true, class: true },
+                        },
+                    };
+                },
+                configurable: true,
+            });
+            return true;
+        } catch (e) {
+            console.warn('[Header sanitize patch] failed:', e);
+            return false;
+        }
+    };
+    if (!tryPatch()) {
+        // Header CDN script may load after this file — retry on each animation frame
+        let tries = 0;
+        const id = setInterval(() => {
+            if (tryPatch() || ++tries > 60) clearInterval(id);
+        }, 50);
+    }
+})();
+
 /* ─── Tailwind Class Picker: shared modal for block class tune ─── */
 window.TAILWIND_CLASS_CATALOG = window.TAILWIND_CLASS_CATALOG || {
     'Typography': {
