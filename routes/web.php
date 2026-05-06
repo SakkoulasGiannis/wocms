@@ -31,14 +31,18 @@ Route::get('/csrf-token', function () {
     ]);
 })->name('csrf-token');
 
-// Silences the harmless 404 emitted by browsers when parsing
+// Silences harmless 404s emitted by browsers when parsing
 // <style type="text/tailwindcss">@import "tailwindcss";</style> in theme layouts.
 // Returns empty CSS since the Tailwind CDN browser script handles the real import.
-Route::get('/tailwindcss', function () {
+// Catches both /tailwindcss AND /any/nested/path/tailwindcss (relative resolution
+// from nested page URLs like /contact, /properties/123 etc.).
+$tailwindcssNoop = function () {
     return response('/* handled by @tailwindcss/browser CDN */', 200)
         ->header('Content-Type', 'text/css')
         ->header('Cache-Control', 'public, max-age=86400');
-});
+};
+Route::get('/tailwindcss', $tailwindcssNoop);
+Route::get('/{any}/tailwindcss', $tailwindcssNoop)->where('any', '.*');
 
 // Admin routes (protected by auth middleware)
 Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () {
