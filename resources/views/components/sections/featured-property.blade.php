@@ -5,7 +5,7 @@
     $title = $content['title'] ?? "Discover Homelengo's Finest Properties for Your Dream Home";
     $description = $content['description'] ?? '';
     $count = (int) ($settings['count'] ?? $content['count'] ?? 6);
-    $sectionClass = $content['section_class'] ?? 'py-16 bg-white';
+    $sectionClass = $content['section_class'] ?? 'py-20 lg:py-24 bg-white';
     $showTabs = (bool) ($content['show_tabs'] ?? $settings['show_tabs'] ?? true);
 
     $properties = collect();
@@ -69,16 +69,16 @@
 <section class="{{ $sectionClass }}"
          x-data="{ selectedType: 'all' }">
     <div class="mx-auto max-w-8xl px-4 sm:px-6 lg:px-8">
-        {{-- Header --}}
-        <div class="mx-auto max-w-3xl text-center mb-10">
+        {{-- Header (homelengo .box-title.text-center spec) --}}
+        <div class="mx-auto max-w-3xl text-center mb-12">
             @if($subtitle)
-                <p class="text-sm font-semibold uppercase tracking-widest text-brand">{{ $subtitle }}</p>
+                <p class="text-sm font-semibold uppercase tracking-[0.2em] text-brand">{{ $subtitle }}</p>
             @endif
             @if($title)
-                <h2 class="mt-3 text-3xl font-bold text-slate-900 md:text-4xl">{{ $title }}</h2>
+                <h2 class="mt-4 text-3xl font-extrabold capitalize leading-tight text-on-surface md:text-4xl lg:text-[44px] lg:leading-[1.15]">{{ $title }}</h2>
             @endif
             @if($description)
-                <p class="mt-4 text-lg text-slate-600">{{ $description }}</p>
+                <p class="mt-4 text-lg text-variant-1">{{ $description }}</p>
             @endif
         </div>
 
@@ -91,20 +91,21 @@
                 <p class="mt-2 text-sm text-slate-500">Check back soon for our latest listings.</p>
             </div>
         @else
-            {{-- Tabs --}}
+            {{-- Tabs (homelengo .nav-tab-recommended) — pills with surface bg,
+                 brand on active/hover. Horizontal scroll on overflow. --}}
             @if($showTabs && count($availableTypes) > 0)
-                <div class="mb-10 flex flex-wrap items-center justify-center gap-2">
+                <div class="mb-12 flex flex-wrap items-center justify-center gap-3 overflow-x-auto">
                     <button type="button"
                             @click="selectedType = 'all'"
-                            :class="selectedType === 'all' ? 'bg-brand text-white shadow' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
-                            class="rounded-full px-5 py-2 text-sm font-semibold transition-colors">
+                            :class="selectedType === 'all' ? 'bg-brand text-white' : 'bg-surface text-on-surface hover:bg-brand hover:text-white'"
+                            class="whitespace-nowrap rounded-full px-6 py-2 text-sm font-semibold transition-colors">
                         View All
                     </button>
                     @foreach($availableTypes as $type)
                         <button type="button"
                                 @click="selectedType = '{{ $type['key'] }}'"
-                                :class="selectedType === '{{ $type['key'] }}' ? 'bg-brand text-white shadow' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
-                                class="rounded-full px-5 py-2 text-sm font-semibold transition-colors">
+                                :class="selectedType === '{{ $type['key'] }}' ? 'bg-brand text-white' : 'bg-surface text-on-surface hover:bg-brand hover:text-white'"
+                                class="whitespace-nowrap rounded-full px-6 py-2 text-sm font-semibold transition-colors">
                             {{ $type['label'] }}
                         </button>
                     @endforeach
