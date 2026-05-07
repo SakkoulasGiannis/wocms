@@ -15,7 +15,7 @@
         ->get();
 @endphp
 
-<section class="py-16 bg-white">
+<section class="py-20 lg:py-24 bg-white">
     <div class="mx-auto max-w-8xl px-4 sm:px-6 lg:px-8">
         @if(!empty($content['heading']) || !empty($content['subheading']))
             <div class="text-center mb-12">

@@ -5,10 +5,10 @@
     $lightbox = $settings['enable_lightbox'] ?? true;
 @endphp
 
-<section class="py-16 bg-white">
-    <div class="container mx-auto px-4">
+<section class="py-20 lg:py-24 bg-white">
+    <div class="mx-auto max-w-8xl px-4 sm:px-6 lg:px-8">
         @if(!empty($content['heading']))
-            <h2 class="text-4xl font-bold text-center mb-12">{{ $content['heading'] }}</h2>
+            <h2 class="mb-14 text-center text-3xl font-extrabold capitalize leading-tight text-on-surface md:text-4xl lg:text-[44px] lg:leading-[1.15]">{{ $content['heading'] }}</h2>
         @endif
 
         <div class="grid md:grid-cols-{{ $columns }} gap-4">

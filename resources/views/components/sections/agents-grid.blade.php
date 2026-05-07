@@ -14,7 +14,7 @@
         return $default;
     };
 
-    $sectionClass = $content['section_class'] ?? 'py-16 bg-slate-50';
+    $sectionClass = $content['section_class'] ?? 'py-20 lg:py-24 bg-surface';
     // Title / subtitle are OPTIONAL — empty by default so the section can stand alone.
     // The heading area only renders if at least one of them is non-empty.
     $subtitle = trim((string) ($content['subtitle'] ?? ''));

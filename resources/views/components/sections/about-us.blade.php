@@ -1,6 +1,6 @@
 @props(['content', 'settings'])
 
-<section class="py-16 bg-white">
+<section class="py-20 lg:py-24 bg-white">
     <div class="container mx-auto px-4">
         <div class="flex flex-col {{ ($settings['layout'] ?? 'image_left') === 'image_left' ? 'md:flex-row' : 'md:flex-row-reverse' }} items-center gap-8">
             <!-- Image -->

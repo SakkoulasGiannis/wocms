@@ -2,7 +2,7 @@
 
 @php
     $containerClass = $settings['container'] ?? true ? 'container mx-auto px-4' : '';
-    $paddingClass = $settings['padding'] ?? true ? 'py-16' : '';
+    $paddingClass = $settings['padding'] ?? true ? 'py-20 lg:py-24' : '';
 @endphp
 
 <section class="{{ $paddingClass }}">

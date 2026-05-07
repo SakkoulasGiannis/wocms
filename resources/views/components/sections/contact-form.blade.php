@@ -5,7 +5,7 @@
     $heading = $content['heading'] ?? '';
     $subheading = $content['subheading'] ?? '';
     $description = $content['description'] ?? '';
-    $sectionClass = $content['section_class'] ?? 'py-16';
+    $sectionClass = $content['section_class'] ?? 'py-20 lg:py-24';
     $showInfo = (bool) ($content['show_info'] ?? true);
     $showMap = (bool) ($content['show_map'] ?? false);
     $maxWidth = $content['max_width'] ?? 'max-w-3xl';

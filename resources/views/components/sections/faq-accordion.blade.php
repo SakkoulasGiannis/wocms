@@ -1,7 +1,7 @@
 @props(['content' => [], 'settings' => []])
 
 @php
-    $sectionClass = $content['section_class'] ?? 'py-16 bg-white';
+    $sectionClass = $content['section_class'] ?? 'py-20 lg:py-24 bg-white';
     $subtitle = trim((string) ($content['subtitle'] ?? ''));
     $heading  = trim((string) ($content['heading'] ?? $content['title'] ?? ''));
     $description = trim((string) ($content['description'] ?? ''));
