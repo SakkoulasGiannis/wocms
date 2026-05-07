@@ -92,7 +92,7 @@ if (typeof window.editorjsField === 'undefined') {
                     data: initialData || undefined,
                     minHeight: 0,
                     tools: {
-                        header: { class: Header, config: { levels: [1,2,3,4,5,6], defaultLevel: 2 } },
+                        header: { class: (window.HeaderWithInlineTools || Header), config: { levels: [1,2,3,4,5,6], defaultLevel: 2 } },
                         list: { class: NestedList, inlineToolbar: true, config: { defaultStyle: 'unordered' } },
                         checklist: { class: Checklist, inlineToolbar: true },
                         quote: { class: Quote, inlineToolbar: true },

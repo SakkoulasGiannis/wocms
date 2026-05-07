@@ -101,7 +101,7 @@ if (typeof window.editorjsField === 'undefined') {
                     data: initialData || undefined,
 
                     tools: {
-                        header: { class: Header, config: { levels: [1, 2, 3, 4, 5, 6], defaultLevel: 2 } },
+                        header: { class: (window.HeaderWithInlineTools || Header), config: { levels: [1, 2, 3, 4, 5, 6], defaultLevel: 2 } },
                         paragraph: { class: Paragraph, inlineToolbar: true },
                         list: { class: NestedList, inlineToolbar: true, config: { defaultStyle: 'unordered' } },
                         checklist: { class: Checklist, inlineToolbar: true },

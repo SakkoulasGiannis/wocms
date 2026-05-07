@@ -229,17 +229,19 @@ body.editorjs-fullscreen-mode .editorjs-container .codex-editor__redactor {
 <script src="https://cdn.jsdelivr.net/npm/editorjs-drag-drop@1.1.16/dist/bundle.js"></script>
 
 <script>
-/* ─── Patch EditorJS Header sanitize to allow inline color spans ─────────────
-   Default Header.sanitize returns `text: {}` which strips ALL inline HTML
-   on save — so color spans, marker, underline, inline code etc. survive in
-   paragraphs but NOT in headings. We widen sanitize to allow the same set
-   of inline tags as Paragraph + our own span[style][class]. */
-(function patchHeaderSanitize() {
-    const tryPatch = () => {
+/* ─── Custom Header subclass that allows inline tools to survive save ──────
+   Default @editorjs/header has `static get sanitize() { return { level: false, text: {} } }`
+   which strips ALL inline HTML on save — so color spans / marker / underline
+   work in paragraphs but get lost in headings. We subclass Header and provide
+   a wider sanitize config. Use this in the editor's tools config instead of
+   the bare Header. */
+window.HeaderWithInlineTools = null;
+(function buildHeaderSubclass() {
+    const tryBuild = () => {
         if (!window.Header) return false;
         try {
-            Object.defineProperty(window.Header, 'sanitize', {
-                get() {
+            window.HeaderWithInlineTools = class HeaderWithInlineTools extends window.Header {
+                static get sanitize() {
                     return {
                         level: false,
                         text: {
@@ -254,21 +256,18 @@ body.editorjs-fullscreen-mode .editorjs-container .codex-editor__redactor {
                             span: { style: true, class: true },
                         },
                     };
-                },
-                configurable: true,
-            });
+                }
+            };
+            console.log('[HeaderWithInlineTools] ready');
             return true;
         } catch (e) {
-            console.warn('[Header sanitize patch] failed:', e);
+            console.warn('[HeaderWithInlineTools] build failed:', e);
             return false;
         }
     };
-    if (!tryPatch()) {
-        // Header CDN script may load after this file — retry on each animation frame
+    if (!tryBuild()) {
         let tries = 0;
-        const id = setInterval(() => {
-            if (tryPatch() || ++tries > 60) clearInterval(id);
-        }, 50);
+        const id = setInterval(() => { if (tryBuild() || ++tries > 60) clearInterval(id); }, 50);
     }
 })();
 
@@ -810,7 +809,7 @@ window.ContainerTool = class ContainerTool {
 
         try {
             const subTools = {
-                header: { class: Header, inlineToolbar: true, config: { levels: [1, 2, 3, 4, 5, 6], defaultLevel: 2 } },
+                header: { class: (window.HeaderWithInlineTools || Header), inlineToolbar: true, config: { levels: [1, 2, 3, 4, 5, 6], defaultLevel: 2 } },
                 list: { class: NestedList, inlineToolbar: true },
                 quote: { class: Quote, inlineToolbar: true },
                 marker: Marker,
@@ -1948,7 +1947,7 @@ function editorjsField(config) {
                 tools: {
                     // Block tools
                     header: {
-                        class: Header,
+                        class: (window.HeaderWithInlineTools || Header),
                         inlineToolbar: true,
                         config: { levels: [1, 2, 3, 4, 5, 6], defaultLevel: 2 },
                     },

@@ -130,7 +130,7 @@ window.ContainerTool = class ContainerTool {
         window.addEventListener('resize', this._onResize);
         try {
             const subTools = {
-                header: { class: Header, inlineToolbar: true, config: { levels: [1, 2, 3, 4, 5, 6], defaultLevel: 2 } },
+                header: { class: (window.HeaderWithInlineTools || Header), inlineToolbar: true, config: { levels: [1, 2, 3, 4, 5, 6], defaultLevel: 2 } },
                 list: { class: NestedList, inlineToolbar: true },
                 quote: { class: Quote, inlineToolbar: true },
                 marker: Marker, inlineCode: InlineCode, underline: Underline,
@@ -730,7 +730,7 @@ window.ColumnsTool = class ColumnsTool {
             // Initialize nested EditorJS in this column
             try {
                 const subTools = {
-                    header: { class: Header, inlineToolbar: true, config: { levels: [2, 3, 4], defaultLevel: 3 } },
+                    header: { class: (window.HeaderWithInlineTools || Header), inlineToolbar: true, config: { levels: [2, 3, 4], defaultLevel: 3 } },
                     list: { class: NestedList, inlineToolbar: true },
                     quote: { class: Quote, inlineToolbar: true },
                     marker: Marker,
@@ -896,7 +896,7 @@ if (typeof window.editorjsField === 'undefined') {
                     data: initialData || undefined,
                     minHeight: 0,
                     tools: {
-                        header: { class: Header, inlineToolbar: true, config: { levels: [1,2,3,4,5,6], defaultLevel: 2 } },
+                        header: { class: (window.HeaderWithInlineTools || Header), inlineToolbar: true, config: { levels: [1,2,3,4,5,6], defaultLevel: 2 } },
                         list: { class: NestedList, inlineToolbar: true, config: { defaultStyle: 'unordered' } },
                         checklist: { class: Checklist, inlineToolbar: true },
                         quote: { class: Quote, inlineToolbar: true },
