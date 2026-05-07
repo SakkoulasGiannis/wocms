@@ -4,7 +4,7 @@
     $subtitle = $content['subtitle'] ?? 'Explore Cities';
     $title = $content['title'] ?? 'Our Location For You';
     $description = $content['description'] ?? '';
-    $sectionClass = $content['section_class'] ?? 'py-16 bg-white';
+    $sectionClass = $content['section_class'] ?? 'py-20 lg:py-24 bg-white';
 
     $items = $content['items'] ?? $content['cities'] ?? [];
     if (is_string($items)) {
@@ -53,16 +53,16 @@
 
 <section class="{{ $sectionClass }}">
     <div class="mx-auto max-w-8xl px-4 sm:px-6 lg:px-8">
-        {{-- Header --}}
-        <div class="mx-auto max-w-3xl text-center mb-12">
+        {{-- Header (homelengo .box-title spec) --}}
+        <div class="mx-auto max-w-3xl text-center mb-14">
             @if($subtitle)
-                <p class="text-sm font-semibold uppercase tracking-widest text-brand">{{ $subtitle }}</p>
+                <p class="text-sm font-semibold uppercase tracking-[0.2em] text-brand">{{ $subtitle }}</p>
             @endif
             @if($title)
-                <h2 class="mt-3 text-3xl font-bold text-slate-900 md:text-4xl">{{ $title }}</h2>
+                <h2 class="mt-4 text-3xl font-extrabold capitalize leading-tight text-on-surface md:text-4xl lg:text-[44px] lg:leading-[1.15]">{{ $title }}</h2>
             @endif
             @if($description)
-                <p class="mt-4 text-lg text-slate-600">{{ $description }}</p>
+                <p class="mt-4 text-lg text-variant-1">{{ $description }}</p>
             @endif
         </div>
 
@@ -86,26 +86,26 @@
                         : null;
                 @endphp
                 <a href="{{ $link }}"
-                   class="group relative block aspect-[3/4] overflow-hidden rounded-2xl shadow-md ring-1 ring-slate-200 transition-all hover:shadow-xl hover:-translate-y-1">
+                   class="group relative block aspect-[3/4] overflow-hidden rounded-2xl shadow-card ring-1 ring-outline transition-all duration-300 hover:-translate-y-1 hover:shadow-soft">
                     <img src="{{ $image }}"
                          alt="{{ $name }}"
                          loading="lazy"
                          class="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-110">
 
-                    {{-- Overlay --}}
-                    <div class="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent"></div>
+                    {{-- Overlay (homelengo .location-item: dark gradient bottom) --}}
+                    <div class="absolute inset-0 bg-gradient-to-t from-on-surface/85 via-on-surface/30 to-transparent"></div>
 
                     {{-- Content --}}
-                    <div class="absolute inset-x-0 bottom-0 p-4">
+                    <div class="absolute inset-x-0 bottom-0 p-5">
+                        <h3 class="text-xl font-bold capitalize text-white drop-shadow line-clamp-1 transition-colors group-hover:text-brand-soft">{{ $name }}</h3>
                         @if($countLabel)
-                            <p class="text-xs font-semibold uppercase tracking-wider text-brand">{{ $countLabel }}</p>
+                            <p class="mt-1 text-sm font-medium text-white/90">{{ $countLabel }}</p>
                         @endif
-                        <h3 class="mt-1 text-lg font-bold text-white drop-shadow line-clamp-1">{{ $name }}</h3>
                     </div>
 
-                    {{-- Arrow --}}
-                    <div class="absolute top-3 right-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 opacity-0 transition-opacity group-hover:opacity-100">
-                        <svg class="h-4 w-4 text-slate-900" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    {{-- Arrow (brand on hover) --}}
+                    <div class="absolute top-4 right-4 flex h-10 w-10 items-center justify-center rounded-full bg-white text-on-surface shadow-card opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:bg-brand group-hover:text-white">
+                        <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
                         </svg>
                     </div>
