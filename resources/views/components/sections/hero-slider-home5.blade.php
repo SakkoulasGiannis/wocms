@@ -271,21 +271,22 @@
                     @endif
                 </div>
 
-                {{-- Right: thumbnail pagination --}}
+                {{-- Right: thumbnail pagination — homelengo home-5 style:
+                     vertical column, right-aligned, 80x80 squares, rounded-2xl,
+                     inactive opacity 70%. --}}
                 @if ($totalSlides > 1)
-                    <div class="hidden lg:block">
-                        <div class="flex items-end justify-end gap-4">
+                    <div class="hidden lg:flex lg:justify-end">
+                        <div class="flex flex-col items-end gap-2.5">
                             @foreach ($thumbSlides as $i => $thumb)
                                 <button
                                     type="button"
                                     @click="goTo({{ $i }})"
-                                    :class="current === {{ $i }} ? 'h-56 w-36 ring-2 ring-brand-light scale-105' : 'h-44 w-28 opacity-70 hover:opacity-100'"
-                                    class="group relative overflow-hidden rounded-xl transition-all duration-500 ease-out"
+                                    :class="current === {{ $i }} ? 'opacity-100 ring-2 ring-white' : 'opacity-70 hover:opacity-100'"
+                                    class="group relative h-20 w-20 overflow-hidden rounded-2xl transition-all duration-300 ease-out cursor-pointer"
                                     aria-label="Go to slide {{ $i + 1 }}"
                                 >
-                                    <img src="{{ $thumb }}" alt="thumbnail {{ $i + 1 }}" class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110">
-                                    <span class="absolute inset-x-0 bottom-2 text-center text-xs font-semibold text-white drop-shadow"
-                                          x-show="current === {{ $i }}">0{{ $i + 1 }}</span>
+                                    <img src="{{ $thumb }}" alt="thumbnail {{ $i + 1 }}"
+                                         class="h-full w-full object-cover">
                                 </button>
                             @endforeach
                         </div>

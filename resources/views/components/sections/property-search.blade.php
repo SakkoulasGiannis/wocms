@@ -23,20 +23,22 @@
     }"
 >
     <div class="mx-auto max-w-5xl px-4 sm:px-6">
-        {{-- Tabs --}}
-        <div class="flex justify-center mb-0">
-            <button type="button"
-                    @click="activeTab = 'rent'"
-                    :class="activeTab === 'rent' ? 'bg-brand text-white' : 'bg-white/80 text-slate-700 hover:bg-white'"
-                    class="rounded-tl-xl px-6 py-2.5 text-sm font-semibold backdrop-blur-sm transition-colors">
-                Vacation Rental
-            </button>
-            <button type="button"
-                    @click="activeTab = 'sale'"
-                    :class="activeTab === 'sale' ? 'bg-brand text-white' : 'bg-white/80 text-slate-700 hover:bg-white'"
-                    class="rounded-tr-xl px-6 py-2.5 text-sm font-semibold backdrop-blur-sm transition-colors">
-                For Sale
-            </button>
+        {{-- Tabs (homelengo .nav-tab-form.style-1) — rounded pills, white border,
+             active: brand background + small triangle pointing down --}}
+        <div class="flex justify-center items-center gap-2.5 mb-4">
+            @foreach ([['rent','Vacation Rental'], ['sale','For Sale']] as [$key, $label])
+                <button type="button"
+                        @click="activeTab = '{{ $key }}'"
+                        :class="activeTab === '{{ $key }}'
+                            ? 'bg-brand border-brand text-white after:block'
+                            : 'bg-transparent border-white text-white hover:bg-brand hover:border-brand'"
+                        class="relative rounded-full border px-12 py-3.5 text-base font-semibold leading-5 transition-colors duration-300
+                               after:hidden after:content-[''] after:absolute after:left-1/2 after:top-full after:-translate-x-1/2
+                               after:border-l-[6px] after:border-r-[6px] after:border-t-[6px]
+                               after:border-l-transparent after:border-r-transparent after:border-t-brand">
+                    {{ $label }}
+                </button>
+            @endforeach
         </div>
 
         {{-- Search Form --}}
