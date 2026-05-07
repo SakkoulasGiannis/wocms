@@ -18,18 +18,48 @@
         <meta name="description" content="@yield('description', '')">
     @endif
 
+    {{-- Manrope (homelengo's primary font) --}}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
     {{-- Tailwind CSS v4 browser CDN --}}
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4" crossorigin="anonymous"></script>
     <style type="text/tailwindcss">
         @import "tailwindcss";
 
         @theme {
-            --color-brand: oklch(0.45 0.15 245);
-            --color-brand-light: oklch(0.55 0.13 245);
-            --color-brand-dark: oklch(0.35 0.13 245);
+            /* Brand colors — exact homelengo design tokens (scss/abstracts/_variable.scss) */
+            --color-brand:        #1563df;  /* primary */
+            --color-brand-hover:  #0e49a6;  /* primary-hover */
+            --color-brand-soft:   #f3f7fd;  /* primary-new (light tint) */
+            --color-brand-dark:   #0e49a6;  /* alias for backwards compat */
+            --color-brand-light:  #f3f7fd;  /* alias for backwards compat */
+
+            --color-critical:     #c72929;
+            --color-yellow:       #ffa800;
+            --color-success:      #198754;
+
+            --color-on-surface:   #161e2d;  /* dark text */
+            --color-surface:      #f7f7f7;  /* light gray bg */
+            --color-outline:      #e4e4e4;  /* borders */
+            --color-variant-1:    #5c6368;  /* medium text */
+            --color-variant-2:    #a3abb0;  /* light text */
+            --color-variant-3:    #8e8e93;
+
+            /* Shadows from homelengo */
+            --shadow-card:    0px 4px 18px 0px #00000014;
+            --shadow-soft:    0px 10px 25px 0px #365f681a;
+            --shadow-strong:  0px 30px 60px 0px #0000001a;
+
+            /* Typography */
+            --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
 
             --container-8xl: 88rem;
         }
+
+        /* Apply Manrope to body so existing components inherit it */
+        body { font-family: "Manrope", ui-sans-serif, system-ui, sans-serif; }
     </style>
 
     {{-- Heading defaults — Tailwind v4 preflight resets h1-h6 to inherit; restore them here.
@@ -45,6 +75,35 @@
         html body p:not([class])  { margin: 0.5em 0 !important; line-height: 1.65 !important; }
         html body ul:not([class]) { padding-left: 1.5rem !important; margin: 0.5em 0 !important; list-style: disc !important; }
         html body ol:not([class]) { padding-left: 1.5rem !important; margin: 0.5em 0 !important; list-style: decimal !important; }
+
+        /* ── Buttons (homelengo .tf-btn spec) ─────────────────────────────────── */
+        .tf-btn {
+            display: inline-flex; justify-content: center; align-items: center; gap: 8px;
+            padding: 10px 20px; min-width: 162px; min-height: 54px;
+            border-radius: 9999px;
+            font-size: 16px; line-height: 21.86px; font-weight: 600;
+            background-color: #ffffff; color: #161e2d;
+            border: 1px solid #161e2d;
+            text-decoration: none;
+            transition: background-color .3s ease, color .3s ease, border-color .3s ease;
+        }
+        .tf-btn svg { width: 20px; flex-shrink: 0; }
+        .tf-btn:hover { background-color: #1563df; color: #ffffff; border-color: #1563df; }
+        .tf-btn.primary { background-color: #1563df; color: #ffffff; border-color: #1563df; }
+        .tf-btn.primary:hover { background-color: #0e49a6; border-color: #0e49a6; }
+        .tf-btn.size-1 { padding: 11px 36px; min-width: 244px; }
+        .tf-btn.size-2 { padding: 11px 40px; }
+
+        /* "Read more" link variant */
+        .btn-read-more {
+            display: inline-block;
+            font-size: 16px; line-height: 26px; font-weight: 700;
+            color: #161e2d;
+            text-transform: capitalize;
+            border-bottom: 2px solid #161e2d;
+            padding: 0 0 4px 0;
+        }
+        .btn-read-more:hover { color: #1563df; border-color: #1563df; }
     </style>
 
     {{-- Custom Head Scripts from Settings --}}
