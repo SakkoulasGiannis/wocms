@@ -33,7 +33,7 @@
     $description = $content['description'] ?? '';
     $categoryLabel = $content['category_label'] ?? 'Blog';
     $sectionClass = $content['section_class']
-        ?? ($isCarousel ? 'py-16 bg-slate-50' : 'py-16 bg-white');
+        ?? ($isCarousel ? 'py-20 lg:py-24 bg-surface' : 'py-20 lg:py-24 bg-white');
 
     // Query ContentNode entries for Blog content
     $posts = collect();
@@ -115,12 +115,12 @@
         <div class="mx-auto max-w-8xl px-4 sm:px-6 lg:px-8">
             <div class="mx-auto max-w-2xl text-center">
                 @if ($subtitle)
-                    <p class="text-sm font-semibold uppercase tracking-widest text-brand">{{ $subtitle }}</p>
+                    <p class="text-sm font-semibold uppercase tracking-[0.2em] text-brand">{{ $subtitle }}</p>
                 @endif
                 @if ($heading)
-                    <h2 class="mt-3 text-3xl font-bold text-slate-900 md:text-4xl">{{ $heading }}</h2>
+                    <h2 class="mt-4 text-3xl font-extrabold capitalize leading-tight text-on-surface md:text-4xl lg:text-[44px] lg:leading-[1.15]">{{ $heading }}</h2>
                 @endif
-                <p class="mt-6 text-base text-slate-500">No posts available yet. Check back soon.</p>
+                <p class="mt-6 text-base text-variant-1">No posts available yet. Check back soon.</p>
             </div>
         </div>
     </section>
@@ -164,16 +164,16 @@
             }"
         >
             <div class="mx-auto max-w-8xl px-4 sm:px-6 lg:px-8">
-                {{-- Header --}}
-                <div class="mx-auto max-w-2xl text-center mb-12">
+                {{-- Header (homelengo .box-title spec) --}}
+                <div class="mx-auto max-w-2xl text-center mb-14">
                     @if ($subtitle)
-                        <p class="text-sm font-semibold uppercase tracking-widest text-brand">{{ $subtitle }}</p>
+                        <p class="text-sm font-semibold uppercase tracking-[0.2em] text-brand">{{ $subtitle }}</p>
                     @endif
                     @if ($heading)
-                        <h2 class="mt-3 text-3xl font-bold text-slate-900 md:text-4xl">{{ $heading }}</h2>
+                        <h2 class="mt-4 text-3xl font-extrabold capitalize leading-tight text-on-surface md:text-4xl lg:text-[44px] lg:leading-[1.15]">{{ $heading }}</h2>
                     @endif
                     @if ($description)
-                        <p class="mt-4 text-lg text-slate-600">{{ $description }}</p>
+                        <p class="mt-4 text-lg text-variant-1">{{ $description }}</p>
                     @endif
                 </div>
 
@@ -189,8 +189,8 @@
                                     class="w-full shrink-0 px-3 md:w-1/2 lg:w-1/3"
                                     wire:key="blog-carousel-{{ $i }}"
                                 >
-                                    {{-- Blog card --}}
-                                    <article class="group flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
+                                    {{-- Blog card (homelengo .flat-blog-item) --}}
+                                    <article class="group flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-card ring-1 ring-outline transition-all duration-300 hover:-translate-y-1 hover:shadow-soft hover:ring-brand/30">
                                         <a href="{{ $post['link'] }}" class="relative block aspect-[4/3] overflow-hidden bg-slate-100">
                                             <img
                                                 src="{{ $post['image'] }}"
@@ -198,42 +198,36 @@
                                                 class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                                                 loading="lazy"
                                             >
-                                            @if (! empty($post['category']))
-                                                <span class="absolute left-4 top-4 inline-flex items-center rounded-full bg-brand px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
-                                                    {{ $post['category'] }}
+                                            @if (! empty($post['date']))
+                                                <span class="absolute left-4 top-4 inline-flex items-center rounded-md bg-white px-3 py-1.5 text-xs font-semibold text-on-surface shadow-card">
+                                                    {{ $post['date'] }}
                                                 </span>
                                             @endif
                                         </a>
                                         <div class="flex flex-1 flex-col p-6">
-                                            <h3 class="line-clamp-2 text-lg font-bold text-slate-900 transition-colors group-hover:text-brand">
-                                                <a href="{{ $post['link'] }}">{{ $post['title'] }}</a>
-                                            </h3>
-                                            @if (! empty($post['excerpt']))
-                                                <p class="mt-3 line-clamp-3 text-sm text-slate-600">{{ $post['excerpt'] }}</p>
-                                            @endif
-
-                                            <div class="mt-5 flex items-center gap-4 border-t border-slate-100 pt-4 text-xs text-slate-500">
-                                                @if (! empty($post['date']))
-                                                    <span class="inline-flex items-center gap-1.5">
-                                                        <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-                                                        </svg>
-                                                        {{ $post['date'] }}
-                                                    </span>
-                                                @endif
+                                            {{-- Author + category (homelengo .post-author) --}}
+                                            <div class="flex items-center gap-2 text-xs text-variant-1">
                                                 @if (! empty($post['author']))
-                                                    <span class="inline-flex items-center gap-1.5">
-                                                        <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-                                                        </svg>
-                                                        {{ $post['author'] }}
-                                                    </span>
+                                                    <span class="font-semibold text-on-surface">{{ $post['author'] }}</span>
+                                                @endif
+                                                @if (! empty($post['author']) && ! empty($post['category']))
+                                                    <span class="inline-block h-1 w-1 rounded-full bg-variant-2"></span>
+                                                @endif
+                                                @if (! empty($post['category']))
+                                                    <span class="uppercase tracking-wide">{{ $post['category'] }}</span>
                                                 @endif
                                             </div>
 
-                                            <a href="{{ $post['link'] }}" class="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:text-brand-dark transition-colors">
-                                                Read more
-                                                <svg class="h-4 w-4 transition-transform group-hover:translate-x-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <h3 class="mt-3 line-clamp-2 text-xl font-bold capitalize text-on-surface transition-colors group-hover:text-brand">
+                                                <a href="{{ $post['link'] }}">{{ $post['title'] }}</a>
+                                            </h3>
+                                            @if (! empty($post['excerpt']))
+                                                <p class="mt-3 line-clamp-3 text-sm leading-relaxed text-variant-1">{{ $post['excerpt'] }}</p>
+                                            @endif
+
+                                            <a href="{{ $post['link'] }}" class="mt-auto pt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-on-surface transition-colors hover:text-brand">
+                                                Read More
+                                                <svg class="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                                     <path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
                                                 </svg>
                                             </a>
@@ -250,7 +244,7 @@
                             <button
                                 type="button"
                                 @click="prev()"
-                                class="absolute -left-3 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white text-slate-700 shadow-lg ring-1 ring-slate-200 transition-colors hover:bg-brand hover:text-white hover:ring-brand md:-left-5"
+                                class="absolute -left-3 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white text-on-surface shadow-card ring-1 ring-outline transition-colors hover:bg-brand hover:text-white hover:ring-brand md:-left-5"
                                 aria-label="Previous post"
                             >
                                 <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -260,7 +254,7 @@
                             <button
                                 type="button"
                                 @click="next()"
-                                class="absolute -right-3 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white text-slate-700 shadow-lg ring-1 ring-slate-200 transition-colors hover:bg-brand hover:text-white hover:ring-brand md:-right-5"
+                                class="absolute -right-3 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white text-on-surface shadow-card ring-1 ring-outline transition-colors hover:bg-brand hover:text-white hover:ring-brand md:-right-5"
                                 aria-label="Next post"
                             >
                                 <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -277,7 +271,7 @@
                         <button
                             type="button"
                             @click="goTo(i - 1)"
-                            :class="current === (i - 1) ? 'w-8 bg-brand' : 'w-2.5 bg-slate-300 hover:bg-slate-400'"
+                            :class="current === (i - 1) ? 'w-8 bg-brand' : 'w-2.5 bg-outline hover:bg-variant-2'"
                             class="h-2.5 rounded-full transition-all duration-300"
                             :aria-label="`Go to page ${i}`"
                         ></button>
@@ -288,24 +282,24 @@
     @else
         <section class="{{ $sectionClass }}">
             <div class="mx-auto max-w-8xl px-4 sm:px-6 lg:px-8">
-                {{-- Header --}}
-                <div class="mx-auto max-w-2xl text-center mb-12">
+                {{-- Header (homelengo .box-title spec) --}}
+                <div class="mx-auto max-w-2xl text-center mb-14">
                     @if ($subtitle)
-                        <p class="text-sm font-semibold uppercase tracking-widest text-brand">{{ $subtitle }}</p>
+                        <p class="text-sm font-semibold uppercase tracking-[0.2em] text-brand">{{ $subtitle }}</p>
                     @endif
                     @if ($heading)
-                        <h2 class="mt-3 text-3xl font-bold text-slate-900 md:text-4xl">{{ $heading }}</h2>
+                        <h2 class="mt-4 text-3xl font-extrabold capitalize leading-tight text-on-surface md:text-4xl lg:text-[44px] lg:leading-[1.15]">{{ $heading }}</h2>
                     @endif
                     @if ($description)
-                        <p class="mt-4 text-lg text-slate-600">{{ $description }}</p>
+                        <p class="mt-4 text-lg text-variant-1">{{ $description }}</p>
                     @endif
                 </div>
 
-                {{-- Grid --}}
+                {{-- Grid (homelengo .flat-blog-item) --}}
                 <div class="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
                     @foreach ($normalized as $i => $post)
                         <article
-                            class="group flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+                            class="group flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-card ring-1 ring-outline transition-all duration-300 hover:-translate-y-1 hover:shadow-soft hover:ring-brand/30"
                             wire:key="blog-grid-{{ $i }}"
                         >
                             <a href="{{ $post['link'] }}" class="relative block aspect-[4/3] overflow-hidden bg-slate-100">
@@ -315,42 +309,36 @@
                                     class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                                     loading="lazy"
                                 >
-                                @if (! empty($post['category']))
-                                    <span class="absolute left-4 top-4 inline-flex items-center rounded-full bg-brand px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
-                                        {{ $post['category'] }}
+                                @if (! empty($post['date']))
+                                    <span class="absolute left-4 top-4 inline-flex items-center rounded-md bg-white px-3 py-1.5 text-xs font-semibold text-on-surface shadow-card">
+                                        {{ $post['date'] }}
                                     </span>
                                 @endif
                             </a>
                             <div class="flex flex-1 flex-col p-6">
-                                <h3 class="line-clamp-2 text-lg font-bold text-slate-900 transition-colors group-hover:text-brand">
-                                    <a href="{{ $post['link'] }}">{{ $post['title'] }}</a>
-                                </h3>
-                                @if (! empty($post['excerpt']))
-                                    <p class="mt-3 line-clamp-3 text-sm text-slate-600">{{ $post['excerpt'] }}</p>
-                                @endif
-
-                                <div class="mt-5 flex items-center gap-4 border-t border-slate-100 pt-4 text-xs text-slate-500">
-                                    @if (! empty($post['date']))
-                                        <span class="inline-flex items-center gap-1.5">
-                                            <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-                                            </svg>
-                                            {{ $post['date'] }}
-                                        </span>
-                                    @endif
+                                {{-- Author + category (homelengo .post-author) --}}
+                                <div class="flex items-center gap-2 text-xs text-variant-1">
                                     @if (! empty($post['author']))
-                                        <span class="inline-flex items-center gap-1.5">
-                                            <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-                                            </svg>
-                                            {{ $post['author'] }}
-                                        </span>
+                                        <span class="font-semibold text-on-surface">{{ $post['author'] }}</span>
+                                    @endif
+                                    @if (! empty($post['author']) && ! empty($post['category']))
+                                        <span class="inline-block h-1 w-1 rounded-full bg-variant-2"></span>
+                                    @endif
+                                    @if (! empty($post['category']))
+                                        <span class="uppercase tracking-wide">{{ $post['category'] }}</span>
                                     @endif
                                 </div>
 
-                                <a href="{{ $post['link'] }}" class="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:text-brand-dark transition-colors">
-                                    Read more
-                                    <svg class="h-4 w-4 transition-transform group-hover:translate-x-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <h3 class="mt-3 line-clamp-2 text-xl font-bold capitalize text-on-surface transition-colors group-hover:text-brand">
+                                    <a href="{{ $post['link'] }}">{{ $post['title'] }}</a>
+                                </h3>
+                                @if (! empty($post['excerpt']))
+                                    <p class="mt-3 line-clamp-3 text-sm leading-relaxed text-variant-1">{{ $post['excerpt'] }}</p>
+                                @endif
+
+                                <a href="{{ $post['link'] }}" class="mt-auto pt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-on-surface transition-colors hover:text-brand">
+                                    Read More
+                                    <svg class="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
                                     </svg>
                                 </a>
