@@ -195,11 +195,12 @@
                     <article
                         wire:key="agent-{{ $i }}"
                         class="group flex flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:ring-brand/30">
-                        {{-- Photo --}}
+                        {{-- Photo — aspect-[4/5] with object-cover + object-top so faces stay
+                             visible (any cropping happens at the bottom of the image, not the head) --}}
                         <div class="relative aspect-[4/5] overflow-hidden bg-slate-100">
                             @if (! empty($agent['has_photo']) || ! empty($agent['image']))
                                 <img src="{{ $agent['image'] }}" alt="{{ $agent['name'] }}"
-                                     class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                     class="h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
                                      loading="lazy">
                             @else
                                 <div class="flex h-full w-full items-center justify-center text-slate-300">
