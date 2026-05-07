@@ -5,7 +5,7 @@
     $title = $content['title'] ?? 'Welcome to HomeLengo';
     $description = $content['description'] ?? '';
     $columns = (int) ($settings['columns'] ?? $content['columns'] ?? 3);
-    $sectionClass = $content['section_class'] ?? 'py-20 bg-slate-50';
+    $sectionClass = $content['section_class'] ?? 'py-20 lg:py-24 bg-surface';
 
     $items = $content['items'] ?? [];
     if (is_string($items)) {
@@ -32,44 +32,47 @@
 
 <section class="{{ $sectionClass }}">
     <div class="mx-auto max-w-8xl px-4 sm:px-6 lg:px-8">
-        {{-- Header --}}
+        {{-- Header (homelengo .box-title spec) --}}
         <div class="mx-auto max-w-2xl text-center mb-14">
             @if($subtitle)
-                <p class="text-sm font-semibold uppercase tracking-widest text-brand">{{ $subtitle }}</p>
+                <p class="text-sm font-semibold uppercase tracking-[0.2em] text-brand">{{ $subtitle }}</p>
             @endif
             @if($title)
-                <h2 class="mt-3 text-3xl font-bold text-slate-900 md:text-4xl">{{ $title }}</h2>
+                <h2 class="mt-4 text-3xl font-extrabold capitalize leading-tight text-on-surface md:text-4xl lg:text-[44px] lg:leading-[1.15]">{{ $title }}</h2>
             @endif
             @if($description)
-                <p class="mt-4 text-lg text-slate-600">{{ $description }}</p>
+                <p class="mt-4 text-lg text-variant-1">{{ $description }}</p>
             @endif
         </div>
 
-        {{-- Grid --}}
+        {{-- Grid (homelengo .box-service style) --}}
         <div class="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-{{ $columns }}">
             @foreach($items as $item)
-                <div class="group relative rounded-2xl bg-white p-8 shadow-sm ring-1 ring-slate-200 transition-all hover:shadow-xl hover:-translate-y-1">
-                    {{-- Icon or Image --}}
+                <div class="group relative flex flex-col rounded-2xl bg-white p-8 shadow-card ring-1 ring-outline transition-all duration-300 hover:-translate-y-1 hover:shadow-soft hover:ring-brand/30">
+                    {{-- Icon or Image (homelengo's .box-service .image: large illustration in soft circle) --}}
                     @if(!empty($item['image']))
-                        <div class="mb-6 h-16 w-16 overflow-hidden rounded-xl">
+                        <div class="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-brand-soft p-3">
                             <img src="{{ $item['image'] }}" alt="{{ $item['title'] ?? '' }}" class="h-full w-full object-contain">
                         </div>
                     @else
-                        <div class="mb-6 flex h-14 w-14 items-center justify-center rounded-xl bg-brand/10 text-brand">
-                            <svg class="h-7 w-7" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <div class="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-soft text-brand transition-colors duration-300 group-hover:bg-brand group-hover:text-white">
+                            <svg class="h-8 w-8" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                                 {!! $iconSvgs[$item['icon'] ?? 'home'] ?? $iconSvgs['home'] !!}
                             </svg>
                         </div>
                     @endif
 
-                    <h3 class="text-xl font-bold text-slate-900">{{ $item['title'] ?? '' }}</h3>
+                    <h3 class="text-xl font-bold capitalize text-on-surface transition-colors group-hover:text-brand">{{ $item['title'] ?? '' }}</h3>
                     @if(!empty($item['description']))
-                        <p class="mt-3 text-sm leading-relaxed text-slate-600">{{ $item['description'] }}</p>
+                        <p class="mt-3 text-sm leading-relaxed text-variant-1">{{ $item['description'] }}</p>
                     @endif
                     @if(!empty($item['link']) && $item['link'] !== '#')
-                        <a href="{{ $item['link'] }}" class="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:text-brand-dark transition-colors">
+                        <a href="{{ $item['link'] }}"
+                           class="mt-auto pt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-on-surface transition-colors hover:text-brand">
                             Learn More
-                            <svg class="h-4 w-4 transition-transform group-hover:translate-x-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                            <svg class="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                            </svg>
                         </a>
                     @endif
                 </div>
