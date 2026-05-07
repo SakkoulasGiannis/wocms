@@ -13,8 +13,8 @@
     :class="scrolled ? 'shadow-md bg-white' : 'bg-white/95 backdrop-blur-sm'"
     class="sticky top-0 z-40 w-full transition-shadow"
 >
-    <div class="mx-auto max-w-8xl px-4 sm:px-6 lg:px-8">
-        <div class="flex h-20 items-center gap-8">
+    <div class="mx-auto w-full px-4 sm:px-6 lg:px-8 2xl:px-12">
+        <div class="flex h-20 items-center gap-6 xl:gap-8">
 
             {{-- Logo --}}
             <div class="flex-shrink-0">
@@ -48,7 +48,7 @@
                                 <a
                                     href="{{ $item->resolved_url }}"
                                     target="{{ $item->target }}"
-                                    class="flex items-center gap-1 px-4 py-2 text-[15px] font-semibold capitalize transition-colors {{ $isCurrent ? 'text-brand' : 'text-on-surface hover:text-brand' }}"
+                                    class="flex items-center gap-1 whitespace-nowrap px-2 py-2 text-sm font-semibold capitalize transition-colors xl:px-3 xl:text-[15px] {{ $isCurrent ? 'text-brand' : 'text-on-surface hover:text-brand' }}"
                                 >
                                     {{ $item->title }}
                                     @if($hasChildren)
@@ -130,9 +130,9 @@
             </nav>
 
             {{-- Contact / CTA (Desktop) — pushed right --}}
-            <div class="hidden lg:flex lg:items-center lg:gap-4 lg:ml-auto">
+            <div class="hidden lg:flex lg:items-center lg:gap-3 lg:ml-auto xl:gap-4">
                 @if($phone)
-                    <a href="tel:{{ $phone }}" class="flex items-center gap-2 text-sm font-semibold text-on-surface hover:text-brand transition-colors">
+                    <a href="tel:{{ $phone }}" class="hidden xl:flex items-center gap-2 text-sm font-semibold text-on-surface hover:text-brand transition-colors whitespace-nowrap">
                         <span class="flex h-9 w-9 items-center justify-center rounded-full bg-brand-soft text-brand">
                             <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                                 <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
@@ -143,7 +143,7 @@
                 @endif
                 <a
                     href="{{ url('/contact') }}"
-                    class="rounded-full bg-brand px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-dark"
+                    class="rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-dark whitespace-nowrap"
                 >
                     Contact Us
                 </a>
