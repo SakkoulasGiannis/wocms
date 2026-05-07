@@ -5,8 +5,8 @@
     $title = $content['title'] ?? 'Why Choose HomeLengo';
     $description = $content['description'] ?? 'Our seasoned team excels in real estate with years of successful market navigation, offering informed decisions and optimal results.';
     $image = $content['image'] ?? '/themes/homelengo/images/banner/img-w-text5.jpg';
-    $sectionClass = $content['section_class'] ?? 'py-16 bg-white';
-    $bgClass = $content['bg_class'] ?? 'bg-slate-50';
+    $sectionClass = $content['section_class'] ?? 'py-20 lg:py-24 bg-white';
+    $bgClass = $content['bg_class'] ?? 'bg-surface';
 
     $items = $content['items'] ?? [];
     if (is_string($items)) {
@@ -56,17 +56,17 @@
                          class="absolute inset-0 h-full w-full object-cover">
                 </div>
 
-                {{-- Benefits --}}
+                {{-- Benefits (homelengo .box-why-choose-us) --}}
                 <div class="p-8 md:p-12 lg:p-16">
                     <div class="mb-10">
                         @if($subtitle)
-                            <p class="text-sm font-semibold uppercase tracking-widest text-brand">{{ $subtitle }}</p>
+                            <p class="text-sm font-semibold uppercase tracking-[0.2em] text-brand">{{ $subtitle }}</p>
                         @endif
                         @if($title)
-                            <h2 class="mt-3 text-3xl font-bold text-slate-900 md:text-4xl">{{ $title }}</h2>
+                            <h2 class="mt-4 text-3xl font-extrabold capitalize leading-tight text-on-surface md:text-4xl lg:text-[40px] lg:leading-[1.15]">{{ $title }}</h2>
                         @endif
                         @if($description)
-                            <p class="mt-4 text-base text-slate-600">{{ $description }}</p>
+                            <p class="mt-4 text-base text-variant-1">{{ $description }}</p>
                         @endif
                     </div>
 
@@ -76,8 +76,8 @@
                                 $itemIcon = $item['icon'] ?? 'shield';
                                 $customSvg = $item['icon_svg'] ?? null;
                             @endphp
-                            <div class="group flex gap-5 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 transition-all hover:shadow-md hover:-translate-y-0.5">
-                                <div class="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl bg-brand/10 text-brand transition-colors group-hover:bg-brand group-hover:text-white">
+                            <div class="group flex gap-5 rounded-2xl bg-white p-5 shadow-card ring-1 ring-outline transition-all duration-300 hover:-translate-y-1 hover:shadow-soft hover:ring-brand/30">
+                                <div class="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-brand-soft text-brand transition-colors duration-300 group-hover:bg-brand group-hover:text-white">
                                     @if($customSvg)
                                         {!! $customSvg !!}
                                     @else
@@ -87,9 +87,9 @@
                                     @endif
                                 </div>
                                 <div class="flex-1">
-                                    <h3 class="text-lg font-bold text-slate-900">{{ $item['title'] ?? '' }}</h3>
+                                    <h3 class="text-lg font-bold capitalize text-on-surface transition-colors group-hover:text-brand">{{ $item['title'] ?? '' }}</h3>
                                     @if(! empty($item['description']))
-                                        <p class="mt-1 text-sm leading-relaxed text-slate-600">{{ $item['description'] }}</p>
+                                        <p class="mt-1 text-sm leading-relaxed text-variant-1">{{ $item['description'] }}</p>
                                     @endif
                                 </div>
                             </div>
