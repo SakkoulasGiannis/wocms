@@ -169,28 +169,38 @@
     if (empty($selectedAgentIds)) {
         $agents = array_slice($agents, 0, $count);
     }
+
+    // Build grid columns based on agent count so partial rows don't leave empty cells.
+    // When there are fewer agents than the max (4), shrink columns + cap width + center.
+    $agentCount = count($agents);
+    $gridLayoutClass = match (true) {
+        $agentCount === 1 => 'grid-cols-1 max-w-sm mx-auto',
+        $agentCount === 2 => 'grid-cols-1 sm:grid-cols-2 max-w-3xl mx-auto',
+        $agentCount === 3 => 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto',
+        default           => 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
+    };
 @endphp
 
 @if (! empty($agents))
     <section class="{{ $sectionClass }}">
         <div class="mx-auto max-w-8xl px-4 sm:px-6 lg:px-8">
             @if ($hasHeading)
-                {{-- Header (only when subtitle / heading / description has content) --}}
-                <div class="mx-auto max-w-2xl text-center mb-12">
+                {{-- Header (homelengo .box-title spec) --}}
+                <div class="mx-auto max-w-2xl text-center mb-14">
                     @if ($subtitle !== '')
-                        <p class="text-sm font-semibold uppercase tracking-widest text-brand">{{ $subtitle }}</p>
+                        <p class="text-sm font-semibold uppercase tracking-[0.2em] text-brand">{{ $subtitle }}</p>
                     @endif
                     @if ($heading !== '')
-                        <h2 class="mt-3 text-3xl font-bold text-slate-900 md:text-4xl">{{ $heading }}</h2>
+                        <h2 class="mt-4 text-3xl font-extrabold capitalize leading-tight text-on-surface md:text-4xl lg:text-[44px] lg:leading-[1.15]">{{ $heading }}</h2>
                     @endif
                     @if ($description !== '')
-                        <p class="mt-4 text-lg text-slate-600">{{ $description }}</p>
+                        <p class="mt-4 text-lg text-variant-1">{{ $description }}</p>
                     @endif
                 </div>
             @endif
 
-            {{-- Agents grid — same card design as the /our-staff page --}}
-            <div class="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 {{ $alignmentClass }}">
+            {{-- Agents grid — columns adapt to agent count so partial rows center cleanly --}}
+            <div class="grid gap-8 {{ $gridLayoutClass }} {{ $alignmentClass }}">
                 @foreach ($agents as $i => $agent)
                     <article
                         wire:key="agent-{{ $i }}"
