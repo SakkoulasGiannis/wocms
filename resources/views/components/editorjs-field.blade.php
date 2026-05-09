@@ -101,6 +101,49 @@ body.editorjs-fullscreen-mode .editorjs-container .codex-editor__redactor {
     color: #111827;
     background: #f3f4f6;
 }
+/* Drag handle hint: settings button doubles as drag handle for reordering blocks */
+.editorjs-container .ce-toolbar__settings-btn {
+    cursor: grab;
+}
+.editorjs-container .ce-toolbar__settings-btn:active {
+    cursor: grabbing;
+}
+.editorjs-container .ce-toolbar__settings-btn::before {
+    content: '⋮⋮';
+    position: absolute;
+    left: -10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 10px;
+    color: #94a3b8;
+    letter-spacing: -2px;
+    opacity: 0;
+    transition: opacity .15s ease;
+    pointer-events: none;
+}
+.editorjs-container .ce-toolbar__settings-btn:hover::before,
+.editorjs-container .ce-block:hover .ce-toolbar__settings-btn::before {
+    opacity: 1;
+}
+/* Slight visual cue when block is being dragged */
+.editorjs-container .ce-block.ce-block--drag-over {
+    background: linear-gradient(to bottom, transparent, rgba(21, 99, 223, 0.05));
+    border-top: 2px solid #1563df;
+}
+
+/* Nested editor handling — when the user is hovering a nested codex-editor (inside
+   a Container or similar), hide the OUTER editor's plus/settings toolbar so they
+   don't overlap and prevent each other from being clicked. */
+.editorjs-container .codex-editor:has(.codex-editor:hover) > .ce-toolbar .ce-toolbar__plus,
+.editorjs-container .codex-editor:has(.codex-editor:hover) > .ce-toolbar .ce-toolbar__settings-btn {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: opacity .15s ease;
+}
+/* Same for the reorder arrows — outer arrows hide when hovering inner blocks */
+.editorjs-container .codex-editor:has(.codex-editor:hover) > .codex-editor__redactor > .ce-block > .ej-reorder-bar {
+    display: none !important;
+}
 .editorjs-container .cdx-settings-button:hover,
 .editorjs-container .cdx-settings-button--active {
     background: #dbeafe;
@@ -628,6 +671,83 @@ window.SpaceTool = class SpaceTool {
     static get sanitize() { return { height: false }; }
 };
 
+/* ─── Reorder arrows: adds ↑/↓ buttons next to every block for one-click reordering ─── */
+window.attachReorderArrows = function (holderEl, editor) {
+    if (!holderEl || !editor || holderEl._reorderArrowsAttached) return;
+    holderEl._reorderArrowsAttached = true;
+
+    const ARROW_UP = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 15l-6-6-6 6"/></svg>';
+    const ARROW_DOWN = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>';
+
+    const decorate = () => {
+        const blocks = holderEl.querySelectorAll(':scope > .codex-editor > .codex-editor__redactor > .ce-block, :scope .codex-editor__redactor > .ce-block');
+        blocks.forEach((blockEl, idx) => {
+            // Only the FIRST level codex-editor (avoid nested container/columns inner editors here —
+            // they get their own attachReorderArrows call from their own onReady).
+            const root = blockEl.closest('.codex-editor');
+            if (root && root.parentElement !== holderEl && root.parentElement !== holderEl.querySelector(':scope > .codex-editor')) return;
+
+            if (blockEl._reorderArrowsAdded) return;
+            blockEl._reorderArrowsAdded = true;
+
+            const bar = document.createElement('div');
+            bar.className = 'ej-reorder-bar';
+            // Position INSIDE the block at top-right so it doesn't bleed into adjacent columns/blocks
+            bar.style.cssText = 'position:absolute;right:4px;top:-14px;display:none;flex-direction:row;gap:2px;background:#fff;border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:2px;z-index:5';
+
+            const mkBtn = (html, label, dir) => {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.title = label;
+                b.innerHTML = html;
+                b.style.cssText = 'display:flex;align-items:center;justify-content:center;width:22px;height:22px;border:0;background:transparent;color:#475569;border-radius:4px;cursor:pointer';
+                b.addEventListener('mouseenter', () => { b.style.background = '#f1f5f9'; b.style.color = '#1e293b'; });
+                b.addEventListener('mouseleave', () => { b.style.background = 'transparent'; b.style.color = '#475569'; });
+                b.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); });
+                b.addEventListener('click', async (e) => {
+                    e.preventDefault(); e.stopPropagation();
+                    try {
+                        const all = Array.from(holderEl.querySelectorAll(':scope > .codex-editor > .codex-editor__redactor > .ce-block, :scope .codex-editor__redactor > .ce-block'))
+                            .filter(el => {
+                                const r = el.closest('.codex-editor');
+                                return r && (r.parentElement === holderEl || r.parentElement === holderEl.querySelector(':scope > .codex-editor'));
+                            });
+                        const fromIndex = all.indexOf(blockEl);
+                        if (fromIndex < 0) return;
+                        const toIndex = dir === 'up' ? fromIndex - 1 : fromIndex + 1;
+                        if (toIndex < 0 || toIndex >= all.length) return;
+                        editor.blocks.move(toIndex, fromIndex);
+                    } catch (err) {
+                        console.warn('[reorder] move failed:', err);
+                    }
+                });
+                return b;
+            };
+
+            bar.appendChild(mkBtn(ARROW_UP, 'Move up', 'up'));
+            bar.appendChild(mkBtn(ARROW_DOWN, 'Move down', 'down'));
+
+            // Position relative to the block
+            if (getComputedStyle(blockEl).position === 'static') {
+                blockEl.style.position = 'relative';
+            }
+            blockEl.appendChild(bar);
+
+            blockEl.addEventListener('mouseenter', () => { bar.style.display = 'flex'; });
+            blockEl.addEventListener('mouseleave', () => { bar.style.display = 'none'; });
+        });
+    };
+
+    decorate();
+    // EditorJS adds/removes blocks dynamically — re-decorate on DOM changes
+    const obs = new MutationObserver(() => {
+        clearTimeout(holderEl._reorderDebounce);
+        holderEl._reorderDebounce = setTimeout(decorate, 80);
+    });
+    obs.observe(holderEl, { childList: true, subtree: true });
+    holderEl._reorderObserver = obs;
+};
+
 /* ─── Container block: wraps content with responsive max-width + custom classes ─── */
 window.ContainerTool = class ContainerTool {
     static get toolbox() {
@@ -835,6 +955,12 @@ window.ContainerTool = class ContainerTool {
                 placeholder: 'Container content...',
                 data: this.data.content || { blocks: [] },
                 minHeight: 80,
+                // Top-level inline toolbar enables color/alignment/marker on every block.
+                // Listing tool names here makes EditorJS show them in the popover for ALL block tools.
+                inlineToolbar: ['bold', 'italic', 'underline', 'marker', 'inlineCode',
+                    ...(window.ColorTool ? ['color'] : []),
+                    ...(window.InlineAlignmentTool ? ['inlineAlignment'] : []),
+                    'link'],
                 tools: subTools,
                 tunes: [
                     ...(window.TextAlignmentTune ? ['textAlignment'] : []),
@@ -848,6 +974,20 @@ window.ContainerTool = class ContainerTool {
                     if (typeof window.initMultiBlockAlignmentBar === 'function') {
                         window.initMultiBlockAlignmentBar(holder);
                     }
+                    // Drag & drop reorder inside the container (same as outer editor)
+                    try {
+                        if (window.DragDrop) {
+                            this._dragDrop = new window.DragDrop(this.subEditor);
+                        }
+                    } catch (e) {
+                        console.warn('[Container] DragDrop init failed (non-fatal):', e);
+                    }
+                    // One-click ↑/↓ reorder arrows on each block
+                    setTimeout(() => {
+                        if (typeof window.attachReorderArrows === 'function') {
+                            window.attachReorderArrows(holder, this.subEditor);
+                        }
+                    }, 100);
                 },
             });
         } catch (e) {
@@ -1944,6 +2084,13 @@ function editorjsField(config) {
                 data: initialData || undefined,
                 minHeight: 0,
 
+                // Explicit inline toolbar list — ensures ColorTool, InlineAlignmentTool
+                // and other custom inline tools always show alongside the built-in ones.
+                inlineToolbar: ['bold', 'italic', 'underline', 'marker', 'inlineCode',
+                    ...(window.ColorTool ? ['color'] : []),
+                    ...(window.InlineAlignmentTool ? ['inlineAlignment'] : []),
+                    'link'],
+
                 tools: {
                     // Block tools
                     header: {
@@ -2120,6 +2267,13 @@ function editorjsField(config) {
                     if (el && typeof window.initMultiBlockAlignmentBar === 'function') {
                         window.initMultiBlockAlignmentBar(el);
                     }
+
+                    // One-click ↑/↓ reorder arrows on each block (clearer than drag-and-drop)
+                    setTimeout(() => {
+                        if (el && typeof window.attachReorderArrows === 'function') {
+                            window.attachReorderArrows(el, self.editor);
+                        }
+                    }, 100);
                 },
             });
         },
