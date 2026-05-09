@@ -34,9 +34,29 @@
         placeholder: {{ json_encode($placeholder) }},
     })"
     x-init="init()"
-    x-on:livewire:navigated.window="destroy()"
+    x-on:livewire:navigating.window="flushSave()"
+    x-on:livewire:navigated.window="destroy(); $nextTick(() => init())"
+    x-on:submit.window="flushSave()"
 >
     <div id="{{ $uid }}" class="editorjs-container" style="min-height: {{ $minHeight }}; border: 1px solid #e5e7eb; border-radius: 0.5rem; background: #fff; padding: 0.5rem 0;"></div>
+    {{-- Save state indicator (saving / saved / error) --}}
+    <div
+        x-show="saveState !== 'idle'"
+        x-transition.opacity
+        :class="saveState === 'error' ? 'text-rose-700 bg-rose-50 ring-rose-200' : (saveState === 'saved' ? 'text-emerald-700 bg-emerald-50 ring-emerald-200' : 'text-slate-600 bg-slate-50 ring-slate-200')"
+        class="mt-1 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ring-1 transition-colors"
+        style="display:none">
+        <template x-if="saveState === 'saving'">
+            <svg class="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="28 60" stroke-linecap="round"/></svg>
+        </template>
+        <template x-if="saveState === 'saved'">
+            <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+        </template>
+        <template x-if="saveState === 'error'">
+            <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M12 8v5M12 16h.01"/></svg>
+        </template>
+        <span x-text="saveState === 'saving' ? 'Saving…' : (saveState === 'saved' ? 'Saved' : 'Save failed')"></span>
+    </div>
 </div>
 
 @once
@@ -301,7 +321,6 @@ window.HeaderWithInlineTools = null;
                     };
                 }
             };
-            console.log('[HeaderWithInlineTools] ready');
             return true;
         } catch (e) {
             console.warn('[HeaderWithInlineTools] build failed:', e);
@@ -928,13 +947,22 @@ window.ContainerTool = class ContainerTool {
         window.addEventListener('resize', this._onResize);
 
         try {
+            // Defensive: every tool checked via `window.X || X || null` so a failed CDN
+            // load never throws ReferenceError when a Container is added much later.
+            const _Header     = window.Header     || (typeof Header     !== 'undefined' ? Header     : null);
+            const _NestedList = window.NestedList || (typeof NestedList !== 'undefined' ? NestedList : null);
+            const _Quote      = window.Quote      || (typeof Quote      !== 'undefined' ? Quote      : null);
+            const _Marker     = window.Marker     || (typeof Marker     !== 'undefined' ? Marker     : null);
+            const _InlineCode = window.InlineCode || (typeof InlineCode !== 'undefined' ? InlineCode : null);
+            const _Underline  = window.Underline  || (typeof Underline  !== 'undefined' ? Underline  : null);
+
             const subTools = {
-                header: { class: (window.HeaderWithInlineTools || Header), inlineToolbar: true, config: { levels: [1, 2, 3, 4, 5, 6], defaultLevel: 2 } },
-                list: { class: NestedList, inlineToolbar: true },
-                quote: { class: Quote, inlineToolbar: true },
-                marker: Marker,
-                inlineCode: InlineCode,
-                underline: Underline,
+                ...(window.HeaderWithInlineTools || _Header ? { header: { class: (window.HeaderWithInlineTools || _Header), inlineToolbar: true, config: { levels: [1, 2, 3, 4, 5, 6], defaultLevel: 2 } } } : {}),
+                ...(_NestedList ? { list: { class: _NestedList, inlineToolbar: true } } : {}),
+                ...(_Quote ? { quote: { class: _Quote, inlineToolbar: true } } : {}),
+                ...(_Marker ? { marker: _Marker } : {}),
+                ...(_InlineCode ? { inlineCode: _InlineCode } : {}),
+                ...(_Underline ? { underline: _Underline } : {}),
                 ...(window.ColorTool ? { color: { class: window.ColorTool } } : {}),
                 ...(window.InlineAlignmentTool ? { inlineAlignment: { class: window.InlineAlignmentTool } } : {}),
                 ...(window.BlockClassesTune ? { blockClasses: window.BlockClassesTune } : {}),
@@ -942,6 +970,8 @@ window.ContainerTool = class ContainerTool {
                 ...(window.ImageSizeTune ? { imageSize: window.ImageSizeTune } : {}),
                 ...(window.ColumnsTool ? { columns: { class: window.ColumnsTool } } : {}),
                 ...(window.SpaceTool   ? { space:   { class: window.SpaceTool   } } : {}),
+                // Match outer editor: register LinkTool inside the container too if loaded
+                ...(typeof LinkTool !== 'undefined' ? { linkTool: { class: LinkTool, config: { endpoint: (window._editorjsField_fetchUrl || '') } } } : {}),
             };
             if (window.__editorImageTool) {
                 subTools.image = {
@@ -1056,13 +1086,20 @@ window.BlockClassesTune = class BlockClassesTune {
 
     applyToBlock() {
         try {
-            const blockIndex = this.api.blocks.getCurrentBlockIndex?.() ?? -1;
-            let blockEl = null;
-            if (this.block && this.block.holder) {
-                blockEl = this.block.holder;
-            } else if (blockIndex >= 0) {
-                const nodes = document.querySelectorAll('.ce-block');
-                blockEl = nodes[blockIndex];
+            // Always prefer this.block.holder — it's the actual DOM node owned by THIS
+            // block. Falling back to a document-wide querySelectorAll('.ce-block')[idx]
+            // is unsafe when multiple editors (outer + Container sub-editor + Columns)
+            // exist on the same page — indices don't align.
+            let blockEl = (this.block && this.block.holder) || null;
+
+            // Last-resort fallback: scope the lookup to the editor that owns this tune.
+            if (!blockEl) {
+                const blockIndex = this.api.blocks.getCurrentBlockIndex?.() ?? -1;
+                const editorRoot = this.api?.ui?.nodes?.wrapper || this.api?.ui?.nodes?.holder;
+                if (blockIndex >= 0 && editorRoot) {
+                    const nodes = editorRoot.querySelectorAll(':scope > .codex-editor__redactor > .ce-block');
+                    blockEl = nodes[blockIndex] || null;
+                }
             }
             if (!blockEl) return;
             // Find the primary content element (cover EditorJS's ce-paragraph div + headings + lists/etc.)
@@ -1380,8 +1417,6 @@ window.ImageSizeTune = class ImageSizeTune {
     }
 };
 
-console.log('[mb-align] script LOADED — version 2026-05-06 with keyboard shortcuts');
-
 /* ─── Keyboard shortcuts: Ctrl/Cmd + Shift + L/E/R/J for align L/C/R/J ──────
    Works in any EditorJS instance (outer + nested). Targets all blocks the
    selection covers — both .ce-block--selected (EditorJS native multi-select)
@@ -1457,7 +1492,6 @@ if (!window._mbAlignKeyboardInited) {
             }
         } catch (_) {}
 
-        console.log('[mb-align] keyboard:', alignment, '→', blocks.length, 'block(s)');
     }, true); // capture phase so we beat browser defaults
 }
 
@@ -1523,7 +1557,6 @@ if (!window._mbAlignKeyboardInited) {
         if (!bar) {
             bar = buildBar();
             targetParent.appendChild(bar);
-            console.log('[mb-align] bar attached to', targetParent === document.body ? '<body>' : '.editorjs-fullscreen-mode');
         }
         return bar;
     }
@@ -1626,7 +1659,6 @@ if (!window._mbAlignKeyboardInited) {
         clearTimeout(checkTimer);
         checkTimer = setTimeout(() => {
             const { blocks, root } = findBlocksForSelection();
-            console.log('[mb-align] check from', reason, '→', blocks.length, 'block(s)');
             if (blocks.length >= 1) {
                 lastBlocks = blocks;
                 lastEditor = root;
@@ -1895,6 +1927,14 @@ window.ColorTool = class ColorTool {
                 span.style.color = '';
                 if (!span.getAttribute('style')) span.removeAttribute('style');
             });
+            // Unwrap empty <span> elements (no attributes left → just dead wrappers
+            // that accumulate after several apply→clear cycles).
+            wrapper.querySelectorAll('span').forEach(span => {
+                if (!span.hasAttributes()) {
+                    while (span.firstChild) span.parentNode.insertBefore(span.firstChild, span);
+                    span.remove();
+                }
+            });
             const frag = document.createDocumentFragment();
             while (wrapper.firstChild) frag.appendChild(wrapper.firstChild);
             this.range.insertNode(frag);
@@ -1951,11 +1991,53 @@ window.ColumnsTool = class ColumnsTool {
         return wrapper;
     }
     setCols(n) {
+        // Sync any unflushed DOM input back to data.columns BEFORE rebuilding,
+        // so typing in column N right before clicking "less cols" isn't lost.
+        this.syncFromDom();
         this.data.cols = n;
         const curr = this.data.columns.length;
         if (n > curr) { for (let i = curr; i < n; i++) this.data.columns.push(''); }
         else if (n < curr) { this.data.columns = this.data.columns.slice(0, n); }
         this.rebuild();
+    }
+    syncFromDom() {
+        if (!this.wrap) return;
+        const cols = this.wrap.querySelectorAll(':scope > [contenteditable]');
+        cols.forEach((col, idx) => {
+            this.data.columns[idx] = col.innerHTML;
+        });
+    }
+    /** Strip dangerous/junk attributes and inline styles from pasted HTML (Word/GDocs). */
+    sanitizePastedHtml(html) {
+        try {
+            const tmp = document.createElement('div');
+            tmp.innerHTML = html;
+            // Remove style/script/meta entirely
+            tmp.querySelectorAll('style,script,meta,link,o\\:p').forEach(el => el.remove());
+            // Strip class & style attributes from everything
+            tmp.querySelectorAll('*').forEach(el => {
+                el.removeAttribute('class');
+                el.removeAttribute('style');
+                el.removeAttribute('id');
+                // Strip Word/Office namespaced attributes
+                Array.from(el.attributes).forEach(a => {
+                    if (/^(?:xmlns|w:|o:|m:|v:|x:|st1:)/i.test(a.name) || /^aria-/i.test(a.name) === false && /^data-/i.test(a.name) === false && !['href', 'src', 'alt', 'title', 'target', 'rel'].includes(a.name.toLowerCase())) {
+                        // keep only common safe attrs
+                        if (!['href', 'src', 'alt', 'title', 'target', 'rel'].includes(a.name.toLowerCase())) {
+                            try { el.removeAttribute(a.name); } catch (_) {}
+                        }
+                    }
+                });
+            });
+            // Unwrap unwanted tags
+            tmp.querySelectorAll('font,o\\:p,xml').forEach(el => {
+                while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
+                el.remove();
+            });
+            return tmp.innerHTML;
+        } catch (e) {
+            return html;
+        }
     }
     render() {
         this.wrap = document.createElement('div');
@@ -1975,10 +2057,21 @@ window.ColumnsTool = class ColumnsTool {
             col.setAttribute('data-placeholder', `Column ${idx + 1}`);
             col.innerHTML = html || '';
             col.addEventListener('input', () => { this.data.columns[idx] = col.innerHTML; });
+            // Sanitize on paste so Word/GDocs styles don't leak through
+            col.addEventListener('paste', (e) => {
+                e.preventDefault();
+                const text = (e.clipboardData || window.clipboardData).getData('text/html')
+                    || (e.clipboardData || window.clipboardData).getData('text/plain');
+                const clean = (e.clipboardData && (e.clipboardData.getData('text/html') ? this.sanitizePastedHtml(text) : text.replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))));
+                document.execCommand('insertHTML', false, clean);
+                this.data.columns[idx] = col.innerHTML;
+            });
             this.wrap.appendChild(col);
         });
     }
     save() {
+        // Always sync from live DOM at save time so we never persist stale data
+        this.syncFromDom();
         return { cols: this.data.cols, columns: this.data.columns };
     }
     static get sanitize() {
@@ -1993,30 +2086,69 @@ function editorjsField(config) {
         wireModel: config.wireModel,
         initialValue: config.initialValue || '',
         uploadImageUrl: config.uploadImageUrl,
-        fetchImageUrl: config.fetchImageUrl,
+        fetchImageUrl: (window._editorjsField_fetchUrl = config.fetchImageUrl),
         uploadFileUrl: config.uploadFileUrl,
-        csrfToken: config.csrfToken,
+        csrfToken: (window._editorjsField_csrf = config.csrfToken),
         placeholder: config.placeholder,
+
+        /** Save state: idle | saving | saved | error — drives the indicator UI */
+        saveState: 'idle',
+        _saveStateTimer: null,
+        setSaveState(state) {
+            this.saveState = state;
+            clearTimeout(this._saveStateTimer);
+            if (state === 'saved' || state === 'error') {
+                this._saveStateTimer = setTimeout(() => { this.saveState = 'idle'; }, state === 'saved' ? 1800 : 4000);
+            }
+        },
+
+        /** Lightweight floating toast for upload/network errors that EditorJS swallows. */
+        toast(message, type = 'info') {
+            try {
+                const t = document.createElement('div');
+                const colors = type === 'error'
+                    ? 'background:#fef2f2;color:#991b1b;border:1px solid #fecaca'
+                    : (type === 'success' ? 'background:#f0fdf4;color:#166534;border:1px solid #bbf7d0' : 'background:#f8fafc;color:#0f172a;border:1px solid #e2e8f0');
+                t.style.cssText = 'position:fixed;bottom:20px;right:20px;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:500;box-shadow:0 4px 12px rgba(0,0,0,.08);z-index:99999;max-width:360px;' + colors;
+                t.textContent = message;
+                document.body.appendChild(t);
+                setTimeout(() => { t.style.transition = 'opacity .3s ease'; t.style.opacity = '0'; }, 3500);
+                setTimeout(() => t.remove(), 4000);
+            } catch (_) {}
+        },
 
         parseInitialData() {
             if (!this.initialValue || this.initialValue === '') return null;
 
             const val = this.initialValue.trim();
 
-            // Try EditorJS JSON
-            if (val.startsWith('{')) {
+            // Try EditorJS JSON — STRICT: must look like an EditorJS save, not just any JSON.
+            // Requires: blocks array AND (time OR version) — otherwise fall through to text/HTML parse.
+            if (val.startsWith('{') && val.endsWith('}')) {
                 try {
                     const parsed = JSON.parse(val);
-                    if (parsed.blocks) return parsed;
+                    if (parsed && Array.isArray(parsed.blocks) && (parsed.time !== undefined || parsed.version !== undefined)) {
+                        return parsed;
+                    }
                 } catch (e) {}
             }
 
-            // Legacy HTML — convert common tags to proper blocks
+            // Legacy HTML — convert common tags to proper blocks. Preserve text-align tunes.
             if (val.startsWith('<') || val.includes('<p') || val.includes('<h')) {
                 try {
                     const tmp = document.createElement('div');
                     tmp.innerHTML = val;
                     const blocks = [];
+
+                    const readAlignment = (el) => {
+                        const ta = (el.style && el.style.textAlign) ? el.style.textAlign.toLowerCase() : '';
+                        return ['left', 'center', 'right', 'justify'].includes(ta) ? ta : null;
+                    };
+                    const wrapTune = (block, align) => {
+                        if (align) block.tunes = { textAlignment: { alignment: align } };
+                        return block;
+                    };
+
                     tmp.childNodes.forEach(node => {
                         if (node.nodeType !== Node.ELEMENT_NODE) {
                             if (node.textContent.trim()) {
@@ -2025,17 +2157,20 @@ function editorjsField(config) {
                             return;
                         }
                         const tag = node.tagName.toLowerCase();
+                        const align = readAlignment(node);
                         if (tag === 'p' || tag === 'div') {
                             if (node.innerHTML.trim()) {
-                                blocks.push({ type: 'paragraph', data: { text: node.innerHTML } });
+                                blocks.push(wrapTune({ type: 'paragraph', data: { text: node.innerHTML } }, align));
                             }
                         } else if (/^h[1-6]$/.test(tag)) {
-                            blocks.push({ type: 'header', data: { text: node.textContent, level: parseInt(tag[1]) } });
+                            blocks.push(wrapTune({ type: 'header', data: { text: node.innerHTML, level: parseInt(tag[1]) } }, align));
                         } else if (tag === 'ul' || tag === 'ol') {
-                            const items = Array.from(node.querySelectorAll('li')).map(li => ({ content: li.innerHTML, items: [] }));
-                            if (items.length) { blocks.push({ type: 'list', data: { style: tag === 'ul' ? 'unordered' : 'ordered', items } }); }
+                            const items = Array.from(node.querySelectorAll(':scope > li')).map(li => ({ content: li.innerHTML, items: [] }));
+                            if (items.length) { blocks.push(wrapTune({ type: 'list', data: { style: tag === 'ul' ? 'unordered' : 'ordered', items } }, align)); }
                         } else if (tag === 'blockquote') {
-                            blocks.push({ type: 'quote', data: { text: node.innerHTML, caption: '', alignment: 'left' } });
+                            blocks.push(wrapTune({ type: 'quote', data: { text: node.innerHTML, caption: '', alignment: 'left' } }, align));
+                        } else if (tag === 'img') {
+                            blocks.push({ type: 'image', data: { file: { url: node.getAttribute('src') || '' }, caption: node.getAttribute('alt') || '', withBorder: false, withBackground: false, stretched: false } });
                         } else {
                             blocks.push({ type: 'raw', data: { html: node.outerHTML } });
                         }
@@ -2058,15 +2193,24 @@ function editorjsField(config) {
         async init() {
             if (this.editor) return;
             this.editor = '_loading_'; // sentinel blocks concurrent calls during await gap
+            this._initAttempts = (this._initAttempts || 0) + 1;
 
             await this.$nextTick();
 
             const holderEl = document.getElementById(this.uid);
             if (!holderEl || !window.EditorJS) {
                 this.editor = null; // reset so retry can proceed
+                if (this._initAttempts > 30) {
+                    // ~6 seconds of retries — give up and show error UI
+                    if (holderEl) {
+                        holderEl.innerHTML = '<div style="padding:1rem;color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;font-size:13px">Editor failed to load. Please refresh the page or check your connection.</div>';
+                    }
+                    return;
+                }
                 setTimeout(() => this.init(), 200);
                 return;
             }
+            this._initAttempts = 0; // reset for future re-inits
 
             // Destroy any stale EditorJS instance on this DOM node
             if (holderEl._editorjsInstance) {
@@ -2128,27 +2272,65 @@ function editorjsField(config) {
                         class: ImageTool,
                         tunes: window.ImageSizeTune ? ['imageSize'] : [],
                         config: {
+                            // 16 MB client-side cap (matches typical PHP upload_max_filesize)
                             uploader: {
                                 async uploadByFile(file) {
+                                    if (file.size > 16 * 1024 * 1024) {
+                                        self.toast('Image too large (max 16 MB)', 'error');
+                                        return { success: 0, message: 'File too large' };
+                                    }
+                                    if (!/^image\//.test(file.type)) {
+                                        self.toast('Selected file is not an image', 'error');
+                                        return { success: 0, message: 'Not an image' };
+                                    }
                                     const form = new FormData();
                                     form.append('image', file);
-                                    const res = await fetch(self.uploadImageUrl, {
-                                        method: 'POST',
-                                        headers: { 'X-CSRF-TOKEN': self.csrfToken },
-                                        body: form,
-                                    });
-                                    return res.json();
+                                    try {
+                                        const res = await fetch(self.uploadImageUrl, {
+                                            method: 'POST',
+                                            headers: { 'X-CSRF-TOKEN': self.csrfToken },
+                                            body: form,
+                                        });
+                                        if (!res.ok) {
+                                            let msg = 'Upload failed (' + res.status + ')';
+                                            try {
+                                                const err = await res.json();
+                                                if (err && err.message) msg = err.message;
+                                            } catch (_) {}
+                                            self.toast(msg, 'error');
+                                            return { success: 0, message: msg };
+                                        }
+                                        const data = await res.json();
+                                        if (!data || data.success !== 1) {
+                                            self.toast(data?.message || 'Upload failed', 'error');
+                                        }
+                                        return data;
+                                    } catch (e) {
+                                        self.toast('Network error during upload', 'error');
+                                        return { success: 0, message: 'Network error' };
+                                    }
                                 },
                                 async uploadByUrl(url) {
-                                    const res = await fetch(self.fetchImageUrl, {
-                                        method: 'POST',
-                                        headers: {
-                                            'Content-Type': 'application/json',
-                                            'X-CSRF-TOKEN': self.csrfToken,
-                                        },
-                                        body: JSON.stringify({ url }),
-                                    });
-                                    return res.json();
+                                    try {
+                                        const res = await fetch(self.fetchImageUrl, {
+                                            method: 'POST',
+                                            headers: {
+                                                'Content-Type': 'application/json',
+                                                'X-CSRF-TOKEN': self.csrfToken,
+                                            },
+                                            body: JSON.stringify({ url }),
+                                        });
+                                        if (!res.ok) {
+                                            let msg = 'Fetch failed (' + res.status + ')';
+                                            try { const err = await res.json(); if (err && err.message) msg = err.message; } catch (_) {}
+                                            self.toast(msg, 'error');
+                                            return { success: 0, message: msg };
+                                        }
+                                        return await res.json();
+                                    } catch (e) {
+                                        self.toast('Network error fetching image', 'error');
+                                        return { success: 0, message: 'Network error' };
+                                    }
                                 },
                             },
                         },
@@ -2158,14 +2340,29 @@ function editorjsField(config) {
                         config: {
                             uploader: {
                                 async uploadByFile(file) {
+                                    if (file.size > 32 * 1024 * 1024) {
+                                        self.toast('File too large (max 32 MB)', 'error');
+                                        return { success: 0, message: 'File too large' };
+                                    }
                                     const form = new FormData();
                                     form.append('file', file);
-                                    const res = await fetch(self.uploadFileUrl, {
-                                        method: 'POST',
-                                        headers: { 'X-CSRF-TOKEN': self.csrfToken },
-                                        body: form,
-                                    });
-                                    return res.json();
+                                    try {
+                                        const res = await fetch(self.uploadFileUrl, {
+                                            method: 'POST',
+                                            headers: { 'X-CSRF-TOKEN': self.csrfToken },
+                                            body: form,
+                                        });
+                                        if (!res.ok) {
+                                            let msg = 'Upload failed (' + res.status + ')';
+                                            try { const err = await res.json(); if (err && err.message) msg = err.message; } catch (_) {}
+                                            self.toast(msg, 'error');
+                                            return { success: 0, message: msg };
+                                        }
+                                        return await res.json();
+                                    } catch (e) {
+                                        self.toast('Network error during upload', 'error');
+                                        return { success: 0, message: 'Network error' };
+                                    }
                                 },
                             },
                         },
@@ -2213,7 +2410,8 @@ function editorjsField(config) {
                 ],
 
                 onChange: (api, event) => {
-                    // Debounce: wait 600ms after last change before syncing to Livewire (triggers server save + preview)
+                    // Show "saving…" right away (visible feedback), debounce actual save 600ms.
+                    self.setSaveState('saving');
                     clearTimeout(self._saveTimer);
                     self._saveTimer = setTimeout(async () => {
                         try {
@@ -2234,8 +2432,10 @@ function editorjsField(config) {
                                     }
                                 }
                             }
+                            self.setSaveState('saved');
                         } catch (e) {
                             console.error('EditorJS save error:', e);
+                            self.setSaveState('error');
                         }
                     }, 600);
                 },
@@ -2278,11 +2478,68 @@ function editorjsField(config) {
             });
         },
 
-        destroy() {
-            if (this.editor && typeof this.editor.destroy === 'function') {
-                this.editor.destroy();
-                this.editor = null;
+        /**
+         * Force-flush any pending debounced save BEFORE destroying the editor.
+         * Called from destroy() and from form-submit hooks to prevent data loss.
+         */
+        async flushSave() {
+            try {
+                if (this._saveTimer) {
+                    clearTimeout(this._saveTimer);
+                    this._saveTimer = null;
+                }
+                if (!this.editor || this.editor === '_loading_' || typeof this.editor.save !== 'function') {
+                    return;
+                }
+                this.setSaveState('saving');
+                const outputData = await this.editor.save();
+                if (typeof window.patchAlignmentTunes === 'function') {
+                    window.patchAlignmentTunes(outputData, document.getElementById(this.uid));
+                }
+                const json = JSON.stringify(outputData);
+                if (this.wireModel) {
+                    const el = document.getElementById(this.uid);
+                    if (el) {
+                        const lwEl = el.closest('[wire\\:id]');
+                        if (lwEl && window.Livewire) {
+                            Livewire.find(lwEl.getAttribute('wire:id'))?.set(this.wireModel, json, true);
+                        }
+                    }
+                }
+                this.setSaveState('saved');
+            } catch (e) {
+                console.warn('[EditorJS] flushSave failed:', e);
+                this.setSaveState('error');
             }
+        },
+
+        destroy() {
+            // Cancel any pending save
+            if (this._saveTimer) { clearTimeout(this._saveTimer); this._saveTimer = null; }
+
+            // Disconnect reorder MutationObserver attached by attachReorderArrows
+            try {
+                const el = document.getElementById(this.uid);
+                if (el) {
+                    if (el._reorderObserver) {
+                        el._reorderObserver.disconnect();
+                        el._reorderObserver = null;
+                    }
+                    el._reorderArrowsAttached = false;
+                    el._editorjsInstance = null;
+                }
+            } catch (_) {}
+
+            // Clear undo plugin
+            if (this.undo) { try { this.undo.clear?.(); } catch (_) {} this.undo = null; }
+            // DragDrop has no destroy API but drop our reference so GC can reclaim
+            this.dragDrop = null;
+
+            // Destroy editor
+            if (this.editor && this.editor !== '_loading_' && typeof this.editor.destroy === 'function') {
+                try { this.editor.destroy(); } catch (_) {}
+            }
+            this.editor = null;
         },
     };
 }
