@@ -116,6 +116,9 @@
 </head>
 <body class="min-h-screen bg-white text-slate-800 antialiased font-sans">
 
+    {{-- Admin toolbar (only renders for logged-in admins / editors) --}}
+    <x-admin-bar />
+
     @php $themeManager = app(\App\Services\ThemeManager::class); @endphp
 
     @include($themeManager->getPartial('header'))
