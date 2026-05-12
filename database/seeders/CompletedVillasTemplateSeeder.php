@@ -1,0 +1,176 @@
+<?php
+
+namespace Database\Seeders;
+
+use App\Models\Template;
+use App\Models\TemplateField;
+use App\Services\TemplateTableGenerator;
+use Illuminate\Database\Seeder;
+
+class CompletedVillasTemplateSeeder extends Seeder
+{
+    public function __construct(protected TemplateTableGenerator $tableGenerator) {}
+
+    public function run(): void
+    {
+        if (Template::where('slug', 'completed-villas')->exists()) {
+            $this->command->warn('Completed Villas template already exists — skipping.');
+            return;
+        }
+
+        $template = Template::create([
+            'name' => 'Completed Villas',
+            'slug' => 'completed-villas',
+            'description' => 'Showcase of completed villa projects with gallery, location and specifications',
+            'render_mode' => 'simple_content',
+            'is_system' => false,
+            'requires_database' => true,
+            'allow_children' => false,
+            'is_active' => true,
+            'is_public' => true,
+            'show_in_menu' => true,
+            'menu_label' => 'Completed Villas',
+            'menu_icon' => 'home-modern',
+            'menu_order' => 25,
+            'has_seo' => true,
+            'has_physical_file' => true,
+            'use_slug_prefix' => true,
+            'file_path' => 'templates/completed-villa.blade.php',
+        ]);
+
+        $fields = [
+            [
+                'name' => 'name',
+                'label' => 'Name',
+                'type' => 'text',
+                'description' => 'Villa project name',
+                'validation_rules' => ['required', 'string', 'max:255'],
+                'is_required' => true,
+                'is_searchable' => true,
+                'is_url_identifier' => true, // source field for slug auto-generation
+                'show_in_table' => true,
+                'order' => 0,
+            ],
+            [
+                'name' => 'slug',
+                'label' => 'Slug',
+                'type' => 'text',
+                'description' => 'URL-friendly identifier (auto-generated from Name)',
+                'validation_rules' => ['required', 'string', 'max:255'],
+                'is_required' => true,
+                'show_in_table' => true,
+                'order' => 1,
+            ],
+            [
+                'name' => 'main_image',
+                'label' => 'Main Photo',
+                'type' => 'image',
+                'description' => 'Primary photo shown on listings and at the top of the detail page',
+                'validation_rules' => ['nullable', 'image'],
+                'is_required' => false,
+                'show_in_table' => true,
+                'order' => 2,
+            ],
+            [
+                'name' => 'gallery',
+                'label' => 'Image Gallery',
+                'type' => 'gallery',
+                'description' => 'Additional photos of the villa',
+                'validation_rules' => ['nullable', 'array'],
+                'is_required' => false,
+                'show_in_table' => false,
+                'order' => 3,
+            ],
+            [
+                'name' => 'location',
+                'label' => 'Location',
+                'type' => 'text',
+                'description' => 'Region / city / area',
+                'validation_rules' => ['nullable', 'string', 'max:255'],
+                'is_required' => false,
+                'is_searchable' => true,
+                'is_filterable' => true,
+                'show_in_table' => true,
+                'order' => 4,
+            ],
+            [
+                'name' => 'year_built',
+                'label' => 'Year Built',
+                'type' => 'number',
+                'description' => 'Year the villa was completed',
+                'validation_rules' => ['nullable', 'integer', 'min:1900', 'max:2100'],
+                'is_required' => false,
+                'is_filterable' => true,
+                'show_in_table' => true,
+                'order' => 5,
+            ],
+            [
+                'name' => 'building_size',
+                'label' => 'Building Size (m²)',
+                'type' => 'number',
+                'description' => 'Total covered area in square meters',
+                'validation_rules' => ['nullable', 'numeric', 'min:0'],
+                'is_required' => false,
+                'is_filterable' => true,
+                'show_in_table' => true,
+                'order' => 6,
+            ],
+            [
+                'name' => 'plot_size',
+                'label' => 'Plot Size (m²)',
+                'type' => 'number',
+                'description' => 'Total plot area in square meters',
+                'validation_rules' => ['nullable', 'numeric', 'min:0'],
+                'is_required' => false,
+                'is_filterable' => true,
+                'show_in_table' => true,
+                'order' => 7,
+            ],
+            [
+                'name' => 'pool_size',
+                'label' => 'Pool Size (m²)',
+                'type' => 'number',
+                'description' => 'Pool area in square meters (optional)',
+                'validation_rules' => ['nullable', 'numeric', 'min:0'],
+                'is_required' => false,
+                'show_in_table' => false,
+                'order' => 8,
+            ],
+            [
+                'name' => 'drawn_by',
+                'label' => 'Drawn By',
+                'type' => 'text',
+                'description' => 'Architect / designer credited with the drawings',
+                'validation_rules' => ['nullable', 'string', 'max:255'],
+                'is_required' => false,
+                'is_filterable' => true,
+                'show_in_table' => true,
+                'order' => 9,
+            ],
+        ];
+
+        foreach ($fields as $fieldData) {
+            TemplateField::create(array_merge(
+                ['template_id' => $template->id],
+                $fieldData
+            ));
+        }
+
+        $template->refresh()->load('fields');
+
+        $result = $this->tableGenerator->createTableAndModel($template);
+        if (! $result) {
+            $this->command->error('Failed to create table and model for Completed Villas template');
+            return;
+        }
+
+        $template->refresh();
+
+        if ($template->has_physical_file) {
+            $template->createPhysicalFile();
+            $this->command->info('✓ Created physical blade files for Completed Villas');
+        }
+
+        $this->command->info("✓ Completed Villas template created — table: {$template->table_name}, model: {$template->model_class}");
+    }
+}
