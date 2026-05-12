@@ -13,6 +13,13 @@
     </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased" style="height:100vh; overflow:hidden;">
+    {{-- Preload hidden editorjs-field component to trigger its @once @push('scripts') —
+         registers all custom tools, lazy loader, autosave, templates, media picker,
+         brand tokens BEFORE any user-visible WYSIWYG field is interacted with. --}}
+    <div style="display:none" aria-hidden="true">
+        <x-editorjs-field name="__preload__" uid="ejs-preload-ve" />
+    </div>
+
     {{ $slot }}
     @stack('scripts')
 </body>

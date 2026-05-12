@@ -52,6 +52,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     Route::post('/editorjs/upload-image', [\App\Http\Controllers\Admin\EditorJsController::class, 'uploadImage'])->name('editorjs.upload-image');
     Route::post('/editorjs/fetch-image', [\App\Http\Controllers\Admin\EditorJsController::class, 'fetchImageByUrl'])->name('editorjs.fetch-image');
     Route::post('/editorjs/upload-file', [\App\Http\Controllers\Admin\EditorJsController::class, 'uploadFile'])->name('editorjs.upload-file');
+    Route::get('/editorjs/media', [\App\Http\Controllers\Admin\EditorJsController::class, 'mediaList'])->name('editorjs.media');
 
     // Content Tree
     Route::get('/content-tree', \App\Livewire\Admin\ContentTree\TreeViewer::class)->name('content-tree');

@@ -30,6 +30,7 @@
         uploadImageUrl: '{{ route('admin.editorjs.upload-image') }}',
         fetchImageUrl: '{{ route('admin.editorjs.fetch-image') }}',
         uploadFileUrl: '{{ route('admin.editorjs.upload-file') }}',
+        mediaListUrl: '{{ route('admin.editorjs.media') }}',
         csrfToken: '{{ csrf_token() }}',
         placeholder: {{ json_encode($placeholder) }},
     })"
@@ -38,7 +39,42 @@
     x-on:livewire:navigated.window="destroy(); $nextTick(() => init())"
     x-on:submit.window="flushSave()"
 >
+    {{-- Recovery banner: offers to restore localStorage snapshot if newer than loaded value --}}
+    <div
+        x-show="showRecovery"
+        x-transition
+        class="mb-2 flex items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm"
+        style="display:none">
+        <div class="flex items-center gap-2 text-amber-900">
+            <svg class="h-5 w-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M12 6v6l4 2"/></svg>
+            <span>Unsaved changes from <span x-text="recoveryAge"></span> were found.</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <button type="button" @click="recoverContent()" class="rounded-md bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700">Restore</button>
+            <button type="button" @click="dismissRecovery()" class="rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-900 hover:bg-amber-100">Dismiss</button>
+        </div>
+    </div>
     <div id="{{ $uid }}" class="editorjs-container" style="min-height: {{ $minHeight }}; border: 1px solid #e5e7eb; border-radius: 0.5rem; background: #fff; padding: 0.5rem 0;"></div>
+
+    {{-- Toolbar: templates + media library --}}
+    <div class="mt-1 flex items-center gap-2">
+        <button
+            type="button"
+            @click="if (editor && editor !== '_loading_') window.editorjsTemplates.openModal(editor)"
+            title="Block templates (save / insert reusable patterns)"
+            class="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
+            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><path d="M3.27 6.96L12 12.01l8.73-5.05M12 22.08V12"/></svg>
+            Templates
+        </button>
+        <button
+            type="button"
+            @click="pickFromMediaLibrary()"
+            title="Insert image from media library"
+            class="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
+            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+            Media library
+        </button>
+    </div>
     {{-- Save state indicator (saving / saved / error) --}}
     <div
         x-show="saveState !== 'idle'"
@@ -260,36 +296,75 @@ body.editorjs-fullscreen-mode .editorjs-container .codex-editor__redactor {
 @endpush
 
 @push('scripts')
-{{-- EditorJS Core --}}
-<script src="https://cdn.jsdelivr.net/npm/@editorjs/editorjs@2.30.8/dist/editorjs.umd.min.js"></script>
+{{--
+    Self-hosted EditorJS bundle — no CDN dependency.
+    Files in /public/vendor/editorjs/ (downloaded once, cached forever via versioned path).
+    Lazy loader: on the FIRST appearance of an .editorjs-container in the DOM, scripts
+    are injected sequentially. Pages without an editor never pay the load cost.
+--}}
+<script>
+(function () {
+    if (window._editorjsLoaderStarted) return;
+    window._editorjsLoaderStarted = true;
 
-{{-- Block Tools --}}
-<script src="https://cdn.jsdelivr.net/npm/@editorjs/header@2.8.7/dist/header.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@editorjs/nested-list@1.4.2/dist/nested-list.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@editorjs/quote@2.7.6/dist/quote.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@editorjs/code@2.9.3/dist/code.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@editorjs/delimiter@1.4.2/dist/delimiter.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@editorjs/image@2.10.1/dist/image.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@editorjs/embed@2.7.6/dist/embed.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@editorjs/table@2.4.3/dist/table.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@editorjs/link@2.6.2/dist/link.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@editorjs/raw@2.5.0/dist/raw.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@editorjs/checklist@1.6.0/dist/checklist.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@editorjs/warning@1.4.0/dist/warning.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@editorjs/attaches@1.3.2/dist/attaches.umd.js"></script>
+    const BASE = '{{ asset('vendor/editorjs') }}';
+    // Order matters: core first, then plugins (each plugin reads from its own globals).
+    const FILES = [
+        // Core
+        'editorjs.js',
+        // Block tools
+        'header.js', 'nested-list.js', 'quote.js', 'code.js', 'delimiter.js',
+        'image.js', 'embed.js', 'table.js', 'link.js', 'raw.js',
+        'checklist.js', 'warning.js', 'attaches.js',
+        // Inline tools
+        'marker.js', 'inline-code.js', 'underline.js',
+        // UX plugins
+        'editorjs-undo.js', 'editorjs-drag-drop.js',
+    ];
 
-{{-- Inline Tools --}}
-<script src="https://cdn.jsdelivr.net/npm/@editorjs/marker@1.4.0/dist/marker.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@editorjs/inline-code@1.5.0/dist/inline-code.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@editorjs/underline@1.2.1/dist/underline.umd.js"></script>
+    function loadScript(src) {
+        return new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = src;
+            s.onload = () => resolve();
+            s.onerror = () => reject(new Error('Failed to load ' + src));
+            document.head.appendChild(s);
+        });
+    }
 
-{{-- Undo/Redo (Ctrl+Z / Ctrl+Shift+Z). Re-enabled with v2.0.28 — wrapped in try/catch
-     at the call site so any bug with our custom tools degrades gracefully instead of
-     breaking the whole editor. --}}
-<script src="https://cdn.jsdelivr.net/npm/editorjs-undo@2.0.28/dist/bundle.js"></script>
+    async function loadAll() {
+        if (window._editorjsLoaded) return;
+        for (const f of FILES) {
+            try { await loadScript(BASE + '/' + f); }
+            catch (e) { console.warn('[EditorJS loader]', e.message); }
+        }
+        window._editorjsLoaded = true;
+        // Notify any waiting Alpine components — they retry on a 200ms loop.
+    }
 
-{{-- Drag & drop reorder — drag blocks to rearrange (image above text, etc.) --}}
-<script src="https://cdn.jsdelivr.net/npm/editorjs-drag-drop@1.1.16/dist/bundle.js"></script>
+    function startWhenNeeded() {
+        // If any editorjs-container is already in the DOM, load now.
+        if (document.querySelector('.editorjs-container')) {
+            loadAll();
+            return;
+        }
+        // Otherwise, watch for one to appear (admin pages mount Livewire components dynamically).
+        const obs = new MutationObserver(() => {
+            if (document.querySelector('.editorjs-container')) {
+                obs.disconnect();
+                loadAll();
+            }
+        });
+        obs.observe(document.body, { childList: true, subtree: true });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', startWhenNeeded);
+    } else {
+        startWhenNeeded();
+    }
+})();
+</script>
 
 <script>
 /* ─── Custom Header subclass that allows inline tools to survive save ──────
@@ -335,6 +410,14 @@ window.HeaderWithInlineTools = null;
 
 /* ─── Tailwind Class Picker: shared modal for block class tune ─── */
 window.TAILWIND_CLASS_CATALOG = window.TAILWIND_CLASS_CATALOG || {
+    'Brand tokens': {
+        'Brand colors':    ['text-brand','text-on-surface','text-variant-1','text-variant-2','text-white','bg-brand','bg-brand-soft','bg-surface','bg-white','bg-on-surface'],
+        'Borders / rings': ['border-outline','ring-outline','ring-brand','ring-brand/30','ring-brand/20','divide-outline'],
+        'Shadows':         ['shadow-card','shadow-soft','shadow-strong'],
+        'Brand button':    ['rounded-full','bg-brand','text-white','px-6','py-2.5','font-semibold','hover:bg-brand-dark','transition-colors'],
+        'Section pad':     ['py-20','lg:py-24','py-16','lg:py-20'],
+        'Heading style':   ['text-3xl','md:text-4xl','lg:text-[44px]','font-extrabold','capitalize','leading-tight','tracking-[0.2em]','text-on-surface'],
+    },
     'Typography': {
         'Font size':     ['text-xs','text-sm','text-base','text-lg','text-xl','text-2xl','text-3xl','text-4xl','text-5xl','text-6xl','text-7xl'],
         'Font weight':   ['font-thin','font-light','font-normal','font-medium','font-semibold','font-bold','font-extrabold','font-black'],
@@ -385,6 +468,28 @@ window.openTailwindClassPicker = function(options) {
     const categories = Object.keys(window.TAILWIND_CLASS_CATALOG);
     let activeCategory = categories[0];
     let searchQuery = '';
+
+    /** Live preview — applies the selected classes to options.target (DOM element) so
+     *  the user sees changes immediately as they pick. Restores original on dismiss. */
+    const liveTarget = options.liveTarget || null;
+    const _origClasses = liveTarget ? liveTarget.className : null;
+    const applyLivePreview = () => {
+        if (!liveTarget) return;
+        try {
+            // Strip previously applied user classes (track via dataset.twPickerLive)
+            const prev = (liveTarget.dataset.twPickerLive || '').split(/\s+/).filter(Boolean);
+            prev.forEach(c => liveTarget.classList.remove(c));
+            const next = Array.from(selected);
+            next.forEach(c => liveTarget.classList.add(c));
+            liveTarget.dataset.twPickerLive = next.join(' ');
+        } catch (_) {}
+    };
+    const restoreLivePreview = () => {
+        if (liveTarget && _origClasses !== null) {
+            liveTarget.className = _origClasses;
+            delete liveTarget.dataset.twPickerLive;
+        }
+    };
 
     const overlay = document.createElement('div');
     overlay.className = 'tw-picker-overlay';
@@ -458,16 +563,18 @@ window.openTailwindClassPicker = function(options) {
     const clearBtn = document.createElement('button');
     clearBtn.className = 'tw-picker-btn tw-picker-btn-clear';
     clearBtn.textContent = 'Clear all';
-    clearBtn.addEventListener('click', () => { selected.clear(); renderBody(); updatePreview(); });
+    clearBtn.addEventListener('click', () => { selected.clear(); renderBody(); updatePreview(); applyLivePreview(); });
     const cancelBtn = document.createElement('button');
     cancelBtn.className = 'tw-picker-btn tw-picker-btn-cancel';
     cancelBtn.textContent = 'Cancel';
-    cancelBtn.addEventListener('click', close);
+    cancelBtn.addEventListener('click', () => { restoreLivePreview(); close(); });
     const applyBtn = document.createElement('button');
     applyBtn.className = 'tw-picker-btn tw-picker-btn-apply';
     applyBtn.textContent = 'Apply';
     applyBtn.addEventListener('click', () => {
         const result = Array.from(selected).join(' ').trim();
+        // Persist selection (don't restore preview — let it stand)
+        if (liveTarget) delete liveTarget.dataset.twPickerLive;
         onApply(result);
         close();
     });
@@ -485,10 +592,15 @@ window.openTailwindClassPicker = function(options) {
     };
 
     const toggleClass = (cls) => {
-        if (selected.has(cls)) selected.delete(cls);
-        else selected.add(cls);
+        if (selected.has(cls)) {
+            selected.delete(cls);
+        } else {
+            selected.add(cls);
+            pushRecent(cls);
+        }
         renderBody();
         updatePreview();
+        applyLivePreview();
     };
 
     const renderSelectedRow = () => {
@@ -547,10 +659,49 @@ window.openTailwindClassPicker = function(options) {
         return wrap;
     };
 
+    /** Recent / Most-used classes — kept in localStorage, max 24 entries. */
+    const _recentKey = 'tw-picker:recent';
+    const getRecent = () => {
+        try { return JSON.parse(localStorage.getItem(_recentKey) || '[]'); } catch (_) { return []; }
+    };
+    const pushRecent = (cls) => {
+        try {
+            let list = getRecent().filter(c => c !== cls);
+            list.unshift(cls);
+            list = list.slice(0, 24);
+            localStorage.setItem(_recentKey, JSON.stringify(list));
+        } catch (_) {}
+    };
+
     const renderBody = () => {
         body.innerHTML = '';
         body.appendChild(renderSelectedRow());
         body.appendChild(renderCustomInput());
+
+        // Recent classes section (only when not searching)
+        if (!searchQuery) {
+            const recent = getRecent();
+            if (recent.length) {
+                const g = document.createElement('div');
+                g.className = 'tw-picker-group';
+                const t = document.createElement('div');
+                t.className = 'tw-picker-group-title';
+                t.textContent = '⭐ Recent';
+                g.appendChild(t);
+                const wrap = document.createElement('div');
+                wrap.className = 'tw-picker-classes';
+                recent.forEach(cls => {
+                    const pill = document.createElement('button');
+                    pill.type = 'button';
+                    pill.className = 'tw-picker-pill' + (selected.has(cls) ? ' active' : '');
+                    pill.textContent = cls;
+                    pill.addEventListener('click', () => toggleClass(cls));
+                    wrap.appendChild(pill);
+                });
+                g.appendChild(wrap);
+                body.appendChild(g);
+            }
+        }
 
         // If searching → across ALL categories; else only active tab
         const catalog = window.TAILWIND_CLASS_CATALOG;
@@ -630,6 +781,9 @@ window.SpaceTool = class SpaceTool {
         this.data = { height: d.height || '2rem' };
     }
     render() {
+        return window.safeBlockRender(this, this._renderInner, 'Space');
+    }
+    _renderInner() {
         this.wrap = document.createElement('div');
         this.wrap.style.cssText = 'position:relative;border:1px dashed #cbd5e1;border-radius:6px;background:#f8fafc;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;transition:height .15s ease';
         this.label = document.createElement('span');
@@ -688,6 +842,266 @@ window.SpaceTool = class SpaceTool {
     }
     save() { return { height: this.data.height || '2rem' }; }
     static get sanitize() { return { height: false }; }
+};
+
+/**
+ * Media library picker — opens a modal with thumbnails of existing media,
+ * lets user search + pick. onPick({ url, name }) receives the chosen item.
+ */
+window.editorjsMediaPicker = function (options) {
+    options = options || {};
+    const onPick = typeof options.onPick === 'function' ? options.onPick : () => {};
+    const url = options.url || window._editorjsField_mediaUrl;
+    if (!url) {
+        alert('Media library not available');
+        return;
+    }
+
+    document.querySelectorAll('.ejs-media-overlay').forEach(el => el.remove());
+    const overlay = document.createElement('div');
+    overlay.className = 'ejs-media-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(17,24,39,.55);z-index:10001;display:flex;align-items:center;justify-content:center;padding:24px';
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+    const modal = document.createElement('div');
+    modal.style.cssText = 'background:#fff;border-radius:14px;width:100%;max-width:840px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;font-family:ui-sans-serif,system-ui,-apple-system,sans-serif';
+    overlay.appendChild(modal);
+
+    const header = document.createElement('div');
+    header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;border-bottom:1px solid #e5e7eb;background:linear-gradient(to bottom,#fafbfc,#f3f4f6)';
+    const title = document.createElement('div');
+    title.style.cssText = 'font-weight:700;font-size:14px;color:#111827';
+    title.textContent = '🖼 Media Library';
+    const search = document.createElement('input');
+    search.type = 'text';
+    search.placeholder = 'Search…';
+    search.style.cssText = 'flex:1;max-width:280px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px';
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>';
+    close.style.cssText = 'background:none;border:0;cursor:pointer;color:#6b7280;padding:4px;border-radius:4px';
+    close.addEventListener('click', () => overlay.remove());
+    header.appendChild(title);
+    header.appendChild(search);
+    header.appendChild(close);
+    modal.appendChild(header);
+
+    const grid = document.createElement('div');
+    grid.style.cssText = 'flex:1;overflow-y:auto;padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;background:#f8fafc';
+    modal.appendChild(grid);
+
+    let searchTimer = null;
+    const load = (query = '') => {
+        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#94a3b8;font-size:13px">Loading…</div>';
+        const u = url + (url.includes('?') ? '&' : '?') + 'q=' + encodeURIComponent(query);
+        fetch(u, { headers: { 'Accept': 'application/json' } })
+            .then(r => r.ok ? r.json() : Promise.reject(r.status))
+            .then(data => {
+                grid.innerHTML = '';
+                if (!data.items || !data.items.length) {
+                    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#94a3b8;font-size:13px">No media found</div>';
+                    return;
+                }
+                data.items.forEach(item => {
+                    const card = document.createElement('button');
+                    card.type = 'button';
+                    card.title = item.name;
+                    card.style.cssText = 'position:relative;padding:0;border:1px solid #e5e7eb;border-radius:8px;background:#fff;cursor:pointer;overflow:hidden;aspect-ratio:1;transition:all .15s ease';
+                    card.addEventListener('mouseenter', () => { card.style.borderColor = '#1563df'; card.style.boxShadow = '0 0 0 3px rgba(21,99,223,.15)'; });
+                    card.addEventListener('mouseleave', () => { card.style.borderColor = '#e5e7eb'; card.style.boxShadow = 'none'; });
+                    const img = document.createElement('img');
+                    img.src = item.thumb || item.url;
+                    img.alt = item.name;
+                    img.loading = 'lazy';
+                    img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block';
+                    card.appendChild(img);
+                    const label = document.createElement('div');
+                    label.style.cssText = 'position:absolute;left:0;right:0;bottom:0;padding:4px 8px;background:linear-gradient(to top,rgba(0,0,0,.7),transparent);color:#fff;font-size:10px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;text-align:left';
+                    label.textContent = item.name;
+                    card.appendChild(label);
+                    card.addEventListener('click', () => {
+                        onPick({ url: item.url, name: item.name });
+                        overlay.remove();
+                    });
+                    grid.appendChild(card);
+                });
+            })
+            .catch(() => {
+                grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#dc2626;font-size:13px">Could not load media library</div>';
+            });
+    };
+
+    search.addEventListener('input', (e) => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => load(e.target.value), 250);
+    });
+
+    document.body.appendChild(overlay);
+    setTimeout(() => search.focus(), 50);
+    load();
+};
+
+/**
+ * Block templates registry — save/insert reusable block sequences.
+ * Stored in localStorage under 'ejs:templates' as { id, name, blocks[], createdAt }.
+ */
+window.editorjsTemplates = {
+    KEY: 'ejs:templates',
+    list() {
+        try { return JSON.parse(localStorage.getItem(this.KEY) || '[]'); } catch (_) { return []; }
+    },
+    save(name, blocks) {
+        if (!name || !Array.isArray(blocks) || !blocks.length) return null;
+        const all = this.list();
+        const tpl = {
+            id: 't' + Date.now() + Math.random().toString(36).slice(2, 6),
+            name: name.trim().slice(0, 60),
+            blocks,
+            createdAt: Date.now(),
+        };
+        all.unshift(tpl);
+        try { localStorage.setItem(this.KEY, JSON.stringify(all.slice(0, 50))); } catch (_) {}
+        return tpl;
+    },
+    delete(id) {
+        const all = this.list().filter(t => t.id !== id);
+        try { localStorage.setItem(this.KEY, JSON.stringify(all)); } catch (_) {}
+    },
+    /** Open a modal to insert/save/delete templates. editor = EditorJS instance. */
+    openModal(editor) {
+        if (!editor) return;
+        document.querySelectorAll('.ejs-tpl-overlay').forEach(el => el.remove());
+
+        const overlay = document.createElement('div');
+        overlay.className = 'ejs-tpl-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(17,24,39,.55);z-index:10001;display:flex;align-items:center;justify-content:center;padding:24px';
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+        const modal = document.createElement('div');
+        modal.style.cssText = 'background:#fff;border-radius:14px;width:100%;max-width:560px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;font-family:ui-sans-serif,system-ui,-apple-system,sans-serif';
+        overlay.appendChild(modal);
+
+        const header = document.createElement('div');
+        header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e5e7eb;background:linear-gradient(to bottom,#fafbfc,#f3f4f6);font-weight:700;font-size:14px;color:#111827';
+        header.innerHTML = '<span>📦 Block templates</span>';
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>';
+        close.style.cssText = 'background:none;border:0;cursor:pointer;color:#6b7280;padding:4px;border-radius:4px';
+        close.addEventListener('click', () => overlay.remove());
+        header.appendChild(close);
+        modal.appendChild(header);
+
+        // Save current selection as new template
+        const saveRow = document.createElement('div');
+        saveRow.style.cssText = 'padding:12px 18px;border-bottom:1px solid #f3f4f6;display:flex;gap:8px;align-items:center;background:#f8fafc';
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.placeholder = 'Template name…';
+        nameInput.style.cssText = 'flex:1;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px';
+        const saveBtn = document.createElement('button');
+        saveBtn.type = 'button';
+        saveBtn.textContent = 'Save current as template';
+        saveBtn.style.cssText = 'padding:8px 14px;background:#1563df;color:#fff;border:0;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer';
+        saveRow.appendChild(nameInput);
+        saveRow.appendChild(saveBtn);
+        modal.appendChild(saveRow);
+
+        const list = document.createElement('div');
+        list.style.cssText = 'flex:1;overflow-y:auto;padding:8px';
+        modal.appendChild(list);
+
+        const renderList = () => {
+            const all = this.list();
+            list.innerHTML = '';
+            if (!all.length) {
+                list.innerHTML = '<div style="padding:32px;text-align:center;color:#6b7280;font-size:13px">No templates yet. Save the current editor content as a template above.</div>';
+                return;
+            }
+            all.forEach(tpl => {
+                const row = document.createElement('div');
+                row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;margin-bottom:6px;border:1px solid #e5e7eb;border-radius:8px;background:#fff';
+                const meta = document.createElement('div');
+                meta.style.cssText = 'flex:1;min-width:0';
+                const date = new Date(tpl.createdAt);
+                meta.innerHTML = `<div style="font-weight:600;font-size:13px;color:#111827;text-overflow:ellipsis;overflow:hidden;white-space:nowrap">${tpl.name}</div><div style="font-size:11px;color:#6b7280">${tpl.blocks.length} block${tpl.blocks.length === 1 ? '' : 's'} · ${date.toLocaleDateString()}</div>`;
+                const insertBtn = document.createElement('button');
+                insertBtn.type = 'button';
+                insertBtn.textContent = 'Insert';
+                insertBtn.style.cssText = 'padding:6px 12px;background:#1563df;color:#fff;border:0;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer';
+                insertBtn.addEventListener('click', () => {
+                    try {
+                        const insertAt = (editor.blocks.getBlocksCount?.() || 0);
+                        tpl.blocks.forEach((b, i) => {
+                            editor.blocks.insert(b.type, b.data || {}, b.config || {}, insertAt + i, false);
+                        });
+                        overlay.remove();
+                    } catch (e) {
+                        alert('Insert failed: ' + e.message);
+                    }
+                });
+                const delBtn = document.createElement('button');
+                delBtn.type = 'button';
+                delBtn.title = 'Delete template';
+                delBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>';
+                delBtn.style.cssText = 'padding:6px;background:transparent;color:#94a3b8;border:0;cursor:pointer;border-radius:4px';
+                delBtn.addEventListener('mouseenter', () => { delBtn.style.background = '#fee2e2'; delBtn.style.color = '#dc2626'; });
+                delBtn.addEventListener('mouseleave', () => { delBtn.style.background = 'transparent'; delBtn.style.color = '#94a3b8'; });
+                delBtn.addEventListener('click', () => {
+                    if (!confirm(`Delete template "${tpl.name}"?`)) return;
+                    this.delete(tpl.id);
+                    renderList();
+                });
+                row.appendChild(meta);
+                row.appendChild(insertBtn);
+                row.appendChild(delBtn);
+                list.appendChild(row);
+            });
+        };
+
+        saveBtn.addEventListener('click', async () => {
+            const name = nameInput.value.trim();
+            if (!name) { nameInput.focus(); return; }
+            try {
+                const data = await editor.save();
+                if (!data || !Array.isArray(data.blocks) || !data.blocks.length) {
+                    alert('Editor is empty — nothing to save');
+                    return;
+                }
+                this.save(name, data.blocks);
+                nameInput.value = '';
+                renderList();
+            } catch (e) {
+                alert('Could not read editor content: ' + e.message);
+            }
+        });
+
+        document.body.appendChild(overlay);
+        renderList();
+        setTimeout(() => nameInput.focus(), 50);
+    },
+};
+
+/**
+ * Block error boundary helper.
+ * Wraps a tool render() in try/catch — if it throws (e.g. corrupted data, missing
+ * dependency at edit time, internal CDN script failure), returns a visible
+ * placeholder that lets the user keep editing other blocks instead of crashing
+ * the whole editor.
+ */
+window.safeBlockRender = function (toolInstance, renderFn, label) {
+    try {
+        return renderFn.call(toolInstance);
+    } catch (err) {
+        console.warn('[' + (label || 'Block') + '] render failed:', err);
+        const fallback = document.createElement('div');
+        fallback.style.cssText = 'padding:1rem;border:2px dashed #f87171;border-radius:8px;background:#fef2f2;color:#991b1b;font-size:13px;line-height:1.5';
+        fallback.innerHTML =
+            '<div style="font-weight:600;margin-bottom:4px">⚠ ' + (label || 'Block') + ' failed to render</div>' +
+            '<div style="font-size:11px;color:#7f1d1d;margin-bottom:8px">' + (err.message || 'Unknown error') + '</div>' +
+            '<div style="font-size:11px">The block data is preserved on save. Delete this block and re-add it, or contact support.</div>';
+        return fallback;
+    }
 };
 
 /* ─── Reorder arrows: adds ↑/↓ buttons next to every block for one-click reordering ─── */
@@ -922,6 +1336,10 @@ window.ContainerTool = class ContainerTool {
     }
 
     render() {
+        return window.safeBlockRender(this, this._renderInner, 'Container');
+    }
+
+    _renderInner() {
         this.wrap = document.createElement('div');
         this.wrap.className = ('ctr-tool-wrap ' + (this.data.wrapperClass || '')).trim();
         this.wrap.style.cssText = 'position:relative;padding:18px 10px 10px;border:1px dashed #d1d5db;border-radius:8px;background:transparent;box-sizing:border-box;transition:max-width .18s ease';
@@ -1067,9 +1485,21 @@ window.BlockClassesTune = class BlockClassesTune {
 
     openEditor() {
         const current = this.data.classes || '';
+        // Find the primary content element so the picker can show LIVE preview
+        let liveTarget = null;
+        try {
+            const blockEl = (this.block && this.block.holder) || null;
+            if (blockEl) {
+                liveTarget = blockEl.querySelector(
+                    '.ce-paragraph, .ce-header, .cdx-quote__text, h1, h2, h3, h4, h5, h6, p, blockquote, ul, ol, img, pre, figure'
+                );
+            }
+        } catch (_) {}
+
         if (typeof window.openTailwindClassPicker === 'function') {
             window.openTailwindClassPicker({
                 current,
+                liveTarget,
                 title: 'Tailwind / CSS classes for this block',
                 onApply: (classes) => {
                     this.data.classes = (classes || '').trim();
@@ -2040,6 +2470,9 @@ window.ColumnsTool = class ColumnsTool {
         }
     }
     render() {
+        return window.safeBlockRender(this, this._renderInner, 'Columns');
+    }
+    _renderInner() {
         this.wrap = document.createElement('div');
         this.wrap.style.cssText = 'display:grid;gap:12px;padding:8px;border:1px dashed #d1d5db;border-radius:6px;background:#f9fafb;';
         this.rebuild();
@@ -2088,6 +2521,7 @@ function editorjsField(config) {
         uploadImageUrl: config.uploadImageUrl,
         fetchImageUrl: (window._editorjsField_fetchUrl = config.fetchImageUrl),
         uploadFileUrl: config.uploadFileUrl,
+        mediaListUrl: (window._editorjsField_mediaUrl = config.mediaListUrl || ''),
         csrfToken: (window._editorjsField_csrf = config.csrfToken),
         placeholder: config.placeholder,
 
@@ -2100,6 +2534,96 @@ function editorjsField(config) {
             if (state === 'saved' || state === 'error') {
                 this._saveStateTimer = setTimeout(() => { this.saveState = 'idle'; }, state === 'saved' ? 1800 : 4000);
             }
+        },
+
+        /** Local autosave: snapshot every 5s to localStorage. Recovered on init if newer than initialValue. */
+        _autosaveKey() { return 'ejs:autosave:' + (this.wireModel || this.uid); },
+        _autosaveStash(data) {
+            try {
+                const payload = { t: Date.now(), data };
+                localStorage.setItem(this._autosaveKey(), JSON.stringify(payload));
+            } catch (_) { /* quota / private mode */ }
+        },
+        _autosaveRead() {
+            try {
+                const raw = localStorage.getItem(this._autosaveKey());
+                if (!raw) return null;
+                const parsed = JSON.parse(raw);
+                if (!parsed || !parsed.t || !parsed.data) return null;
+                // Ignore snapshots older than 7 days
+                if (Date.now() - parsed.t > 7 * 24 * 60 * 60 * 1000) return null;
+                return parsed;
+            } catch (_) { return null; }
+        },
+        _autosaveClear() {
+            try { localStorage.removeItem(this._autosaveKey()); } catch (_) {}
+        },
+        showRecovery: false,
+        recoveryAge: '',
+        _recoveryData: null,
+        recoverContent() {
+            if (!this._recoveryData || !this.editor || this.editor === '_loading_') {
+                this.showRecovery = false;
+                return;
+            }
+            try {
+                this.editor.render(this._recoveryData).then(() => {
+                    this.toast('Unsaved changes restored', 'success');
+                    this.showRecovery = false;
+                    this._recoveryData = null;
+                });
+            } catch (e) {
+                console.warn('[EditorJS] recovery render failed:', e);
+                this.toast('Could not restore changes', 'error');
+                this.showRecovery = false;
+            }
+        },
+        dismissRecovery() {
+            this.showRecovery = false;
+            this._recoveryData = null;
+            this._autosaveClear();
+        },
+        _autosaveTick() {
+            if (!this.editor || this.editor === '_loading_') return;
+            this.editor.save().then(data => {
+                if (data && Array.isArray(data.blocks) && data.blocks.length > 0) {
+                    this._autosaveStash(data);
+                }
+            }).catch(() => {});
+        },
+        _formatAge(ms) {
+            const s = Math.floor(ms / 1000);
+            if (s < 60) return s + 's ago';
+            if (s < 3600) return Math.floor(s / 60) + 'm ago';
+            if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+            return Math.floor(s / 86400) + 'd ago';
+        },
+
+        /** Open media library picker; on selection, insert an image block at end. */
+        pickFromMediaLibrary() {
+            if (!this.editor || this.editor === '_loading_') return;
+            if (typeof window.editorjsMediaPicker !== 'function') {
+                this.toast('Media picker not available', 'error');
+                return;
+            }
+            const editor = this.editor;
+            window.editorjsMediaPicker({
+                url: this.mediaListUrl,
+                onPick: ({ url, name }) => {
+                    try {
+                        const idx = (editor.blocks.getBlocksCount?.() || 0);
+                        editor.blocks.insert('image', {
+                            file: { url },
+                            caption: name || '',
+                            withBorder: false,
+                            withBackground: false,
+                            stretched: false,
+                        }, {}, idx, true);
+                    } catch (e) {
+                        this.toast('Failed to insert image: ' + e.message, 'error');
+                    }
+                },
+            });
         },
 
         /** Lightweight floating toast for upload/network errors that EditorJS swallows. */
@@ -2433,6 +2957,8 @@ function editorjsField(config) {
                                 }
                             }
                             self.setSaveState('saved');
+                            // Server-synced — local autosave snapshot is no longer needed.
+                            self._autosaveClear();
                         } catch (e) {
                             console.error('EditorJS save error:', e);
                             self.setSaveState('error');
@@ -2474,6 +3000,27 @@ function editorjsField(config) {
                             window.attachReorderArrows(el, self.editor);
                         }
                     }, 100);
+
+                    // Local autosave: snapshot every 5s. Recovery offered on next mount if
+                    // the snapshot is newer than what was loaded from server.
+                    self._autosaveInterval = setInterval(() => self._autosaveTick(), 5000);
+
+                    // Recovery: if a snapshot exists newer than initialValue, offer it
+                    setTimeout(() => {
+                        const snap = self._autosaveRead();
+                        if (!snap) return;
+                        // Compare snapshot to current editor content; only offer if different
+                        self.editor.save().then(current => {
+                            const sameAsCurrent = JSON.stringify(current?.blocks || []) === JSON.stringify(snap.data?.blocks || []);
+                            if (sameAsCurrent) {
+                                self._autosaveClear();
+                                return;
+                            }
+                            self._recoveryData = snap.data;
+                            self.recoveryAge = self._formatAge(Date.now() - snap.t);
+                            self.showRecovery = true;
+                        }).catch(() => {});
+                    }, 350);
                 },
             });
         },
@@ -2507,6 +3054,7 @@ function editorjsField(config) {
                     }
                 }
                 this.setSaveState('saved');
+                this._autosaveClear();
             } catch (e) {
                 console.warn('[EditorJS] flushSave failed:', e);
                 this.setSaveState('error');
@@ -2516,6 +3064,8 @@ function editorjsField(config) {
         destroy() {
             // Cancel any pending save
             if (this._saveTimer) { clearTimeout(this._saveTimer); this._saveTimer = null; }
+            // Stop autosave interval
+            if (this._autosaveInterval) { clearInterval(this._autosaveInterval); this._autosaveInterval = null; }
 
             // Disconnect reorder MutationObserver attached by attachReorderArrows
             try {
