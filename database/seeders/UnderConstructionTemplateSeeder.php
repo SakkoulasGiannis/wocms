@@ -35,7 +35,8 @@ class UnderConstructionTemplateSeeder extends Seeder
             'has_seo' => true,
             'has_physical_file' => true,
             'use_slug_prefix' => true,
-            'file_path' => 'templates/under-construction.blade.php',
+            // Forced plural form so index uses templates.under-constructions, single strips 's' → templates.under-construction
+            'file_path' => 'templates/under-constructions.blade.php',
         ]);
 
         $fields = [

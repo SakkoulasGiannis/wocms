@@ -35,7 +35,8 @@ class CompletedVillasTemplateSeeder extends Seeder
             'has_seo' => true,
             'has_physical_file' => true,
             'use_slug_prefix' => true,
-            'file_path' => 'templates/completed-villa.blade.php',
+            // Plural form: index uses templates.completed-villas, single strips trailing 's' → templates.completed-villa
+            'file_path' => 'templates/completed-villas.blade.php',
         ]);
 
         $fields = [

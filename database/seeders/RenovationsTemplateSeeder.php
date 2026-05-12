@@ -35,7 +35,8 @@ class RenovationsTemplateSeeder extends Seeder
             'has_seo' => true,
             'has_physical_file' => true,
             'use_slug_prefix' => true,
-            'file_path' => 'templates/renovation.blade.php',
+            // Plural form: index uses templates.renovations, single strips trailing 's' → templates.renovation
+            'file_path' => 'templates/renovations.blade.php',
         ]);
 
         $fields = [

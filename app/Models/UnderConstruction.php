@@ -92,15 +92,14 @@ class UnderConstruction extends Model implements HasMedia
         return is_array($this->gallery) ? count($this->gallery) : 0;
     }
     /**
-     * Scope a query to only include active (published) entries
+     * Scope a query to only include active (published) entries.
      */
     public function scopeActive($query)
     {
-        return $query->whereNotNull('published_at')
-                     ->where('published_at', '<=', now())
-                     ->where(function ($q) {
-                         $q->where('status', 'published')
-                           ->orWhereNull('status');
-                     });
+        return $query->where(function ($q) {
+            $q->where('status', 'published')
+              ->orWhere('status', 'active')
+              ->orWhereNull('status');
+        });
     }
 }

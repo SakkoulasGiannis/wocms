@@ -57,7 +57,15 @@ vite-module-loader.js
 
 # Dynamically generated templates (created by CMS)
 resources/views/frontend/templates/
-resources/views/templates/
+resources/views/templates/*.blade.php
+# …but DO track the curated project templates we hand-built
+!resources/views/templates/_partials/
+!resources/views/templates/completed-villa.blade.php
+!resources/views/templates/completed-villas.blade.php
+!resources/views/templates/under-construction.blade.php
+!resources/views/templates/under-constructions.blade.php
+!resources/views/templates/renovation.blade.php
+!resources/views/templates/renovations.blade.php
 
 # Code Editor backups and user-editable files
 *.backup-*
