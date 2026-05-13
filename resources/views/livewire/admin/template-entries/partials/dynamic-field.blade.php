@@ -558,6 +558,7 @@
                     $existingGallery = [];
                     if ($entryId && $entry && method_exists($entry, 'getMedia')) {
                         try {
+                            // Spatie media library returns media in order_column ASC by default
                             foreach ($entry->getMedia($field->name) as $m) {
                                 $existingGallery[] = [
                                     'id' => $m->id,
@@ -569,11 +570,24 @@
                         } catch (\Throwable $e) {}
                     }
                 @endphp
+
+                {{-- Load SortableJS once per page (idempotent — Alpine just no-ops if already present) --}}
+                <script>
+                    if (!window._sortableJsLoaded && !window.Sortable) {
+                        window._sortableJsLoaded = true;
+                        const s = document.createElement('script');
+                        s.src = '{{ asset('vendor/sortablejs/Sortable.min.js') }}';
+                        s.async = true;
+                        document.head.appendChild(s);
+                    }
+                </script>
+
                 <div x-data="{
                         dragOver: false,
                         existing: @js($existingGallery),
                         pending: [],
                         removed: [],
+                        sortable: null,
                         addFiles(files) {
                             for (const f of Array.from(files || [])) {
                                 if (!f.type.startsWith('image/')) continue;
@@ -590,15 +604,47 @@
                             if (!found) return;
                             this.existing = this.existing.filter(m => m.id !== id);
                             this.removed.push(id);
-                            // Stash on window so saveEntry() in entry-form can hand it to Livewire
                             window.galleryRemoveIds = window.galleryRemoveIds || {};
                             window.galleryRemoveIds['{{ $field->name }}'] = JSON.stringify(this.removed);
+                            this.syncOrder();
                         },
                         syncToWindow() {
                             window.pendingFileUploads = window.pendingFileUploads || {};
                             window.pendingFileUploads['{{ $field->name }}'] = this.pending.map(p => p.file);
+                        },
+                        syncOrder() {
+                            // Push current order of EXISTING media to window — saveEntry() picks this up
+                            window.galleryOrderIds = window.galleryOrderIds || {};
+                            window.galleryOrderIds['{{ $field->name }}'] = JSON.stringify(this.existing.map(e => e.id));
+                        },
+                        initSortable() {
+                            if (this.sortable || ! this.existing.length) return;
+                            const wait = () => {
+                                if (typeof window.Sortable === 'undefined') {
+                                    setTimeout(wait, 80);
+                                    return;
+                                }
+                                const grid = this.$refs.existingGrid;
+                                if (! grid) return;
+                                this.sortable = window.Sortable.create(grid, {
+                                    animation: 180,
+                                    ghostClass: 'opacity-30',
+                                    chosenClass: 'ring-2',
+                                    handle: '.gallery-drag-handle',
+                                    onEnd: (evt) => {
+                                        // Reorder our Alpine array to match the new DOM order
+                                        const moved = this.existing.splice(evt.oldIndex, 1)[0];
+                                        this.existing.splice(evt.newIndex, 0, moved);
+                                        this.syncOrder();
+                                    },
+                                });
+                            };
+                            wait();
                         }
-                    }">
+                    }"
+                    x-init="$nextTick(() => initSortable())"
+                    x-effect="if (existing.length > 0 && !sortable) initSortable()"
+                >
 
                     {{-- Drop zone --}}
                     <div
@@ -616,14 +662,31 @@
                         <p class="mt-1 text-xs text-slate-500">JPG, PNG, WebP — bulk upload supported</p>
                     </div>
 
-                    {{-- Existing gallery --}}
+                    {{-- Existing gallery (sortable) --}}
                     <template x-if="existing.length > 0">
                         <div class="mt-4">
-                            <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500" x-text="`Existing (${existing.length})`"></p>
-                            <div class="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
-                                <template x-for="item in existing" :key="item.id">
-                                    <div class="group relative aspect-square overflow-hidden rounded-md ring-1 ring-slate-200 bg-slate-50">
-                                        <img :src="item.thumb" :alt="item.name" loading="lazy" class="h-full w-full object-cover">
+                            <p class="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                <span x-text="`Existing (${existing.length})`"></span>
+                                <span class="ml-1 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium normal-case tracking-normal text-slate-600">
+                                    <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 9h.01M8 12h.01M8 15h.01M16 9h.01M16 12h.01M16 15h.01"/></svg>
+                                    Drag the handle to reorder
+                                </span>
+                            </p>
+                            <div x-ref="existingGrid" class="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+                                <template x-for="(item, idx) in existing" :key="item.id">
+                                    <div class="group relative aspect-square overflow-hidden rounded-md ring-1 ring-slate-200 bg-slate-50 transition-shadow hover:ring-brand/40 hover:shadow-md"
+                                         :data-media-id="item.id">
+                                        <img :src="item.thumb" :alt="item.name" loading="lazy" class="h-full w-full object-cover pointer-events-none">
+
+                                        {{-- Order badge --}}
+                                        <span class="absolute left-1 top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white/95 px-1.5 text-[10px] font-bold text-slate-700 shadow-sm" x-text="idx + 1"></span>
+
+                                        {{-- Drag handle (top-center, hover-revealed) --}}
+                                        <span class="gallery-drag-handle absolute left-1/2 top-1 -translate-x-1/2 inline-flex h-6 w-6 cursor-grab items-center justify-center rounded-full bg-white/95 text-slate-600 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 active:cursor-grabbing hover:bg-white"
+                                              title="Drag to reorder">
+                                            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/></svg>
+                                        </span>
+
                                         <button type="button" @click="removeExisting(item.id)"
                                                 class="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-rose-600 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-rose-700"
                                                 title="Remove on save">

@@ -257,6 +257,13 @@
                         }
                     }
 
+                    // Sync gallery reorder IDs (JSON array of media ids in new display order)
+                    if (window.galleryOrderIds && Object.keys(window.galleryOrderIds).length > 0) {
+                        for (const fieldName of Object.keys(window.galleryOrderIds)) {
+                            await @this.set('galleryOrderIds.' + fieldName, window.galleryOrderIds[fieldName]);
+                        }
+                    }
+
                     // Upload any pending files BEFORE saving
                     const pendingUploads = Object.keys(window.pendingFileUploads || {});
                     console.log('Pending uploads:', pendingUploads);

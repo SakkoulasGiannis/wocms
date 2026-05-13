@@ -30,6 +30,8 @@ class EntryForm extends Component
 
     public $galleryRemoveIds = []; // [fieldName => json string of media IDs to delete]
 
+    public $galleryOrderIds = []; // [fieldName => json string of media IDs in desired display order]
+
     public $parentNodeId = null;
 
     public $availableParentNodes = [];
@@ -835,6 +837,25 @@ class EntryForm extends Component
                             \Log::info('Gallery item uploaded', ['mediaId' => $media->id, 'collection' => $field->name]);
                         } catch (\Exception $e) {
                             \Log::error("Error uploading gallery file {$field->name}: " . $e->getMessage());
+                        }
+                    }
+                }
+
+                // 3. Apply reorder. The UI tracks only EXISTING (non-deleted) media in
+                //    the chosen order. Pending uploads were appended above with the
+                //    library's default order_column = max + 1, so they end up after.
+                $orderJson = $this->galleryOrderIds[$field->name] ?? null;
+                if ($orderJson) {
+                    $ids = is_string($orderJson) ? (json_decode($orderJson, true) ?: []) : (array) $orderJson;
+                    $ids = array_values(array_filter(array_map('intval', $ids)));
+                    if (! empty($ids)) {
+                        try {
+                            // Spatie's helper rewrites order_column for the listed ids,
+                            // 1-indexed in the order they appear.
+                            \Spatie\MediaLibrary\MediaCollections\Models\Media::setNewOrder($ids);
+                            \Log::info('Gallery reordered', ['collection' => $field->name, 'ids' => $ids]);
+                        } catch (\Exception $e) {
+                            \Log::error("Error reordering gallery {$field->name}: " . $e->getMessage());
                         }
                     }
                 }
