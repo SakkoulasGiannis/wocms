@@ -208,14 +208,16 @@ class TemplateTableGenerator
                 // Return early since we've handled positioning and defaults
                 return;
 
-            case 'number':
             case 'integer':
                 $column = $table->integer($columnName)->nullable();
                 break;
 
+            case 'number':
             case 'decimal':
             case 'float':
-                $column = $table->decimal($columnName, 10, 2)->nullable();
+                // Generic 'number' accepts decimals — store as DECIMAL so 2.2 isn't truncated to 2.
+                // Use 'integer' type explicitly when you want INT-only.
+                $column = $table->decimal($columnName, 12, 2)->nullable();
                 break;
 
             case 'boolean':
@@ -327,9 +329,9 @@ class TemplateTableGenerator
                     $casts[$field->name] = 'boolean';
                     break;
                 case 'integer':
-                case 'number':
                     $casts[$field->name] = 'integer';
                     break;
+                case 'number':
                 case 'decimal':
                 case 'float':
                     $casts[$field->name] = 'float';

@@ -478,12 +478,13 @@ class EntryForm extends Component
                 case 'url':
                     $fieldRules[] = 'url';
                     break;
-                case 'number':
                 case 'integer':
                     $fieldRules[] = 'integer';
                     break;
+                case 'number':
                 case 'decimal':
                 case 'float':
+                    // Generic 'number' accepts decimals — matches the HTML5 input[type=number] behavior
                     $fieldRules[] = 'numeric';
                     break;
                 case 'boolean':

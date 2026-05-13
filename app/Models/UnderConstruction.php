@@ -20,9 +20,9 @@ class UnderConstruction extends Model implements HasMedia
     protected $casts = [
         'gallery' => 'array',
         'year_built' => 'integer',
-        'building_size' => 'integer',
-        'plot_size' => 'integer',
-        'pool_size' => 'integer',
+        'building_size' => 'float',
+        'plot_size' => 'float',
+        'pool_size' => 'float',
     ];
     /**
      * Get the URL for Main Photo
