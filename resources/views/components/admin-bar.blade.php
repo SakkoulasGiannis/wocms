@@ -47,10 +47,12 @@
         if ($resolvedNode && $resolvedNode->template) {
             $templateSlug = $resolvedNode->template->slug;
             // The generic admin route: /admin/{templateSlug}/{entryId}/edit
-            // entryId is the ContentNode id (not the content model id) for template-entries route.
+            // entryId is the CONTENT MODEL id (e.g. Page id, CompletedVilla id) — NOT
+            // the ContentNode id. The EntryForm does $modelClass::findOrFail($entryId).
+            $entryId = $resolvedNode->content_id ?? $resolvedNode->id;
             $editUrl = route('admin.template-entries.edit', [
                 'templateSlug' => $templateSlug,
-                'entryId' => $resolvedNode->id,
+                'entryId' => $entryId,
             ]);
             $editLabel = 'Edit ' . ($resolvedNode->template->name ?? 'page');
         }
@@ -96,17 +98,12 @@
                             || str_ends_with($modelClass, '\\' . $t->model_class));
                 });
                 if ($tpl) {
-                    // Find the corresponding ContentNode by content_id + content_type
-                    $contentNode = \App\Models\ContentNode::where('content_id', $resolvedContent->id)
-                        ->where('content_type', $modelClass)
-                        ->first();
-                    if ($contentNode) {
-                        $editUrl = route('admin.template-entries.edit', [
-                            'templateSlug' => $tpl->slug,
-                            'entryId' => $contentNode->id,
-                        ]);
-                        $editLabel = 'Edit ' . ($tpl->name ?: 'entry');
-                    }
+                    // entryId = the content model id (Page id, Blog id, etc.)
+                    $editUrl = route('admin.template-entries.edit', [
+                        'templateSlug' => $tpl->slug,
+                        'entryId' => $resolvedContent->id,
+                    ]);
+                    $editLabel = 'Edit ' . ($tpl->name ?: 'entry');
                 }
             } catch (\Throwable $e) {}
         }
