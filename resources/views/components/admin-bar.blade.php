@@ -22,6 +22,24 @@
         $resolvedContent = $__data['content'];
     }
 
+    // Fallback: look up the ContentNode by the current request URL path. This catches
+    // pages whose controller passes shared vars under a different name (e.g. $home,
+    // $property) instead of $node, plus arbitrary "page" content nodes.
+    if (! $resolvedNode) {
+        try {
+            $currentPath = '/' . trim(request()->path(), '/');
+            $resolvedNode = \App\Models\ContentNode::where('url_path', $currentPath)
+                ->with('template')
+                ->first();
+            if (! $resolvedNode && $currentPath === '/') {
+                // Homepage often stored with empty url_path or as the root page
+                $resolvedNode = \App\Models\ContentNode::whereIn('url_path', ['', '/', 'home'])
+                    ->with('template')
+                    ->first();
+            }
+        } catch (\Throwable $e) {}
+    }
+
     // Compute "Edit this page" link
     $editUrl = null;
     $editLabel = 'Edit this page';
@@ -52,6 +70,57 @@
                 } else {
                     $editUrl = route('admin.properties.edit', ['propertyId' => $property->id]);
                     $editLabel = 'Edit property';
+                }
+            } catch (\Throwable $e) {}
+        }
+
+        // Single rental property (different var name)
+        if (! $editUrl) {
+            $rental = $__data['rentalProperty'] ?? null;
+            if ($rental && isset($rental->id)) {
+                try {
+                    $editUrl = route('admin.rentals.edit', ['propertyId' => $rental->id]);
+                    $editLabel = 'Edit rental property';
+                } catch (\Throwable $e) {}
+            }
+        }
+
+        // Single blog post / generic template entry (passed as $content alone)
+        if (! $editUrl && $resolvedContent && isset($resolvedContent->id)) {
+            // Try to map the model class to a template slug
+            try {
+                $modelClass = get_class($resolvedContent);
+                $tpl = \App\Models\Template::query()->get()->first(function ($t) use ($modelClass) {
+                    return ! empty($t->model_class)
+                        && (ltrim($t->model_class, '\\') === ltrim($modelClass, '\\')
+                            || str_ends_with($modelClass, '\\' . $t->model_class));
+                });
+                if ($tpl) {
+                    // Find the corresponding ContentNode by content_id + content_type
+                    $contentNode = \App\Models\ContentNode::where('content_id', $resolvedContent->id)
+                        ->where('content_type', $modelClass)
+                        ->first();
+                    if ($contentNode) {
+                        $editUrl = route('admin.template-entries.edit', [
+                            'templateSlug' => $tpl->slug,
+                            'entryId' => $contentNode->id,
+                        ]);
+                        $editLabel = 'Edit ' . ($tpl->name ?: 'entry');
+                    }
+                }
+            } catch (\Throwable $e) {}
+        }
+
+        // Template INDEX page (e.g. /completed-villas, /properties) — link to admin list
+        if (! $editUrl) {
+            try {
+                $firstSegment = explode('/', trim(request()->path(), '/'))[0] ?? '';
+                if ($firstSegment !== '') {
+                    $tpl = \App\Models\Template::where('slug', $firstSegment)->where('use_slug_prefix', true)->first();
+                    if ($tpl) {
+                        $editUrl = route('admin.template-entries.index', ['templateSlug' => $tpl->slug]);
+                        $editLabel = 'Manage ' . $tpl->name;
+                    }
                 }
             } catch (\Throwable $e) {}
         }
