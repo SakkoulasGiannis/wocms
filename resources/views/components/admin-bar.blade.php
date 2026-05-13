@@ -70,7 +70,12 @@
     }
 
     $dashboardUrl = url('/admin');
-    $logoutUrl = route('logout');
+    // Logout route name varies between auth scaffolds — try the common ones, fall back to URL
+    $logoutUrl = null;
+    foreach (['logout', 'filament.logout', 'admin.logout'] as $name) {
+        try { $logoutUrl = route($name); break; } catch (\Throwable $e) {}
+    }
+    $logoutUrl = $logoutUrl ?? url('/logout');
 
     // Quick admin shortcuts
     $shortcuts = [];
