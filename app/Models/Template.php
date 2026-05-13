@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\HasSections;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
 class Template extends Model
 {
-    use SoftDeletes;
+    use HasSections, SoftDeletes;
 
     protected $fillable = [
         'name',
