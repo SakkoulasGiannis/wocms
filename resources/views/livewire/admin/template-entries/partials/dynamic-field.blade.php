@@ -488,64 +488,172 @@
                 @break
 
             @case('image')
-                <input type="file"
-                       accept="image/*"
-                       id="file-{{ $field->name }}"
-                       class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-
-                {{-- Show upload progress --}}
-                <div id="upload-progress-{{ $field->name }}" style="display: none;" class="mt-2">
-                    <div class="flex items-center text-sm text-blue-600">
-                        <svg class="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <span id="upload-progress-text-{{ $field->name }}">Uploading...</span>
-                    </div>
-                </div>
-
-                {{-- Show current image if exists --}}
-                @if($entryId && $entry && method_exists($entry, 'getFirstMediaUrl') && $entry->getFirstMediaUrl($field->name))
-                    <div class="mt-2">
-                        <p class="text-xs text-gray-500 mb-1">Current image:</p>
-                        <img src="{{ $entry->getFirstMediaUrl($field->name) }}" alt="Current image" class="max-w-xs rounded border">
-                    </div>
-                @endif
-
-                {{-- Store file for upload on save --}}
-                <script>
-                    document.addEventListener('livewire:init', () => {
-                        const fileInput = document.getElementById('file-{{ $field->name }}');
-                        const progressDiv = document.getElementById('upload-progress-{{ $field->name }}');
-
-                        if (fileInput) {
-                            fileInput.addEventListener('change', function(e) {
-                                const file = e.target.files[0];
-                                console.log('=== File selected (will upload on save) ===');
-                                console.log('Field: {{ $field->name }}');
-                                console.log('File:', file?.name);
-                                console.log('File size:', file?.size, 'bytes');
-
-                                if (file) {
-                                    // Store file for later upload (when user clicks Save)
-                                    window.pendingFileUploads = window.pendingFileUploads || {};
-                                    window.pendingFileUploads['{{ $field->name }}'] = file;
-
-                                    // Show indication that file is selected
-                                    if (progressDiv) {
-                                        const progressText = document.getElementById('upload-progress-text-{{ $field->name }}');
-                                        if (progressText) {
-                                            progressText.textContent = 'File selected: ' + file.name + ' (will upload on save)';
-                                        }
-                                        progressDiv.style.display = 'block';
-                                    }
-
-                                    console.log('File stored for upload on save');
-                                }
-                            });
+                @php
+                    $currentImageUrl = null;
+                    if ($entryId && $entry && method_exists($entry, 'getFirstMediaUrl')) {
+                        try { $currentImageUrl = $entry->getFirstMediaUrl($field->name); } catch (\Throwable $e) {}
+                    }
+                @endphp
+                <div x-data="{
+                        dragOver: false,
+                        previewUrl: @js($currentImageUrl ?: ''),
+                        fileName: '',
+                        fileSize: 0,
+                        handleFiles(files) {
+                            const file = files && files[0];
+                            if (!file || !file.type.startsWith('image/')) return;
+                            this.fileName = file.name;
+                            this.fileSize = file.size;
+                            this.previewUrl = URL.createObjectURL(file);
+                            window.pendingFileUploads = window.pendingFileUploads || {};
+                            window.pendingFileUploads['{{ $field->name }}'] = file;
+                        },
+                        clearImage() {
+                            this.previewUrl = '';
+                            this.fileName = '';
+                            this.fileSize = 0;
+                            if (window.pendingFileUploads) delete window.pendingFileUploads['{{ $field->name }}'];
+                            const inp = $refs.fileInput;
+                            if (inp) inp.value = '';
                         }
-                    });
-                </script>
+                    }"
+                    @dragover.prevent="dragOver = true"
+                    @dragleave.prevent="dragOver = false"
+                    @drop.prevent="dragOver = false; handleFiles($event.dataTransfer.files);"
+                    @click="$refs.fileInput.click()"
+                    :class="dragOver ? 'border-brand bg-brand/5' : (previewUrl ? 'border-emerald-300 bg-emerald-50/50' : 'border-slate-300 bg-slate-50 hover:bg-slate-100')"
+                    class="cursor-pointer rounded-lg border-2 border-dashed p-6 text-center transition-colors">
+
+                    <input type="file" accept="image/*" x-ref="fileInput" @change="handleFiles($event.target.files)" class="hidden">
+
+                    <template x-if="!previewUrl">
+                        <div>
+                            <svg class="mx-auto h-10 w-10 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/>
+                            </svg>
+                            <p class="mt-2 text-sm font-medium text-slate-700">Drag &amp; drop image here, or click to browse</p>
+                            <p class="mt-1 text-xs text-slate-500">JPG, PNG, WebP — max 10 MB</p>
+                        </div>
+                    </template>
+
+                    <template x-if="previewUrl">
+                        <div class="flex items-center gap-4" @click.stop>
+                            <img :src="previewUrl" alt="Preview" class="h-24 w-24 object-cover rounded-md ring-1 ring-slate-200">
+                            <div class="flex-1 text-left">
+                                <p class="text-sm font-medium text-slate-900" x-text="fileName || 'Current image'"></p>
+                                <p x-show="fileSize > 0" class="text-xs text-slate-500" x-text="(fileSize / 1024 / 1024).toFixed(2) + ' MB · will upload on Save'"></p>
+                                <div class="mt-2 flex gap-2">
+                                    <button type="button" @click="$refs.fileInput.click()" class="text-xs font-medium text-brand hover:text-brand-dark">Replace</button>
+                                    <span class="text-slate-300">|</span>
+                                    <button type="button" @click="clearImage()" class="text-xs font-medium text-rose-600 hover:text-rose-700">Remove</button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+                @break
+
+            @case('gallery')
+                @php
+                    $existingGallery = [];
+                    if ($entryId && $entry && method_exists($entry, 'getMedia')) {
+                        try {
+                            foreach ($entry->getMedia($field->name) as $m) {
+                                $existingGallery[] = [
+                                    'id' => $m->id,
+                                    'url' => $m->getFullUrl(),
+                                    'thumb' => $m->hasGeneratedConversion('thumb') ? $m->getFullUrl('thumb') : $m->getFullUrl(),
+                                    'name' => $m->name,
+                                ];
+                            }
+                        } catch (\Throwable $e) {}
+                    }
+                @endphp
+                <div x-data="{
+                        dragOver: false,
+                        existing: @js($existingGallery),
+                        pending: [],
+                        removed: [],
+                        addFiles(files) {
+                            for (const f of Array.from(files || [])) {
+                                if (!f.type.startsWith('image/')) continue;
+                                this.pending.push({ name: f.name, size: f.size, url: URL.createObjectURL(f), file: f });
+                            }
+                            this.syncToWindow();
+                        },
+                        removePending(idx) {
+                            this.pending.splice(idx, 1);
+                            this.syncToWindow();
+                        },
+                        removeExisting(id) {
+                            const found = this.existing.find(m => m.id === id);
+                            if (!found) return;
+                            this.existing = this.existing.filter(m => m.id !== id);
+                            this.removed.push(id);
+                            // Stash on window so saveEntry() in entry-form can hand it to Livewire
+                            window.galleryRemoveIds = window.galleryRemoveIds || {};
+                            window.galleryRemoveIds['{{ $field->name }}'] = JSON.stringify(this.removed);
+                        },
+                        syncToWindow() {
+                            window.pendingFileUploads = window.pendingFileUploads || {};
+                            window.pendingFileUploads['{{ $field->name }}'] = this.pending.map(p => p.file);
+                        }
+                    }">
+
+                    {{-- Drop zone --}}
+                    <div
+                        @dragover.prevent="dragOver = true"
+                        @dragleave.prevent="dragOver = false"
+                        @drop.prevent="dragOver = false; addFiles($event.dataTransfer.files);"
+                        @click="$refs.galleryInput.click()"
+                        :class="dragOver ? 'border-brand bg-brand/5' : 'border-slate-300 bg-slate-50 hover:bg-slate-100'"
+                        class="cursor-pointer rounded-lg border-2 border-dashed p-6 text-center transition-colors">
+                        <input type="file" accept="image/*" multiple x-ref="galleryInput" @change="addFiles($event.target.files)" class="hidden">
+                        <svg class="mx-auto h-10 w-10 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/>
+                        </svg>
+                        <p class="mt-2 text-sm font-medium text-slate-700">Drag &amp; drop one or more images, or click to browse</p>
+                        <p class="mt-1 text-xs text-slate-500">JPG, PNG, WebP — bulk upload supported</p>
+                    </div>
+
+                    {{-- Existing gallery --}}
+                    <template x-if="existing.length > 0">
+                        <div class="mt-4">
+                            <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500" x-text="`Existing (${existing.length})`"></p>
+                            <div class="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+                                <template x-for="item in existing" :key="item.id">
+                                    <div class="group relative aspect-square overflow-hidden rounded-md ring-1 ring-slate-200 bg-slate-50">
+                                        <img :src="item.thumb" :alt="item.name" loading="lazy" class="h-full w-full object-cover">
+                                        <button type="button" @click="removeExisting(item.id)"
+                                                class="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-rose-600 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-rose-700"
+                                                title="Remove on save">
+                                            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                        </button>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+
+                    {{-- Pending (newly selected) --}}
+                    <template x-if="pending.length > 0">
+                        <div class="mt-4">
+                            <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-emerald-700" x-text="`To upload on save (${pending.length})`"></p>
+                            <div class="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+                                <template x-for="(item, idx) in pending" :key="idx">
+                                    <div class="group relative aspect-square overflow-hidden rounded-md ring-1 ring-emerald-300 bg-emerald-50">
+                                        <img :src="item.url" :alt="item.name" class="h-full w-full object-cover">
+                                        <button type="button" @click="removePending(idx)"
+                                                class="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-slate-700 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-slate-800"
+                                                title="Cancel">
+                                            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                        </button>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
                 @break
 
             @default

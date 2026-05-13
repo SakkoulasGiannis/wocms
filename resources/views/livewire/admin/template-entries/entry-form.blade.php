@@ -250,21 +250,46 @@
                         window.syncGrapeJS();
                     }
 
+                    // Sync gallery removal IDs to Livewire BEFORE saving
+                    if (window.galleryRemoveIds && Object.keys(window.galleryRemoveIds).length > 0) {
+                        for (const fieldName of Object.keys(window.galleryRemoveIds)) {
+                            await @this.set('galleryRemoveIds.' + fieldName, window.galleryRemoveIds[fieldName]);
+                        }
+                    }
+
                     // Upload any pending files BEFORE saving
                     const pendingUploads = Object.keys(window.pendingFileUploads || {});
                     console.log('Pending uploads:', pendingUploads);
 
                     if (pendingUploads.length > 0) {
-                        console.log('Uploading', pendingUploads.length, 'files...');
+                        console.log('Uploading', pendingUploads.length, 'file slot(s)...');
 
                         for (const fieldName of pendingUploads) {
-                            const file = window.pendingFileUploads[fieldName];
-                            if (file) {
-                                console.log('Uploading file for field:', fieldName);
+                            const fileOrFiles = window.pendingFileUploads[fieldName];
+                            if (!fileOrFiles) continue;
 
-                                // Upload the file WITHOUT triggering re-render
+                            // Gallery (array) → uploadMultiple. Single image → upload.
+                            if (Array.isArray(fileOrFiles)) {
+                                if (fileOrFiles.length === 0) continue;
+                                console.log(`Uploading ${fileOrFiles.length} files for gallery field: ${fieldName}`);
                                 await new Promise((resolve, reject) => {
-                                    @this.upload('uploadedFiles.' + fieldName, file,
+                                    @this.uploadMultiple('uploadedFiles.' + fieldName, fileOrFiles,
+                                        (uploadedFilenames) => {
+                                            console.log('Gallery upload complete:', fieldName, uploadedFilenames);
+                                            delete window.pendingFileUploads[fieldName];
+                                            resolve();
+                                        },
+                                        (error) => {
+                                            console.error('Gallery upload failed:', fieldName, error);
+                                            reject(error);
+                                        },
+                                        () => {} // progress
+                                    );
+                                });
+                            } else {
+                                console.log('Uploading file for field:', fieldName);
+                                await new Promise((resolve, reject) => {
+                                    @this.upload('uploadedFiles.' + fieldName, fileOrFiles,
                                         (uploadedFilename) => {
                                             console.log('Upload complete:', fieldName, uploadedFilename);
                                             delete window.pendingFileUploads[fieldName];
@@ -274,9 +299,7 @@
                                             console.error('Upload failed:', fieldName, error);
                                             reject(error);
                                         },
-                                        (event) => {
-                                            // Progress callback - no logging to reduce console spam
-                                        }
+                                        () => {}
                                     );
                                 });
                             }

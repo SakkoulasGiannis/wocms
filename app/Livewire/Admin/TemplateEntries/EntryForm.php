@@ -26,7 +26,9 @@ class EntryForm extends Component
 
     public $fieldValues = [];
 
-    public $uploadedFiles = []; // For Livewire file uploads
+    public $uploadedFiles = []; // For Livewire file uploads (single file OR array per field)
+
+    public $galleryRemoveIds = []; // [fieldName => json string of media IDs to delete]
 
     public $parentNodeId = null;
 
@@ -453,6 +455,13 @@ class EntryForm extends Component
                 continue;
             }
 
+            // Gallery — array of images, each up to 10MB
+            if ($field->type === 'gallery') {
+                $rules["uploadedFiles.{$field->name}"] = 'nullable|array';
+                $rules["uploadedFiles.{$field->name}.*"] = 'nullable|image|max:10240';
+                continue;
+            }
+
             $fieldRules = [];
 
             if ($field->is_required) {
@@ -777,35 +786,58 @@ class EntryForm extends Component
                 'hasUpload' => isset($this->uploadedFiles[$field->name]),
             ]);
 
+            // ─── Single image ─────────────────────────────────────────────────
             if ($field->type === 'image' && isset($this->uploadedFiles[$field->name])) {
                 $file = $this->uploadedFiles[$field->name];
-
-                \Log::info("Processing image upload for field: {$field->name}", [
-                    'file' => $file ? get_class($file) : 'null',
-                    'fileName' => $file ? $file->getClientOriginalName() : 'null',
-                ]);
-
                 if ($file) {
                     try {
-                        // Clear existing media for this field
                         $entry->clearMediaCollection($field->name);
-
-                        // Add new media
                         $media = $entry->addMedia($file->getRealPath())
                             ->usingFileName($file->getClientOriginalName())
                             ->toMediaCollection($field->name);
-
-                        \Log::info('Media uploaded successfully', [
-                            'mediaId' => $media->id,
-                            'collection' => $field->name,
-                        ]);
+                        \Log::info('Single image uploaded', ['mediaId' => $media->id, 'collection' => $field->name]);
                     } catch (\Exception $e) {
-                        \Log::error("Error uploading media for field {$field->name}", [
-                            'error' => $e->getMessage(),
-                            'trace' => $e->getTraceAsString(),
-                        ]);
+                        \Log::error("Error uploading image {$field->name}: " . $e->getMessage());
                     }
                 }
+                continue;
+            }
+
+            // ─── Gallery (multi-file + removal of existing) ────────────────────
+            if ($field->type === 'gallery') {
+                // 1. Remove items the user dismissed in UI
+                $removeIdsRaw = $this->galleryRemoveIds[$field->name] ?? null;
+                if ($removeIdsRaw) {
+                    $ids = is_string($removeIdsRaw) ? (json_decode($removeIdsRaw, true) ?: []) : (array) $removeIdsRaw;
+                    foreach ($ids as $mediaId) {
+                        try {
+                            $media = $entry->getMedia($field->name)->firstWhere('id', (int) $mediaId);
+                            if ($media) {
+                                $media->delete();
+                                \Log::info("Gallery item removed", ['mediaId' => $mediaId, 'collection' => $field->name]);
+                            }
+                        } catch (\Exception $e) {
+                            \Log::error("Error removing gallery item {$mediaId}: " . $e->getMessage());
+                        }
+                    }
+                }
+
+                // 2. Append newly uploaded files
+                $files = $this->uploadedFiles[$field->name] ?? null;
+                if (! empty($files) && is_array($files)) {
+                    foreach ($files as $file) {
+                        if (! $file) continue;
+                        try {
+                            $media = $entry->addMedia($file->getRealPath())
+                                ->usingFileName($file->getClientOriginalName())
+                                ->toMediaCollection($field->name);
+                            \Log::info('Gallery item uploaded', ['mediaId' => $media->id, 'collection' => $field->name]);
+                        } catch (\Exception $e) {
+                            \Log::error("Error uploading gallery file {$field->name}: " . $e->getMessage());
+                        }
+                    }
+                }
+                continue;
             }
         }
     }
