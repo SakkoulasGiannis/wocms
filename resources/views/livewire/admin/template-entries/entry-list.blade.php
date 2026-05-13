@@ -25,6 +25,20 @@
                     </svg>
                 </a>
 
+                {{-- Design layout button: opens the visual editor scoped to the Template
+                     (not a specific entry). Sections added here form the SHARED layout used
+                     by every entry of this template — see Phase D for frontend wiring. --}}
+                @if($template->requires_database && $template->is_active)
+                    <a href="{{ url('/admin/page-sections/visual/App-Models-Template/' . $template->id) }}"
+                       class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+                       title="Design the shared layout used by every {{ Str::singular($template->name) }} entry">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42"/>
+                        </svg>
+                        Design layout
+                    </a>
+                @endif
+
                 @if($template->allow_new_pages)
                     <a href="{{ route('admin.template-entries.create', $template->slug) }}"
                        class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
