@@ -170,17 +170,25 @@
                                 allow="autoplay;encrypted-media" allowfullscreen
                             ></iframe>
                             @if ($slide['url'] ?? null)
-                                <img src="{{ $slide['url'] }}" alt="poster" class="absolute inset-0 -z-10 h-full w-full object-cover">
+                                <img src="{{ $slide['url'] }}" alt="poster"
+                                     class="absolute inset-0 -z-10 h-full w-full object-cover"
+                                     {{ $i === 0 ? 'fetchpriority=high' : '' }}
+                                     loading="{{ $i === 0 ? 'eager' : 'lazy' }}"
+                                     decoding="async">
                             @endif
                         </div>
                     @endif
                 @elseif (($slide['media_type'] ?? 'image') === 'video' && ($slide['video_file_url'] ?? null))
-                    <video autoplay muted loop playsinline class="h-full w-full object-cover"
+                    <video autoplay muted loop playsinline preload="{{ $i === 0 ? 'auto' : 'metadata' }}" class="h-full w-full object-cover"
                         @if ($slide['url'] ?? null) poster="{{ $slide['url'] }}" @endif>
                         <source src="{{ $slide['video_file_url'] }}" type="video/mp4">
                     </video>
                 @else
-                    <img src="{{ $slide['url'] ?? '' }}" alt="{{ $slide['title'] ?? 'slider' }}" class="h-full w-full object-cover">
+                    <img src="{{ $slide['url'] ?? '' }}" alt="{{ $slide['title'] ?? 'slider' }}"
+                         class="h-full w-full object-cover"
+                         {{ $i === 0 ? 'fetchpriority=high' : '' }}
+                         loading="{{ $i === 0 ? 'eager' : 'lazy' }}"
+                         decoding="async">
                 @endif
             </div>
         @endforeach

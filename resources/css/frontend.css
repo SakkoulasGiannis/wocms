@@ -1,116 +1,106 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 
-/* Frontend-specific sources */
-@source '../views/frontend/*.blade.php';
-@source '../views/templates/*.blade.php';
+/* ──────────────────────────────────────────────────────────────────────────
+   Pre-built frontend stylesheet (Vite) — replaces the @tailwindcss/browser
+   runtime CDN that was previously inlined in resources/views/themes/ketw/
+   layout.blade.php. Pre-building moves ~150 KB of work out of the browser
+   and makes the CSS cacheable + non-render-blocking.
+   ────────────────────────────────────────────────────────────────────────── */
 
-/* Custom frontend styles */
+/* Tailwind scans these source paths for class names */
+@source "../views/**/*.blade.php";
+@source "../views/**/*.php";
+@source "../../Modules/**/resources/views/**/*.blade.php";
+@source "../../app/**/*.php";
+
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    /* Brand colors — homelengo design tokens (scss/abstracts/_variable.scss) */
+    --color-brand:        #1563df;
+    --color-brand-hover:  #0e49a6;
+    --color-brand-soft:   #f3f7fd;
+    --color-brand-dark:   #0e49a6;
+    --color-brand-light:  #f3f7fd;
+
+    --color-critical:     #c72929;
+    --color-yellow:       #ffa800;
+    --color-success:      #198754;
+
+    --color-on-surface:   #161e2d;
+    --color-surface:      #f7f7f7;
+    --color-outline:      #e4e4e4;
+    --color-variant-1:    #5c6368;
+    --color-variant-2:    #a3abb0;
+    --color-variant-3:    #8e8e93;
+
+    /* Shadows from homelengo */
+    --shadow-card:    0px 4px 18px 0px #00000014;
+    --shadow-soft:    0px 10px 25px 0px #365f681a;
+    --shadow-strong:  0px 30px 60px 0px #0000001a;
+
+    /* Typography */
+    --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+
+    --container-8xl: 88rem;
 }
 
-/* Prose styling for content */
-.prose {
-    max-width: 65ch;
+/* ── Body default font ───────────────────────────────────────────────────── */
+body {
+    font-family: "Manrope", ui-sans-serif, system-ui, sans-serif;
 }
 
-.prose h1 {
-    font-size: 2.25em;
-    margin-top: 0;
-    margin-bottom: 0.8888889em;
-    line-height: 1.1111111;
-}
+/* ── Heading defaults — restore Tailwind v4 preflight resets for unstyled headings ── */
+html body h1:not([class]) { font-size: 2.5rem  !important; font-weight: 800 !important; line-height: 1.15 !important; margin: 0.5em 0 !important; color: #0f172a; }
+html body h2:not([class]) { font-size: 2rem    !important; font-weight: 700 !important; line-height: 1.2  !important; margin: 0.5em 0 !important; color: #0f172a; }
+html body h3:not([class]) { font-size: 1.5rem  !important; font-weight: 700 !important; line-height: 1.25 !important; margin: 0.5em 0 !important; color: #1f2937; }
+html body h4:not([class]) { font-size: 1.25rem !important; font-weight: 600 !important; line-height: 1.3  !important; margin: 0.5em 0 !important; color: #1f2937; }
+html body h5:not([class]) { font-size: 1.1rem  !important; font-weight: 600 !important; line-height: 1.4  !important; margin: 0.5em 0 !important; color: #374151; }
+html body h6:not([class]) { font-size: 0.95rem !important; font-weight: 600 !important; line-height: 1.4  !important; margin: 0.5em 0 !important; color: #4b5563; text-transform: uppercase; letter-spacing: 0.04em; }
+html body p:not([class])  { margin: 0.5em 0 !important; line-height: 1.65 !important; }
+html body ul:not([class]) { padding-left: 1.5rem !important; margin: 0.5em 0 !important; list-style: disc !important; }
+html body ol:not([class]) { padding-left: 1.5rem !important; margin: 0.5em 0 !important; list-style: decimal !important; }
 
-.prose h2 {
-    font-size: 1.5em;
-    margin-top: 2em;
-    margin-bottom: 1em;
-    line-height: 1.3333333;
+/* ── Buttons (homelengo .tf-btn spec) ────────────────────────────────────── */
+.tf-btn {
+    display: inline-flex; justify-content: center; align-items: center; gap: 8px;
+    padding: 10px 20px; min-width: 162px; min-height: 54px;
+    border-radius: 9999px;
+    font-size: 16px; line-height: 21.86px; font-weight: 600;
+    background-color: #ffffff; color: #161e2d;
+    border: 1px solid #161e2d;
+    text-decoration: none;
+    transition: background-color .3s ease, color .3s ease, border-color .3s ease;
 }
+.tf-btn svg { width: 20px; flex-shrink: 0; }
+.tf-btn:hover { background-color: #1563df; color: #ffffff; border-color: #1563df; }
+.tf-btn.primary { background-color: #1563df; color: #ffffff; border-color: #1563df; }
+.tf-btn.primary:hover { background-color: #0e49a6; border-color: #0e49a6; }
+.tf-btn.size-1 { padding: 11px 36px; min-width: 244px; }
+.tf-btn.size-2 { padding: 11px 40px; }
 
-.prose h3 {
-    font-size: 1.25em;
-    margin-top: 1.6em;
-    margin-bottom: 0.6em;
-    line-height: 1.6;
+/* "Read more" link variant */
+.btn-read-more {
+    display: inline-block;
+    font-size: 16px; line-height: 26px; font-weight: 700;
+    color: #161e2d;
+    text-transform: capitalize;
+    border-bottom: 2px solid #161e2d;
+    padding: 0 0 4px 0;
 }
+.btn-read-more:hover { color: #1563df; border-color: #1563df; }
 
-.prose p {
-    margin-top: 1.25em;
-    margin-bottom: 1.25em;
-}
-
-.prose img {
-    margin-top: 2em;
-    margin-bottom: 2em;
-}
-
-.prose strong {
-    font-weight: 600;
-}
-
-.prose a {
-    color: #3b82f6;
-    text-decoration: underline;
-    font-weight: 500;
-}
-
-.prose a:hover {
-    color: #2563eb;
-}
-
-.prose ul,
-.prose ol {
-    margin-top: 1.25em;
-    margin-bottom: 1.25em;
-    padding-left: 1.625em;
-}
-
-.prose li {
-    margin-top: 0.5em;
-    margin-bottom: 0.5em;
-}
-
-.prose blockquote {
-    font-weight: 500;
-    font-style: italic;
-    border-left-width: 0.25rem;
-    border-left-color: #e5e7eb;
-    quotes: "\201C""\201D""\2018""\2019";
-    margin-top: 1.6em;
-    margin-bottom: 1.6em;
-    padding-left: 1em;
-}
-
-.prose code {
-    font-size: 0.875em;
-    font-weight: 600;
-    background-color: #f3f4f6;
-    padding: 0.2em 0.4em;
-    border-radius: 0.25rem;
-}
-
-.prose pre {
-    background-color: #1f2937;
-    color: #e5e7eb;
-    overflow-x: auto;
-    font-size: 0.875em;
-    line-height: 1.7142857;
-    margin-top: 1.7142857em;
-    margin-bottom: 1.7142857em;
-    border-radius: 0.375rem;
-    padding: 0.8571429em 1.1428571em;
-}
-
-.prose pre code {
-    background-color: transparent;
-    border-width: 0;
-    border-radius: 0;
-    padding: 0;
-    font-weight: 400;
-    color: inherit;
-    font-size: inherit;
-    font-family: inherit;
-    line-height: inherit;
-}
+/* ── Prose styling for content ───────────────────────────────────────────── */
+.prose { max-width: 65ch; }
+.prose h1 { font-size: 2.25em; margin-top: 0; margin-bottom: 0.8888889em; line-height: 1.1111111; }
+.prose h2 { font-size: 1.5em;  margin-top: 2em; margin-bottom: 1em; line-height: 1.3333333; }
+.prose h3 { font-size: 1.25em; margin-top: 1.6em; margin-bottom: 0.6em; line-height: 1.6; }
+.prose p { margin-top: 1.25em; margin-bottom: 1.25em; }
+.prose img { margin-top: 2em; margin-bottom: 2em; }
+.prose strong { font-weight: 600; }
+.prose a { color: #3b82f6; text-decoration: underline; font-weight: 500; }
+.prose a:hover { color: #2563eb; }
+.prose ul, .prose ol { margin-top: 1.25em; margin-bottom: 1.25em; padding-left: 1.625em; }
+.prose li { margin-top: 0.5em; margin-bottom: 0.5em; }
+.prose blockquote { font-weight: 500; font-style: italic; border-left-width: 0.25rem; border-left-color: #e5e7eb; quotes: "\201C""\201D""\2018""\2019"; margin-top: 1.6em; margin-bottom: 1.6em; padding-left: 1em; }
+.prose code { font-size: 0.875em; font-weight: 600; background-color: #f3f4f6; padding: 0.2em 0.4em; border-radius: 0.25rem; }
+.prose pre { background-color: #1f2937; color: #e5e7eb; overflow-x: auto; font-size: 0.875em; line-height: 1.7142857; margin-top: 1.7142857em; margin-bottom: 1.7142857em; border-radius: 0.375rem; padding: 0.8571429em 1.1428571em; }
+.prose pre code { background-color: transparent; border-width: 0; border-radius: 0; padding: 0; font-weight: 400; color: inherit; font-size: inherit; font-family: inherit; line-height: inherit; }

@@ -6,7 +6,7 @@
             <!-- Image -->
             @if(!empty($content['image']))
                 <div class="md:w-1/2">
-                    <img src="{{ $content['image'] }}" alt="{{ $content['heading'] ?? 'About Us' }}" class="rounded-lg shadow-lg w-full">
+                    <img src="{{ $content['image'] }}" alt="{{ $content['heading'] ?? 'About Us' }}" class="rounded-lg shadow-lg w-full" loading="lazy" decoding="async">
                 </div>
             @endif
 
