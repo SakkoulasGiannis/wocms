@@ -163,7 +163,7 @@
                                     {{-- Author --}}
                                     <div class="mt-6 flex items-center gap-4 border-t border-outline pt-5">
                                         <div class="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-brand-soft ring-2 ring-brand/20">
-                                            <img src="{{ $t['avatar'] }}" alt="{{ $t['name'] }}" class="h-full w-full object-cover">
+                                            <img src="{{ $t['avatar'] }}" alt="{{ $t['name'] }}" width="48" height="48" loading="lazy" decoding="async" class="h-full w-full object-cover">
                                         </div>
                                         <div>
                                             <h6 class="text-base font-bold capitalize text-on-surface">{{ $t['name'] }}</h6>

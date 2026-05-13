@@ -59,14 +59,26 @@ class Slide extends Model implements HasMedia
 
     public function registerMediaConversions(?BaseMedia $media = null): void
     {
+        // Small thumb — used in the right-rail slider thumbnails (80x80 in UI, retina = ~160x160)
         $this->addMediaConversion('thumb')
-            ->width(300)
-            ->height(200)
+            ->fit(\Spatie\Image\Enums\Fit::Crop, 300, 200)
+            ->format('webp')
+            ->quality(75)
             ->nonQueued();
 
+        // Medium — used in card grids (e.g. listing pages, related sliders)
         $this->addMediaConversion('preview')
-            ->width(800)
-            ->height(450)
+            ->fit(\Spatie\Image\Enums\Fit::Crop, 800, 450)
+            ->format('webp')
+            ->quality(78)
+            ->nonQueued();
+
+        // Hero — full-bleed slider on desktop (1920x1080 covers 4K with browser scaling).
+        // WebP cuts ~40% off vs JPEG. quality 80 is visually transparent for photos.
+        $this->addMediaConversion('hero')
+            ->fit(\Spatie\Image\Enums\Fit::Crop, 1920, 1080)
+            ->format('webp')
+            ->quality(80)
             ->nonQueued();
     }
 }

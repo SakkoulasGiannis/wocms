@@ -144,7 +144,7 @@
                             @endphp
                             <article class="group overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 transition-all hover:shadow-xl hover:-translate-y-1">
                                 <a href="{{ $detailUrl }}" class="relative block aspect-4/3 overflow-hidden bg-slate-100">
-                                    <img src="{{ $imageUrl }}" alt="{{ $property->title }}" loading="lazy"
+                                    <img src="{{ $imageUrl }}" alt="{{ $property->title }}" width="800" height="600" loading="lazy" decoding="async"
                                          class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110">
 
                                     <div class="absolute left-3 top-3 flex flex-wrap items-center gap-2">

@@ -89,7 +89,8 @@
                    class="group relative block aspect-[3/4] overflow-hidden rounded-2xl shadow-card ring-1 ring-outline transition-all duration-300 hover:-translate-y-1 hover:shadow-soft">
                     <img src="{{ $image }}"
                          alt="{{ $name }}"
-                         loading="lazy"
+                         width="600" height="800"
+                         loading="lazy" decoding="async"
                          class="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-110">
 
                     {{-- Overlay (homelengo .location-item: dark gradient bottom) --}}

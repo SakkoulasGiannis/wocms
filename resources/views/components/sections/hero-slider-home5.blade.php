@@ -54,7 +54,12 @@
 
     if ($useSliderData) {
         $bgSlides = $sliderSlides->map(fn ($s) => [
-            'url' => $s->getFirstMediaUrl('image') ?: '/themes/kretaeiendom/images/slider/slider-5.jpg',
+            // Prefer the 'hero' WebP conversion (1920x1080, ~80-200KB) over the raw upload.
+            // Fall back through preview → original → static default.
+            'url' => $s->getFirstMediaUrl('image', 'hero')
+                ?: $s->getFirstMediaUrl('image', 'preview')
+                ?: $s->getFirstMediaUrl('image')
+                ?: '/themes/kretaeiendom/images/slider/slider-5.jpg',
             'media_type' => $s->media_type ?? 'image',
             'video_url' => $s->video_url,
             'video_file_url' => $s->getFirstMediaUrl('video'),
@@ -171,6 +176,7 @@
                             ></iframe>
                             @if ($slide['url'] ?? null)
                                 <img src="{{ $slide['url'] }}" alt="poster"
+                                     width="1920" height="1080"
                                      class="absolute inset-0 -z-10 h-full w-full object-cover"
                                      {{ $i === 0 ? 'fetchpriority=high' : '' }}
                                      loading="{{ $i === 0 ? 'eager' : 'lazy' }}"
@@ -185,6 +191,7 @@
                     </video>
                 @else
                     <img src="{{ $slide['url'] ?? '' }}" alt="{{ $slide['title'] ?? 'slider' }}"
+                         width="1920" height="1080"
                          class="h-full w-full object-cover"
                          {{ $i === 0 ? 'fetchpriority=high' : '' }}
                          loading="{{ $i === 0 ? 'eager' : 'lazy' }}"

@@ -23,7 +23,7 @@
 
     {{-- Image (left) --}}
     <a href="{{ $detailUrl }}" class="relative block aspect-[4/3] flex-shrink-0 overflow-hidden bg-slate-100 sm:w-80 sm:aspect-auto">
-        <img src="{{ $imageUrl }}" alt="{{ $property->title }}" loading="lazy"
+        <img src="{{ $imageUrl }}" alt="{{ $property->title }}" width="800" height="600" loading="lazy" decoding="async"
              class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105">
 
         {{-- Top-left badges --}}

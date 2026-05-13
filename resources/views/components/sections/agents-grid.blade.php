@@ -210,8 +210,9 @@
                         <div class="relative aspect-[4/5] overflow-hidden bg-slate-100">
                             @if (! empty($agent['has_photo']) || ! empty($agent['image']))
                                 <img src="{{ $agent['image'] }}" alt="{{ $agent['name'] }}"
+                                     width="400" height="500"
                                      class="h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
-                                     loading="lazy">
+                                     loading="lazy" decoding="async">
                             @else
                                 <div class="flex h-full w-full items-center justify-center text-slate-300">
                                     <svg class="h-24 w-24" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">

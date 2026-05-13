@@ -64,7 +64,7 @@
 <section class="bg-white">
     {{-- Hero with main image --}}
     <div class="relative h-[44vh] min-h-[320px] w-full overflow-hidden bg-slate-200 sm:h-[60vh]">
-        <img src="{{ $mainImage }}" alt="{{ $content->name ?? $title }}" class="absolute inset-0 h-full w-full object-cover">
+        <img src="{{ $mainImage }}" alt="{{ $content->name ?? $title }}" width="1920" height="1080" fetchpriority="high" decoding="async" class="absolute inset-0 h-full w-full object-cover">
         <div class="absolute inset-0 bg-gradient-to-t from-on-surface/70 via-on-surface/15 to-transparent"></div>
 
         <div class="absolute inset-x-0 bottom-0 px-4 pb-10 sm:px-6 lg:px-8">
@@ -135,7 +135,7 @@
                             @foreach($galleryItems as $i => $g)
                                 <button type="button" @click="open({{ $i }})"
                                         class="group relative aspect-square overflow-hidden rounded-xl bg-slate-100 ring-1 ring-outline transition-all hover:ring-brand/40">
-                                    <img src="{{ $g['thumb'] }}" alt="{{ $g['name'] }}" loading="lazy"
+                                    <img src="{{ $g['thumb'] }}" alt="{{ $g['name'] }}" width="400" height="400" loading="lazy" decoding="async"
                                          class="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105">
                                 </button>
                             @endforeach

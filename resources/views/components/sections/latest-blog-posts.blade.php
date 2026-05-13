@@ -195,8 +195,9 @@
                                             <img
                                                 src="{{ $post['image'] }}"
                                                 alt="{{ $post['title'] }}"
+                                                width="600" height="450"
                                                 class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                                                loading="lazy"
+                                                loading="lazy" decoding="async"
                                             >
                                             @if (! empty($post['date']))
                                                 <span class="absolute left-4 top-4 inline-flex items-center rounded-md bg-white px-3 py-1.5 text-xs font-semibold text-on-surface shadow-card">
@@ -306,8 +307,9 @@
                                 <img
                                     src="{{ $post['image'] }}"
                                     alt="{{ $post['title'] }}"
+                                    width="600" height="450"
                                     class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                                    loading="lazy"
+                                    loading="lazy" decoding="async"
                                 >
                                 @if (! empty($post['date']))
                                     <span class="absolute left-4 top-4 inline-flex items-center rounded-md bg-white px-3 py-1.5 text-xs font-semibold text-on-surface shadow-card">

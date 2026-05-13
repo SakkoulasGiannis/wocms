@@ -55,7 +55,7 @@
                     <article wire:key="project-{{ $entry->id }}"
                              class="group flex flex-col overflow-hidden rounded-2xl bg-white shadow-card ring-1 ring-outline transition-all duration-300 hover:-translate-y-1 hover:shadow-soft hover:ring-brand/30">
                         <a href="{{ $detailUrl }}" class="relative block aspect-[4/3] overflow-hidden bg-slate-100">
-                            <img src="{{ $img }}" alt="{{ $entry->name ?? $entry->title }}" loading="lazy"
+                            <img src="{{ $img }}" alt="{{ $entry->name ?? $entry->title }}" width="800" height="600" loading="lazy" decoding="async"
                                  class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105">
 
                             @if(! empty($entry->year_built))
