@@ -120,7 +120,7 @@ class Template extends Model
         return $this->children()->with('descendants');
     }
 
-    public function createPhysicalFile(): bool
+    public function createPhysicalFile(bool $overwrite = false): bool
     {
         if (!$this->has_physical_file || !$this->file_path) {
             return false;
@@ -128,7 +128,7 @@ class Template extends Model
 
         // If template uses slug prefix, create both index (plural) and single (singular) files
         if ($this->use_slug_prefix) {
-            return $this->createIndexAndSingleFiles();
+            return $this->createIndexAndSingleFiles($overwrite);
         }
 
         // Otherwise, create single file as normal
@@ -139,6 +139,14 @@ class Template extends Model
             mkdir($directory, 0755, true);
         }
 
+        // NEVER overwrite an existing user-edited file unless explicitly requested.
+        // Auto-regeneration during db:seed (or any subsequent createTableAndModel call)
+        // used to clobber custom views/models and surface as "View not found" or
+        // broken scopeActive on live.
+        if (file_exists($fullPath) && !$overwrite) {
+            return true;
+        }
+
         $content = $this->html_content ?: $this->getDefaultTemplateContent();
 
         return file_put_contents($fullPath, $content) !== false;
@@ -147,7 +155,7 @@ class Template extends Model
     /**
      * Create both index (plural) and single (singular) blade files for slug-prefixed templates
      */
-    protected function createIndexAndSingleFiles(): bool
+    protected function createIndexAndSingleFiles(bool $overwrite = false): bool
     {
         if (!$this->file_path) {
             return false;
@@ -159,15 +167,21 @@ class Template extends Model
             mkdir($basePath, 0755, true);
         }
 
-        // Create index file (plural - e.g., templates/services.blade.php)
+        // Index file (plural — e.g., templates/services.blade.php)
         $indexPath = $this->getPhysicalFilePath();
-        $indexContent = $this->getDefaultIndexTemplateContent();
-        $indexCreated = file_put_contents($indexPath, $indexContent) !== false;
+        $indexCreated = true;
+        if (!file_exists($indexPath) || $overwrite) {
+            $indexContent = $this->getDefaultIndexTemplateContent();
+            $indexCreated = file_put_contents($indexPath, $indexContent) !== false;
+        }
 
-        // Create single entry file (singular - e.g., templates/service.blade.php)
+        // Single entry file (singular — e.g., templates/service.blade.php)
         $singlePath = $this->getSingularFilePath();
-        $singleContent = $this->html_content ?: $this->getDefaultTemplateContent();
-        $singleCreated = file_put_contents($singlePath, $singleContent) !== false;
+        $singleCreated = true;
+        if (!file_exists($singlePath) || $overwrite) {
+            $singleContent = $this->html_content ?: $this->getDefaultTemplateContent();
+            $singleCreated = file_put_contents($singlePath, $singleContent) !== false;
+        }
 
         return $indexCreated && $singleCreated;
     }

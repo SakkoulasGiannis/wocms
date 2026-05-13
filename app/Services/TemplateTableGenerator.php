@@ -286,10 +286,12 @@ class TemplateTableGenerator
     {
         $modelPath = app_path("Models/{$modelClass}.php");
 
-        // Always regenerate the model to include updated methods
-        // if (File::exists($modelPath)) {
-        //     return; // Model already exists
-        // }
+        // Never clobber an existing model — preserves hand-edited scopeActive
+        // overrides, custom relations, etc. To force a regeneration, delete the
+        // file first or check it into version control under a known-good state.
+        if (File::exists($modelPath)) {
+            return;
+        }
 
         // Get fillable fields (including CSS columns for grapejs fields)
         $fillable = [];
