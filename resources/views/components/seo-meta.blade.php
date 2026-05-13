@@ -5,13 +5,32 @@
 {{-- ========================================= --}}
 
 @php
-    // Basic SEO values
-    $seoTitle = $entry?->seo_title ?? $title ?? config('app.name');
-    $seoDescription = $entry?->seo_description ?? $description ?? '';
-    $seoKeywords = $entry?->seo_keywords ?? '';
-    $seoCanonicalUrl = $entry?->seo_canonical_url ?? url()->current();
-    $seoRobotsIndex = $entry?->seo_robots_index ?? 'index';
-    $seoRobotsFollow = $entry?->seo_robots_follow ?? 'follow';
+    // Treat empty strings the same as null so the fallback chain actually kicks in.
+    $firstNonEmpty = fn (...$vals) => collect($vals)->map(fn ($v) => is_string($v) ? trim($v) : $v)->first(fn ($v) => $v !== null && $v !== '');
+
+    // Basic SEO values — fall through entry SEO → entry title/name → component prop → site name / description
+    $siteName = \App\Models\Setting::get('site_name', config('app.name'));
+    $siteTagline = \App\Models\Setting::get('site_tagline', '');
+    $siteDescription = \App\Models\Setting::get('site_description', '');
+
+    $entryTitle = $entry?->title ?? $entry?->name ?? $entry?->heading ?? null;
+    $entryExcerpt = $entry?->excerpt ?? $entry?->description ?? $entry?->summary ?? null;
+
+    $seoTitle = $firstNonEmpty($entry?->seo_title, $title, $entryTitle, $siteName) ?: $siteName;
+    // Compose a sensible suffix when we have both entry title and site name
+    if ($seoTitle && $entryTitle && $seoTitle === $entryTitle && $siteName && stripos($seoTitle, $siteName) === false) {
+        $seoTitle = $entryTitle . ' — ' . $siteName;
+    }
+
+    $seoDescription = $firstNonEmpty($entry?->seo_description, $description, $entryExcerpt, $siteTagline, $siteDescription);
+    if ($seoDescription && is_string($seoDescription)) {
+        $seoDescription = \Illuminate\Support\Str::limit(strip_tags($seoDescription), 160);
+    }
+
+    $seoKeywords = $entry?->seo_keywords ?: '';
+    $seoCanonicalUrl = $firstNonEmpty($entry?->seo_canonical_url) ?: url()->current();
+    $seoRobotsIndex = $firstNonEmpty($entry?->seo_robots_index) ?: 'index';
+    $seoRobotsFollow = $firstNonEmpty($entry?->seo_robots_follow) ?: 'follow';
 
     // Resolve image URL safely
     $resolveImage = function($value) use ($entry) {

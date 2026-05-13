@@ -10,13 +10,17 @@
         <link rel="shortcut icon" href="{{ \App\Models\Setting::get('site_favicon') }}">
     @endif
 
-    {{-- SEO Meta Tags --}}
-    @if(isset($content) || isset($post))
-        <x-seo-meta :entry="$content ?? $post ?? null" :title="$content->title ?? $post->title ?? $title ?? ''" />
-    @else
-        <title>@yield('title', $title ?? \App\Models\Setting::get('site_name', config('app.name')))</title>
-        <meta name="description" content="@yield('description', '')">
-    @endif
+    {{-- SEO Meta Tags — always use the component so empty-string fallbacks kick in correctly --}}
+    @php
+        $seoEntry = $content ?? $post ?? $property ?? $rentalProperty ?? $home ?? null;
+        $seoFallbackTitle = ($content->title ?? $post->title ?? $property->title ?? $rentalProperty->title ?? $home->title ?? null)
+            ?: trim((string) View::yieldContent('title'))
+            ?: ($title ?? null);
+        $seoFallbackDescription = ($content->excerpt ?? $content->description ?? $post->excerpt ?? null)
+            ?: trim((string) View::yieldContent('description'))
+            ?: \App\Models\Setting::get('site_description', '');
+    @endphp
+    <x-seo-meta :entry="$seoEntry" :title="$seoFallbackTitle" :description="$seoFallbackDescription" />
 
     {{-- Manrope (homelengo's primary font) — non-blocking load via media swap trick.
          Without `display=swap` browser hides text until font arrives ("FOIT"). --}}
