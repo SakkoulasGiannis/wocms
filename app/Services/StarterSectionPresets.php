@@ -95,8 +95,7 @@ class StarterSectionPresets
 
     protected function villaEntryPreset(Template $template): array
     {
-        $hero  = $this->sectionTemplateId('hero-simple');
-        $html  = $this->sectionTemplateId('custom-html');
+        $hero = $this->sectionTemplateId('hero-simple');
         $out = [];
         $order = 1;
 
@@ -118,35 +117,25 @@ class StarterSectionPresets
             ];
         }
 
-        if ($html) {
-            $out[] = [
-                'section_template_id' => $html,
-                'section_type' => 'custom_html',
-                'name' => 'Specs',
-                'content' => [
-                    'html' => '<section class="bg-white py-16 lg:py-20">' .
-                              '<div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">' .
-                              '<h2 class="mb-8 text-3xl font-bold text-on-surface">Project details</h2>' .
-                              '<dl class="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">' .
-                              '<div><dt class="text-sm text-variant-1">Location</dt><dd class="font-semibold text-on-surface">{location|—}</dd></div>' .
-                              '<div><dt class="text-sm text-variant-1">Year built</dt><dd class="font-semibold text-on-surface">{year_built|—}</dd></div>' .
-                              '<div><dt class="text-sm text-variant-1">Building size</dt><dd class="font-semibold text-on-surface">{building_size|—} m²</dd></div>' .
-                              '<div><dt class="text-sm text-variant-1">Plot size</dt><dd class="font-semibold text-on-surface">{plot_size|—} m²</dd></div>' .
-                              '<div><dt class="text-sm text-variant-1">Drawn by</dt><dd class="font-semibold text-on-surface">{drawn_by|—}</dd></div>' .
-                              '</dl></div></section>',
-                ],
-                'settings' => [],
-                'order' => $order++,
-            ];
-        }
+        // Specs block — uses nested primitives so EVERY label and value is
+        // individually editable in the visual editor sidebar (instead of a
+        // monolithic custom-html blob the user can't visually manipulate).
+        $specs = [
+            ['label' => 'Location',      'token' => '{location|—}'],
+            ['label' => 'Year built',    'token' => '{year_built|—}'],
+            ['label' => 'Building size', 'token' => '{building_size|—} m²'],
+            ['label' => 'Plot size',     'token' => '{plot_size|—} m²'],
+            ['label' => 'Drawn by',      'token' => '{drawn_by|—}'],
+        ];
+        $out[] = $this->specsSection('Project details', $specs, $order++);
 
         return $out;
     }
 
     protected function blogEntryPreset(Template $template): array
     {
-        $hero  = $this->sectionTemplateId('hero-simple');
-        $html  = $this->sectionTemplateId('custom-html');
+        $hero = $this->sectionTemplateId('hero-simple');
+        $wysiwyg = $this->sectionTemplateId('wysiwyg');
         $out = [];
         $order = 1;
 
@@ -168,14 +157,14 @@ class StarterSectionPresets
             ];
         }
 
-        if ($html) {
+        if ($wysiwyg) {
+            // Use wysiwyg (rich-text editor) instead of custom-html so the user
+            // can edit the body content visually, not as raw HTML in a textarea.
             $out[] = [
-                'section_template_id' => $html,
-                'section_type' => 'custom_html',
+                'section_template_id' => $wysiwyg,
+                'section_type' => 'wysiwyg',
                 'name' => 'Post body',
-                'content' => [
-                    'html' => '<article class="bg-white py-12 lg:py-20"><div class="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 prose prose-lg">{body}</div></article>',
-                ],
+                'content' => ['content' => '{body}'],
                 'settings' => [],
                 'order' => $order++,
             ];
@@ -186,8 +175,7 @@ class StarterSectionPresets
 
     protected function propertyEntryPreset(Template $template): array
     {
-        $hero  = $this->sectionTemplateId('hero-simple');
-        $html  = $this->sectionTemplateId('custom-html');
+        $hero = $this->sectionTemplateId('hero-simple');
         $out = [];
         $order = 1;
 
@@ -209,26 +197,116 @@ class StarterSectionPresets
             ];
         }
 
-        if ($html) {
-            $out[] = [
-                'section_template_id' => $html,
+        // Property meta block as nested primitives
+        $specs = [
+            ['label' => 'Bedrooms',  'token' => '{bedrooms|—}'],
+            ['label' => 'Bathrooms', 'token' => '{bathrooms|—}'],
+            ['label' => 'Area',      'token' => '{area|—} m²'],
+            ['label' => 'Price',     'token' => '{price|—}'],
+        ];
+        $out[] = $this->specsSection('Property details', $specs, $order++);
+
+        return $out;
+    }
+
+    /**
+     * Build a nested "specs" section tree (section > heading + grid > paragraphs)
+     * that the visual editor can drill into and edit each piece individually.
+     */
+    protected function specsSection(string $heading, array $specs, int $order): array
+    {
+        $primSection   = $this->sectionTemplateId('primitive-section');
+        $primDiv       = $this->sectionTemplateId('primitive-div');
+        $primHeading   = $this->sectionTemplateId('primitive-heading');
+        $primGrid      = $this->sectionTemplateId('primitive-grid');
+        $primParagraph = $this->sectionTemplateId('primitive-paragraph');
+
+        // If primitives aren't installed yet, fall back to a flat list of
+        // primitive-paragraphs so the user can still edit something.
+        if (! $primSection || ! $primGrid || ! $primParagraph) {
+            return [
+                'section_template_id' => $this->sectionTemplateId('custom-html'),
                 'section_type' => 'custom_html',
-                'name' => 'Property meta',
-                'content' => [
-                    'html' => '<section class="bg-white py-16 lg:py-20"><div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">' .
-                              '<dl class="grid grid-cols-2 gap-6 sm:grid-cols-4">' .
-                              '<div><dt class="text-sm text-variant-1">Bedrooms</dt><dd class="text-xl font-bold text-on-surface">{bedrooms|—}</dd></div>' .
-                              '<div><dt class="text-sm text-variant-1">Bathrooms</dt><dd class="text-xl font-bold text-on-surface">{bathrooms|—}</dd></div>' .
-                              '<div><dt class="text-sm text-variant-1">Area</dt><dd class="text-xl font-bold text-on-surface">{area|—} m²</dd></div>' .
-                              '<div><dt class="text-sm text-variant-1">Price</dt><dd class="text-xl font-bold text-brand">{price|—}</dd></div>' .
-                              '</dl></div></section>',
-                ],
+                'name' => $heading,
+                'content' => ['html' => '<div class="py-16"><h2>' . $heading . '</h2><ul>' .
+                    implode('', array_map(fn ($s) => '<li><strong>' . $s['label'] . ':</strong> ' . $s['token'] . '</li>', $specs)) .
+                    '</ul></div>'],
                 'settings' => [],
-                'order' => $order++,
+                'order' => $order,
             ];
         }
 
-        return $out;
+        // Each spec becomes a primitive-div containing the label + value as
+        // two paragraphs — every part individually clickable in the editor.
+        $gridChildren = [];
+        $i = 0;
+        foreach ($specs as $spec) {
+            $gridChildren[] = [
+                'section_template_id' => $primDiv,
+                'section_type' => 'primitive_div',
+                'name' => $spec['label'],
+                'content' => ['class' => 'flex flex-col gap-1', 'id' => ''],
+                'settings' => [],
+                'order' => $i + 1,
+                'children' => [
+                    [
+                        'section_template_id' => $primParagraph,
+                        'section_type' => 'primitive_paragraph',
+                        'name' => $spec['label'] . ' (label)',
+                        'content' => ['content' => $spec['label'], 'class' => 'text-sm text-variant-1', 'id' => ''],
+                        'settings' => [],
+                        'order' => 1,
+                    ],
+                    [
+                        'section_template_id' => $primParagraph,
+                        'section_type' => 'primitive_paragraph',
+                        'name' => $spec['label'] . ' (value)',
+                        'content' => ['content' => $spec['token'], 'class' => 'font-semibold text-on-surface', 'id' => ''],
+                        'settings' => [],
+                        'order' => 2,
+                    ],
+                ],
+            ];
+            $i++;
+        }
+
+        return [
+            'section_template_id' => $primSection,
+            'section_type' => 'primitive_section',
+            'name' => $heading,
+            'content' => ['class' => 'bg-white py-16 lg:py-20', 'id' => ''],
+            'settings' => [],
+            'order' => $order,
+            'children' => [
+                [
+                    'section_template_id' => $primDiv,
+                    'section_type' => 'primitive_div',
+                    'name' => 'Container',
+                    'content' => ['class' => 'mx-auto max-w-5xl px-4 sm:px-6 lg:px-8', 'id' => ''],
+                    'settings' => [],
+                    'order' => 1,
+                    'children' => [
+                        [
+                            'section_template_id' => $primHeading,
+                            'section_type' => 'primitive_heading',
+                            'name' => 'Section title',
+                            'content' => ['text' => $heading, 'tag' => 'h2', 'class' => 'mb-8 text-3xl font-bold text-on-surface', 'id' => ''],
+                            'settings' => [],
+                            'order' => 1,
+                        ],
+                        [
+                            'section_template_id' => $primGrid,
+                            'section_type' => 'primitive_grid',
+                            'name' => 'Specs grid',
+                            'content' => ['columns' => '2', 'gap' => '6', 'class' => 'gap-x-8 gap-y-4', 'id' => ''],
+                            'settings' => [],
+                            'order' => 2,
+                            'children' => $gridChildren,
+                        ],
+                    ],
+                ],
+            ],
+        ];
     }
 
     /**

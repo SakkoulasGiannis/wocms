@@ -217,20 +217,39 @@ class VisualPageEditor extends Component
         if (empty($preset)) return;
 
         \DB::transaction(function () use ($preset) {
-            foreach ($preset as $cfg) {
-                PageSection::create(array_merge($cfg, [
-                    'sectionable_type' => $this->sectionableType,
-                    'sectionable_id'   => $this->sectionableId,
-                    'scope'            => $this->scope,
-                    'is_active'        => true,
-                    'is_visible'       => true,
-                ]));
-            }
+            $this->createPresetTree($preset, null);
         });
 
         $this->loadSections();
         $this->pushHistory();
         session()->flash('success', 'Starter sections loaded — edit / reorder / delete as needed.');
+    }
+
+    /**
+     * Recursively persist a tree of starter sections. Each $cfg may carry a
+     * 'children' array of nested configs which will be created with their
+     * parent_section_id set to the freshly inserted parent's id. Keeps the
+     * visual editor's nested-children rendering happy.
+     */
+    protected function createPresetTree(array $configs, ?int $parentId): void
+    {
+        foreach ($configs as $cfg) {
+            $children = $cfg['children'] ?? [];
+            unset($cfg['children']);
+
+            $section = PageSection::create(array_merge($cfg, [
+                'sectionable_type'  => $this->sectionableType,
+                'sectionable_id'    => $this->sectionableId,
+                'scope'             => $this->scope,
+                'parent_section_id' => $parentId,
+                'is_active'         => true,
+                'is_visible'        => true,
+            ]));
+
+            if (! empty($children)) {
+                $this->createPresetTree($children, $section->id);
+            }
+        }
     }
 
     // ─── History / Undo / Redo ───────────────────────────────────────────────
