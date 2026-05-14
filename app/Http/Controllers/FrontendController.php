@@ -397,6 +397,7 @@ class FrontendController extends Controller
             'node' => $node,
             'template' => $template,
             'content' => $content,
+            'entry' => $content,   // alias so section views + token resolver always have `$entry`
             'title' => $node->title,
             'breadcrumbs' => $node->breadcrumbs(),
         ];
@@ -411,18 +412,29 @@ class FrontendController extends Controller
                 ->whereNull('parent_section_id')
                 ->with(['sectionTemplate', 'childrenRecursive.sectionTemplate'])
                 ->get();
-            \Log::info('📋 Loaded sections for page', [
-                'url' => $node->url_path,
-                'sections_count' => $data['sections']->count(),
-                'sections' => $data['sections']->pluck('name', 'id')->toArray(),
-            ]);
-        } else {
-            \Log::info('⚠️ No sections loaded', [
-                'url' => $node->url_path,
-                'render_mode' => $renderMode,
-                'has_content' => $content !== null,
-                'has_activeSections_method' => $content ? method_exists($content, 'activeSections') : false,
-            ]);
+        }
+
+        // TEMPLATE-DESIGN MODE — if the TEMPLATE itself has design sections (set via the
+        // "Design layout" button), they take precedence over the static blade file.
+        // Every entry of this template renders with the same shared design; tokens like
+        // {name}, {main_image:hero} resolve against the current $content (entry).
+        if (empty($data['sections']) && $template) {
+            try {
+                $tplSections = $template->activeSections()
+                    ->whereNull('parent_section_id')
+                    ->with(['sectionTemplate', 'childrenRecursive.sectionTemplate'])
+                    ->get();
+                if ($tplSections->isNotEmpty()) {
+                    $data['sections'] = $tplSections;
+                    // Force the sections view so we don't fall through to the blade file
+                    // below. The render-section partial reads $entry (already in $data)
+                    // and TokenResolver substitutes {field} placeholders per entry.
+                    $view = $this->themeManager->getTemplateView('sections') ?? 'frontend.sections';
+                    return view($view, $data);
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('Template-design section load failed for ' . $template->slug . ': ' . $e->getMessage());
+            }
         }
 
         // PRIORITY 1: Check if there's a physical blade file for this template

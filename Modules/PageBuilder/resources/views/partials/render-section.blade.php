@@ -9,6 +9,27 @@
     $isVeMode        = ($forceVe ?? false) || request()->has('ve');
     $isHidden        = isset($section->is_visible) && ! $section->is_visible;
 
+    // Template-design mode: when a section is owned by App\Models\Template (i.e. it
+    // belongs to the SHARED layout of a template) AND we have an entry in the
+    // current view context, resolve {field_name} tokens against that entry.
+    //
+    // The resolver is a no-op for sections owned by pages/properties/etc. that
+    // don't have $entry in context — backward compatible with every existing page.
+    $entryContext = $entry ?? $content ?? null;
+    if (! is_object($entryContext)) {
+        $entryContext = null;
+    }
+    if ($entryContext !== null) {
+        try {
+            $resolver = app(\App\Services\TokenResolver::class);
+            $sectionContent  = $resolver->resolve($sectionContent,  $entryContext);
+            $sectionSettings = $resolver->resolve($sectionSettings, $entryContext);
+        } catch (\Throwable $e) {
+            // Resolver should never throw; if it does, fall back to raw content.
+            \Log::warning('TokenResolver failed: ' . $e->getMessage());
+        }
+    }
+
     // Build children HTML for container sections (primitive-div, primitive-grid, primitive-section)
     $childrenHtml = '';
     if ($section->relationLoaded('childrenRecursive')) {
