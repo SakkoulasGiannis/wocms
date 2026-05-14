@@ -296,6 +296,24 @@ class FrontendController extends Controller
             'title' => $template->name,
         ];
 
+        // TEMPLATE-DESIGN MODE — listing scope. If the TEMPLATE has 'listing' scoped
+        // design sections (set via the "Design listing page" button), they take
+        // precedence over the static blade file and the default frontend.index.
+        // Sections (e.g. Entry Loop) get $entries available in scope for direct use.
+        try {
+            $listingSections = $template->listingSections()
+                ->whereNull('parent_section_id')
+                ->with(['sectionTemplate', 'childrenRecursive.sectionTemplate'])
+                ->get();
+            if ($listingSections->isNotEmpty()) {
+                $data['sections'] = $listingSections;
+                $view = $this->themeManager->getTemplateView('sections') ?? 'frontend.sections';
+                return view($view, $data);
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('Template listing-design section load failed for ' . $template->slug . ': ' . $e->getMessage());
+        }
+
         // Check if template has index view (plural)
         $indexViewPath = $this->getIndexViewPath($template);
 
@@ -414,26 +432,23 @@ class FrontendController extends Controller
                 ->get();
         }
 
-        // TEMPLATE-DESIGN MODE — if the TEMPLATE itself has design sections (set via the
-        // "Design layout" button), they take precedence over the static blade file.
+        // TEMPLATE-DESIGN MODE — single-entry pages. If the TEMPLATE has 'entry'
+        // scoped design sections, they take precedence over the static blade file.
         // Every entry of this template renders with the same shared design; tokens like
         // {name}, {main_image:hero} resolve against the current $content (entry).
         if (empty($data['sections']) && $template) {
             try {
-                $tplSections = $template->activeSections()
+                $tplSections = $template->entrySections()
                     ->whereNull('parent_section_id')
                     ->with(['sectionTemplate', 'childrenRecursive.sectionTemplate'])
                     ->get();
                 if ($tplSections->isNotEmpty()) {
                     $data['sections'] = $tplSections;
-                    // Force the sections view so we don't fall through to the blade file
-                    // below. The render-section partial reads $entry (already in $data)
-                    // and TokenResolver substitutes {field} placeholders per entry.
                     $view = $this->themeManager->getTemplateView('sections') ?? 'frontend.sections';
                     return view($view, $data);
                 }
             } catch (\Throwable $e) {
-                \Log::warning('Template-design section load failed for ' . $template->slug . ': ' . $e->getMessage());
+                \Log::warning('Template entry-design section load failed for ' . $template->slug . ': ' . $e->getMessage());
             }
         }
 

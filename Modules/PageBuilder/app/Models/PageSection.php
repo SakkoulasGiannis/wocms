@@ -19,6 +19,7 @@ class PageSection extends Model
         'section_template_id',
         'sectionable_type',
         'sectionable_id',
+        'scope', // listing | entry | null
         'section_type',
         'edit_mode',
         'name',

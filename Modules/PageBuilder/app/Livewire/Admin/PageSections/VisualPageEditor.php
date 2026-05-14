@@ -20,6 +20,13 @@ class VisualPageEditor extends Component
 
     public int $sectionableId = 0;
 
+    /**
+     * 'listing' = designing the INDEX page (/completed-villas)
+     * 'entry'   = designing the SINGLE-ENTRY page (/completed-villas/{slug})
+     * null      = legacy per-entity mode (Home, Page, etc.) — no scope filter
+     */
+    public ?string $scope = null;
+
     public string $pageTitle = '';
 
     public string $previewUrl = '';
@@ -66,6 +73,14 @@ class VisualPageEditor extends Component
         $this->backUrl = url()->previous(route('admin.dashboard'));
         $this->sectionableType = str_replace('-', '\\', $sectionableType);
         $this->sectionableId = $sectionableId;
+
+        // Capture ?scope=listing|entry. Only applies when designing a Template
+        // (other models retain per-entity behavior — scope stays null).
+        $scopeParam = request()->query('scope');
+        if ($this->sectionableType === \App\Models\Template::class && in_array($scopeParam, ['listing', 'entry'], true)) {
+            $this->scope = $scopeParam;
+        }
+
         $this->pageTitle = $this->resolveTitle();
         $this->previewUrl = $this->resolvePreviewUrl().'?ve=1';
         $this->loadSections();
@@ -84,7 +99,11 @@ class VisualPageEditor extends Component
         if (class_exists($this->sectionableType)) {
             $model = $this->sectionableType::find($this->sectionableId);
             if ($model) {
-                return $model->title ?? $model->name ?? '#'.$this->sectionableId;
+                $name = $model->title ?? $model->name ?? '#'.$this->sectionableId;
+                // Suffix the scope so the page heading is unambiguous
+                if ($this->scope === 'listing') return $name.' — Listing page design';
+                if ($this->scope === 'entry')   return $name.' — Entry page design';
+                return $name;
             }
         }
 
@@ -93,6 +112,39 @@ class VisualPageEditor extends Component
 
     protected function resolvePreviewUrl(): string
     {
+        // Template-design mode → preview must match the SCOPE being designed.
+        // Listing → /{template_slug}, Entry → first entry of that template.
+        if ($this->sectionableType === \App\Models\Template::class) {
+            $tpl = \App\Models\Template::find($this->sectionableId);
+            if (! $tpl) return '/';
+
+            if ($this->scope === 'entry') {
+                // Try to find the first entry of this template
+                $modelClass = $tpl->model_class;
+                if ($modelClass && ! str_contains($modelClass, '\\')) {
+                    $modelClass = 'App\\Models\\'.$modelClass;
+                }
+                if ($modelClass && class_exists($modelClass)) {
+                    try {
+                        $entry = $modelClass::query()->latest()->first();
+                        if ($entry && isset($entry->slug) && $tpl->slug) {
+                            return '/'.$tpl->slug.'/'.$entry->slug;
+                        }
+                    } catch (\Throwable $e) {}
+                }
+                // Fall back to ContentNode lookup for entries of this template
+                $node = ContentNode::where('template_id', $tpl->id)
+                    ->whereNotNull('content_id')
+                    ->latest()
+                    ->first();
+                if ($node) return $node->url_path;
+            }
+
+            // Listing scope (or fallback) → the template's slug root
+            return '/'.ltrim($tpl->slug, '/');
+        }
+
+        // Legacy: per-entity mode — use ContentNode url_path if available
         $node = ContentNode::where('content_type', $this->sectionableType)
             ->where('content_id', $this->sectionableId)
             ->first();
@@ -116,11 +168,16 @@ class VisualPageEditor extends Component
 
     public function loadSections(): void
     {
-        $this->sections = PageSection::where('sectionable_type', $this->sectionableType)
-            ->where('sectionable_id', $this->sectionableId)
-            ->orderBy('order')
-            ->get()
-            ->toArray();
+        $query = PageSection::where('sectionable_type', $this->sectionableType)
+            ->where('sectionable_id', $this->sectionableId);
+
+        // Filter by scope when designing a Template (listing/entry). Other modes
+        // (Home, Page) leave $this->scope = null and see all their sections.
+        if ($this->scope !== null) {
+            $query->where('scope', $this->scope);
+        }
+
+        $this->sections = $query->orderBy('order')->get()->toArray();
     }
 
     // ─── History / Undo / Redo ───────────────────────────────────────────────
@@ -172,10 +229,16 @@ class VisualPageEditor extends Component
         $snapshotIds = array_column($snapshot, 'id');
 
         // Remove sections not in the snapshot
-        PageSection::where('sectionable_type', $this->sectionableType)
+        // Scope-aware orphan delete: only sections belonging to the SCOPE we're currently
+        // editing should be removed. Without this, saving "listing" design would wipe
+        // every "entry" section (and vice-versa).
+        $orphanQuery = PageSection::where('sectionable_type', $this->sectionableType)
             ->where('sectionable_id', $this->sectionableId)
-            ->whereNotIn('id', $snapshotIds)
-            ->delete();
+            ->whereNotIn('id', $snapshotIds);
+        if ($this->scope !== null) {
+            $orphanQuery->where('scope', $this->scope);
+        }
+        $orphanQuery->delete();
 
         foreach ($snapshot as $s) {
             /** @var PageSection|null $section */
@@ -200,6 +263,7 @@ class VisualPageEditor extends Component
                     'id' => $s['id'],
                     'sectionable_type' => $this->sectionableType,
                     'sectionable_id' => $this->sectionableId,
+                    'scope' => $this->scope,
                     'section_template_id' => $s['section_template_id'],
                     'section_type' => $s['section_type'],
                     'name' => $s['name'],
@@ -326,14 +390,18 @@ class VisualPageEditor extends Component
 
         $parentId = $this->addingChildOfSectionId;
 
-        $maxOrder = PageSection::where('sectionable_type', $this->sectionableType)
+        $maxOrderQ = PageSection::where('sectionable_type', $this->sectionableType)
             ->where('sectionable_id', $this->sectionableId)
-            ->where('parent_section_id', $parentId)
-            ->max('order') ?? 0;
+            ->where('parent_section_id', $parentId);
+        if ($this->scope !== null) {
+            $maxOrderQ->where('scope', $this->scope);
+        }
+        $maxOrder = $maxOrderQ->max('order') ?? 0;
 
         $section = PageSection::create([
             'sectionable_type' => $this->sectionableType,
             'sectionable_id' => $this->sectionableId,
+            'scope' => $this->scope,
             'section_template_id' => $this->selectedTemplateId,
             'section_type' => str_replace('-', '_', $template->slug),
             'name' => $this->sectionName ?: $template->name,

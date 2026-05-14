@@ -11,6 +11,25 @@ class Template extends Model
 {
     use HasSections, SoftDeletes;
 
+    /**
+     * Sections that compose the INDEX/listing page design (e.g. /completed-villas).
+     * Use these by clicking the "Design listing page" button in the template entries
+     * admin. Filtered by scope = 'listing'.
+     */
+    public function listingSections()
+    {
+        return $this->sections()->where('scope', 'listing')->where('is_active', true);
+    }
+
+    /**
+     * Sections that compose the SINGLE-ENTRY page design (e.g. /completed-villas/villa-grete).
+     * Use these by clicking the "Design entry page" button. Filtered by scope = 'entry'.
+     */
+    public function entrySections()
+    {
+        return $this->sections()->where('scope', 'entry')->where('is_active', true);
+    }
+
     protected $fillable = [
         'name',
         'slug',

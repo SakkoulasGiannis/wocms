@@ -25,17 +25,25 @@
                     </svg>
                 </a>
 
-                {{-- Design layout button: opens the visual editor scoped to the Template
-                     (not a specific entry). Sections added here form the SHARED layout used
-                     by every entry of this template — see Phase D for frontend wiring. --}}
-                @if($template->requires_database && $template->is_active)
-                    <a href="{{ url('/admin/page-sections/visual/App-Models-Template/' . $template->id) }}"
-                       class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
-                       title="Design the shared layout used by every {{ Str::singular($template->name) }} entry">
+                {{-- Template design: TWO modes for each database-backed template.
+                     - Listing: design how /{slug}  index page looks (e.g. /completed-villas)
+                     - Entry:   design how /{slug}/{entry-slug} detail page looks --}}
+                @if($template->requires_database && $template->is_active && $template->use_slug_prefix)
+                    <a href="{{ url('/admin/page-sections/visual/App-Models-Template/' . $template->id . '?scope=listing') }}"
+                       class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+                       title="Design the listing page (e.g. /{{ $template->slug }})">
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
                         </svg>
-                        Design layout
+                        Design listing
+                    </a>
+                    <a href="{{ url('/admin/page-sections/visual/App-Models-Template/' . $template->id . '?scope=entry') }}"
+                       class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+                       title="Design the entry page used by every {{ Str::singular($template->name) }}">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                        </svg>
+                        Design entry
                     </a>
                 @endif
 
