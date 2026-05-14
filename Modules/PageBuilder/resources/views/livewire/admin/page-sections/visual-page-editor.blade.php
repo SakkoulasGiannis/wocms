@@ -1152,9 +1152,89 @@ if (typeof window.editorjsField === 'undefined') {
                     {{-- Dynamic Fields --}}
                     @foreach($selectedTemplate->fields as $field)
                         <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">
-                                {{ $field->label }}
-                                @if($field->is_required)<span class="text-red-500">*</span>@endif
+                            @php
+                                /* Token-aware fields ── the ones where {field} placeholders
+                                 * make sense. Card bindings of the entry-loop section, plus
+                                 * any explicit token-ish field name (token_*, *_token), plus
+                                 * generic text/textarea when we're in template-design mode.
+                                 *
+                                 * The picker shows fields from:
+                                 *  • the sectionable Template (template-design mode), OR
+                                 *  • the source_template currently selected (entry-loop mode)
+                                 */
+                                $isTokenAware = in_array($field->name, [
+                                    'card_image_token','card_title_token','card_subtitle_token','card_link_pattern','heading','subheading',
+                                ], true);
+                                $isLoopSection = ($selectedSection->section_type ?? null) === 'entry_loop';
+                                $isTemplateDesign = $sectionableType === 'App\\Models\\Template';
+
+                                if (! $isTokenAware && ($isLoopSection || $isTemplateDesign) && in_array($field->type, ['text','textarea','url'], true)) {
+                                    $isTokenAware = true;
+                                }
+
+                                $tokenFields = [];
+                                if ($isTokenAware) {
+                                    try {
+                                        $srcTemplate = null;
+                                        if ($isLoopSection) {
+                                            $sourceSlug = $sectionContent['source_template'] ?? null;
+                                            if ($sourceSlug) {
+                                                $srcTemplate = \App\Models\Template::where('slug', $sourceSlug)->first();
+                                            }
+                                        } elseif ($isTemplateDesign) {
+                                            $srcTemplate = \App\Models\Template::find($sectionableId);
+                                        }
+                                        if ($srcTemplate) {
+                                            $tokenFields = $srcTemplate->fields()
+                                                ->orderBy('order')
+                                                ->get(['name', 'label', 'type'])
+                                                ->toArray();
+                                        }
+                                    } catch (\Throwable $e) {}
+                                }
+                            @endphp
+                            <label class="flex items-center justify-between text-xs font-medium text-gray-600 mb-1">
+                                <span>
+                                    {{ $field->label }}
+                                    @if($field->is_required)<span class="text-red-500">*</span>@endif
+                                </span>
+                                @if($isTokenAware && count($tokenFields))
+                                    <div x-data="{ open: false }" class="relative" @click.outside="open = false">
+                                        <button type="button" @click="open = !open"
+                                                class="inline-flex items-center gap-1 rounded bg-purple-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-purple-700 hover:bg-purple-200">
+                                            <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M13.828 10.172a4 4 0 00-5.656 0L4.343 14.001a4 4 0 105.656 5.656l1.102-1.102M10.172 13.828a4 4 0 005.656 0l3.829-3.829a4 4 0 10-5.656-5.656l-1.102 1.102"/></svg>
+                                            Insert field
+                                        </button>
+                                        <div x-show="open" x-transition style="display:none"
+                                             class="absolute right-0 mt-1 w-64 max-h-72 overflow-y-auto z-30 rounded-lg border border-gray-200 bg-white shadow-lg p-1">
+                                            <div class="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400 border-b">Available tokens</div>
+                                            @foreach($tokenFields as $tf)
+                                                @php
+                                                    $token = '{' . $tf['name'] . ($tf['type'] === 'image' ? ':preview' : '') . '}';
+                                                @endphp
+                                                <button type="button"
+                                                        @click="
+                                                            const inp = document.getElementById('ve-field-{{ $field->name }}');
+                                                            if (inp) {
+                                                                const start = inp.selectionStart ?? inp.value.length;
+                                                                const end = inp.selectionEnd ?? inp.value.length;
+                                                                const before = inp.value.substring(0, start);
+                                                                const after = inp.value.substring(end);
+                                                                inp.value = before + @js($token) + after;
+                                                                inp.dispatchEvent(new Event('input'));
+                                                                inp.focus();
+                                                                inp.selectionStart = inp.selectionEnd = start + @js(strlen($token));
+                                                            }
+                                                            open = false;
+                                                        "
+                                                        class="flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-xs text-gray-700 hover:bg-purple-50 hover:text-purple-700">
+                                                    <span class="truncate">{{ $tf['label'] ?? $tf['name'] }}</span>
+                                                    <code class="text-[10px] text-gray-400">{{ $token }}</code>
+                                                </button>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                @endif
                             </label>
 
                             @switch($field->type)
@@ -1220,6 +1300,7 @@ if (typeof window.editorjsField === 'undefined') {
                                         </div>
                                     @else
                                         <input type="{{ $field->type }}"
+                                               id="ve-field-{{ $field->name }}"
                                                wire:model.live.debounce.500ms="sectionContent.{{ $field->name }}"
                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                                                placeholder="{{ $field->placeholder ?? $field->label }}">
@@ -1227,7 +1308,8 @@ if (typeof window.editorjsField === 'undefined') {
                                     @break
 
                                 @case('textarea')
-                                    <textarea wire:model.live.debounce.500ms="sectionContent.{{ $field->name }}"
+                                    <textarea id="ve-field-{{ $field->name }}"
+                                              wire:model.live.debounce.500ms="sectionContent.{{ $field->name }}"
                                               rows="3"
                                               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                                               placeholder="{{ $field->placeholder ?? $field->label }}"></textarea>
@@ -1275,6 +1357,28 @@ if (typeof window.editorjsField === 'undefined') {
                                         <option value="">— Select —</option>
                                         @foreach($dynamicOptions as $opt)
                                             <option value="{{ $opt['value'] ?? $opt }}">{{ $opt['label'] ?? $opt }}</option>
+                                        @endforeach
+                                    </select>
+                                    @break
+
+                                @case('template_picker')
+                                    {{-- Dropdown of all database-backed, active templates.
+                                         Saves the template SLUG into sectionContent so the
+                                         loop section can use it directly when querying. --}}
+                                    @php
+                                        $availableTemplates = \App\Models\Template::query()
+                                            ->where('is_active', true)
+                                            ->where('requires_database', true)
+                                            ->orderBy('name')
+                                            ->get(['slug', 'name'])
+                                            ->map(fn ($t) => ['value' => $t->slug, 'label' => $t->name])
+                                            ->toArray();
+                                    @endphp
+                                    <select wire:model.live="sectionContent.{{ $field->name }}"
+                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                                        <option value="">— Pick a template —</option>
+                                        @foreach($availableTemplates as $opt)
+                                            <option value="{{ $opt['value'] }}">{{ $opt['label'] }}</option>
                                         @endforeach
                                     </select>
                                     @break
