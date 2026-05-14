@@ -89,7 +89,16 @@
 @elseif(view()->exists('frontend.sections.' . $section->section_type))
     @php
         try {
-            echo view('frontend.sections.' . $section->section_type, ['section' => $section])->render();
+            // Legacy view path — historically only received \$section and re-read
+            // \$section->content itself, bypassing TokenResolver. We now pass the
+            // RESOLVED \$sectionContent/\$sectionSettings as well so legacy views
+            // that already read from those vars get tokens substituted. Views that
+            // still re-read \$section->content directly will need a small update.
+            echo view('frontend.sections.' . $section->section_type, [
+                'section'  => $section,
+                'content'  => $sectionContent,
+                'settings' => $sectionSettings,
+            ])->render();
         } catch (\Throwable $e) {
             if (config('app.debug')) {
                 echo '<div style="background:#fee;border:1px solid #c00;color:#c00;padding:12px;margin:8px;border-radius:4px;">'

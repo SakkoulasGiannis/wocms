@@ -1,7 +1,11 @@
 {{-- Features Grid Section --}}
 @php
-    $content = is_array($section->content) ? $section->content : json_decode($section->content, true);
-    $settings = is_array($section->settings) ? $section->settings : json_decode($section->settings, true);
+    if (! isset($content) || ! is_array($content)) {
+        $content = is_array($section->content) ? $section->content : (json_decode($section->content, true) ?: []);
+    }
+    if (! isset($settings) || ! is_array($settings)) {
+        $settings = is_array($section->settings) ? $section->settings : (json_decode($section->settings, true) ?: []);
+    }
     $columns = $settings['columns'] ?? 3;
     $layout = $settings['layout'] ?? 'card';
 @endphp

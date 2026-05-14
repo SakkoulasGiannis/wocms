@@ -1,11 +1,12 @@
-{{-- GrapeJS Section --}}
-@if(is_array($section->content))
-    @if(isset($section->content['html']))
-        {!! $section->content['html'] !!}
-    @endif
-@else
-    {!! $section->content !!}
-@endif
+{{-- GrapeJS Section — prefers token-resolved $content from render-section --}}
+@php
+    if (isset($content) && is_array($content)) {
+        $html = $content['html'] ?? '';
+    } else {
+        $html = is_array($section->content) ? ($section->content['html'] ?? '') : $section->content;
+    }
+@endphp
+{!! $html !!}
 
 {{-- Section-specific CSS --}}
 @if($section->css)

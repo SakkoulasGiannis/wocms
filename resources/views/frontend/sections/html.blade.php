@@ -1,6 +1,9 @@
-{{-- Raw HTML Section --}}
-@if(is_array($section->content) && isset($section->content['html']))
-    {!! $section->content['html'] !!}
-@else
-    {!! $section->content !!}
-@endif
+{{-- Raw HTML Section — prefers token-resolved $content from render-section --}}
+@php
+    if (isset($content) && is_array($content)) {
+        $html = $content['html'] ?? '';
+    } else {
+        $html = is_array($section->content) ? ($section->content['html'] ?? '') : $section->content;
+    }
+@endphp
+{!! $html !!}
