@@ -40,10 +40,14 @@
         $childSections = $section->children()->with(['sectionTemplate', 'childrenRecursive.sectionTemplate'])->orderBy('order')->get();
     }
     if ($childSections->isNotEmpty()) {
+        // Resolve the current entry once so nested children see it too.
+        $__childEntry = $entry ?? $content ?? null;
         foreach ($childSections as $childSection) {
             $childrenHtml .= view('pagebuilder::partials.render-section', [
                 'section' => $childSection,
                 'forceVe' => $forceVe ?? false,
+                'entry'   => $__childEntry,
+                'content' => $__childEntry,
             ])->render();
         }
     }

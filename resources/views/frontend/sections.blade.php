@@ -4,11 +4,20 @@
 
 {{-- Pre-render sections BEFORE @section to protect Blade stack --}}
 @php
+    // Propagate the current entry / content to the isolated render-section view
+    // so TokenResolver in the partial can substitute {field} placeholders.
+    $__entry = $entry ?? $content ?? null;
+
     $__sectionsHtml = '';
     if (isset($sections) && $sections->count() > 0) {
         foreach ($sections as $section) {
             try {
-                $__sectionsHtml .= view('partials.render-section', ['section' => $section, 'forceVe' => $forceVe ?? false])->render();
+                $__sectionsHtml .= view('partials.render-section', [
+                    'section' => $section,
+                    'forceVe' => $forceVe ?? false,
+                    'entry'   => $__entry,
+                    'content' => $__entry,
+                ])->render();
             } catch (\Throwable $e) {
                 if (config('app.debug')) {
                     $__sectionsHtml .= '<div style="background:#fee;border:1px solid #c00;color:#c00;padding:12px;margin:8px;border-radius:4px;">'

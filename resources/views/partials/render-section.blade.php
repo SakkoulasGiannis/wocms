@@ -8,6 +8,8 @@
         echo view('pagebuilder::partials.render-section', [
             'section' => $section,
             'forceVe' => $forceVe ?? false,
+            'entry'   => $entry ?? $content ?? null,
+            'content' => $entry ?? $content ?? null,
         ])->render();
     } catch (\Throwable $e) {
         if (config('app.debug')) {
