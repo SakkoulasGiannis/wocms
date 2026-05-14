@@ -180,6 +180,59 @@ class VisualPageEditor extends Component
         $this->sections = $query->orderBy('order')->get()->toArray();
     }
 
+    /**
+     * Whether a starter preset is available for the current template + scope.
+     * Drives the empty-state CTA shown in the editor sidebar.
+     */
+    public function getHasStarterPresetProperty(): bool
+    {
+        if ($this->sectionableType !== \App\Models\Template::class || ! $this->scope) {
+            return false;
+        }
+        $tpl = \App\Models\Template::find($this->sectionableId);
+        if (! $tpl) return false;
+        return ! empty(app(\App\Services\StarterSectionPresets::class)->presetsFor($tpl, $this->scope));
+    }
+
+    /**
+     * One-click "Use default design" — persists the starter preset's sections.
+     * Only available when current scope is empty. Idempotent: refuses to run if
+     * sections already exist (avoids accidental duplication).
+     */
+    public function applyStarterPreset(): void
+    {
+        if ($this->sectionableType !== \App\Models\Template::class || ! $this->scope) {
+            return;
+        }
+        if (! empty($this->sections)) {
+            // Don't overwrite existing work
+            session()->flash('error', 'Sections already exist — clear them first if you want to start from defaults.');
+            return;
+        }
+
+        $tpl = \App\Models\Template::find($this->sectionableId);
+        if (! $tpl) return;
+
+        $preset = app(\App\Services\StarterSectionPresets::class)->presetsFor($tpl, $this->scope);
+        if (empty($preset)) return;
+
+        \DB::transaction(function () use ($preset) {
+            foreach ($preset as $cfg) {
+                PageSection::create(array_merge($cfg, [
+                    'sectionable_type' => $this->sectionableType,
+                    'sectionable_id'   => $this->sectionableId,
+                    'scope'            => $this->scope,
+                    'is_active'        => true,
+                    'is_visible'       => true,
+                ]));
+            }
+        });
+
+        $this->loadSections();
+        $this->pushHistory();
+        session()->flash('success', 'Starter sections loaded — edit / reorder / delete as needed.');
+    }
+
     // ─── History / Undo / Redo ───────────────────────────────────────────────
 
     protected function pushHistory(): void
