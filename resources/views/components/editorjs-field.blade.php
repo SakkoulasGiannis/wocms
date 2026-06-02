@@ -56,8 +56,26 @@
     </div>
     <div id="{{ $uid }}" class="editorjs-container" style="min-height: {{ $minHeight }}; border: 1px solid #e5e7eb; border-radius: 0.5rem; background: #fff; padding: 0.5rem 0;"></div>
 
-    {{-- Toolbar: templates + media library --}}
+    {{-- Toolbar: undo/redo + templates + media library --}}
     <div class="mt-1 flex items-center gap-2">
+        <div class="inline-flex items-center rounded-md border border-slate-200 bg-white overflow-hidden">
+            <button
+                type="button"
+                @click="undo?.undo?.()"
+                title="Undo (Ctrl+Z)"
+                class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors border-r border-slate-200">
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7v6h6M3 13a9 9 0 1 0 3-7.7L3 8"/></svg>
+                Undo
+            </button>
+            <button
+                type="button"
+                @click="undo?.redo?.()"
+                title="Redo (Ctrl+Y / Ctrl+Shift+Z)"
+                class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 7v6h-6M21 13a9 9 0 1 1-3-7.7L21 8"/></svg>
+                Redo
+            </button>
+        </div>
         <button
             type="button"
             @click="if (editor && editor !== '_loading_') window.editorjsTemplates.openModal(editor)"
@@ -103,6 +121,38 @@
     max-width: calc(100% - 2rem) !important;
     margin: 0 0 0 2rem !important;
 }
+/* RawTool: the vendored CSS forces min-height:200px which makes a 1-line
+   HTML snippet render as a huge box. Auto-size to content instead. */
+.ce-rawtool__textarea {
+    min-height: 2.75rem !important;
+    height: auto;
+    field-sizing: content; /* Chrome 123+: grow/shrink to fit content */
+    max-height: 60vh;
+    overflow-y: auto;
+    line-height: 1.5;
+}
+/* LiveHtml block — renders pasted markup styled & editable in place. */
+.ce-livehtml { position: relative; border: 1px dashed #c7d2fe; border-radius: 8px; margin: 4px 0; }
+.ce-livehtml__bar { display: flex; justify-content: flex-end; gap: 6px; padding: 4px 6px; border-bottom: 1px dashed #e0e7ff; background: #f5f7ff; border-radius: 8px 8px 0 0; }
+.ce-livehtml__btn { font-size: 11px; font-weight: 600; color: #4f46e5; background: #fff; border: 1px solid #c7d2fe; border-radius: 4px; padding: 2px 8px; cursor: pointer; }
+.ce-livehtml__btn:hover { background: #eef2ff; }
+.ce-livehtml__content { outline: none; }
+.ce-livehtml__content:focus { outline: none; }
+.ce-livehtml__content img { cursor: pointer !important; }
+.ce-livehtml__content img:hover { outline: 2px solid #6366f1 !important; outline-offset: 2px; }
+.ce-livehtml__source { display:block; width: 100%; box-sizing: border-box; height: 55vh; min-height: 18rem; max-height: 85vh; resize: vertical; overflow: auto; white-space: pre-wrap; word-break: break-word; tab-size: 2; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; line-height: 1.55; padding: 12px; border: 0; border-radius: 0 0 8px 8px; background: #0f172a; color: #e2e8f0; }
+/* Style mode — click any element to edit its classes */
+.ce-livehtml__btn--active { background: #4f46e5 !important; color: #fff !important; border-color: #4f46e5 !important; }
+.ce-livehtml--style .ce-livehtml__content * { cursor: pointer; }
+.ce-livehtml--style .ce-livehtml__content *:hover { outline: 1px dashed #818cf8 !important; outline-offset: 1px; }
+.ce-livehtml-style-pop { position: fixed; z-index: 100001; width: 280px; background: #fff; border: 1px solid #c7d2fe; border-radius: 10px; box-shadow: 0 12px 40px rgba(15,23,42,.25); font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; overflow: hidden; }
+.ce-livehtml-style-pop__head { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; background: #f5f7ff; border-bottom: 1px solid #e0e7ff; font-size: 12px; color: #334155; }
+.ce-livehtml-style-pop__head b { color: #4f46e5; font-family: ui-monospace, monospace; }
+.ce-livehtml-style-pop__x { border: 0; background: transparent; color: #94a3b8; cursor: pointer; font-size: 13px; padding: 2px 6px; border-radius: 4px; }
+.ce-livehtml-style-pop__x:hover { background: #e2e8f0; color: #475569; }
+.ce-livehtml-style-pop__input { display:block; width: 100%; box-sizing: border-box; min-height: 72px; resize: vertical; border: 0; outline: none; padding: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.5; color: #0f172a; }
+.ce-livehtml-style-pop__imgbtn { display: block; width: 100%; box-sizing: border-box; border: 0; border-top: 1px solid #e0e7ff; background: #eef2ff; color: #4f46e5; font-size: 12px; font-weight: 600; padding: 8px; cursor: pointer; }
+.ce-livehtml-style-pop__imgbtn:hover { background: #e0e7ff; }
 .editorjs-container .codex-editor__redactor {
     padding-bottom: 100px;
     padding-right: 4rem;
@@ -199,6 +249,67 @@ body.editorjs-fullscreen-mode .editorjs-container .codex-editor__redactor {
 /* Same for the reorder arrows — outer arrows hide when hovering inner blocks */
 .editorjs-container .codex-editor:has(.codex-editor:hover) > .codex-editor__redactor > .ce-block > .ej-reorder-bar {
     display: none !important;
+}
+
+/* ── Block settings / tunes popover — must sit ABOVE nested editor content ──
+   The Container tool's per-breakpoint width panel (Mobile/Tablet/Desktop) was
+   getting covered by nested column content and clipped off the right edge,
+   so it couldn't be clicked. Fixes:
+   - high z-index so nested editors never paint over it
+   - capped height + vertical scroll (no more clipped tall panels)
+   - no horizontal scrollbar; keep the panel within a sane width
+   - never clipped by an ancestor's overflow                               */
+.editorjs-container .ce-popover,
+.editorjs-container .ce-popover__container,
+.editorjs-container .ce-settings,
+.editorjs-container .ce-inline-toolbar,
+.editorjs-container .ce-conversion-toolbar,
+.editorjs-container .ce-toolbar__actions {
+    z-index: 1200 !important;
+}
+/* Give the popover a DEFINITE comfortable width (not just max-width — a bare
+   max-width lets EditorJS size it narrow, then the 280px width panel overflows
+   and a horizontal scrollbar appears). Forbid horizontal scrolling on the
+   popover AND every inner wrapper so the Container width panel is never
+   clipped. Selectors are unscoped because EditorJS may render the popover
+   outside .editorjs-container — the ce- prefix is specific enough. */
+.ce-popover,
+.ce-popover__container {
+    width: 320px !important;
+    max-width: calc(100vw - 24px) !important;
+    max-height: 72vh !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+}
+.ce-popover__items,
+.ce-popover-item-html,
+.ce-popover__custom-content,
+.ce-settings,
+.ce-settings__default-zone,
+.ce-settings__plugin-zone {
+    overflow-x: hidden !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+}
+/* Nested editors must not create stacking contexts that trap the popover
+   above, nor paint over it. Keep their content below the toolbars. */
+.editorjs-container .ctr-tool-wrap .codex-editor {
+    z-index: 0;
+}
+/* The settings panel content (renderSettings output) and its controls fill
+   the popover width — never force a min-width that overflows. */
+.ce-popover [data-ctr-settings] {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+}
+.ce-popover [data-ctr-settings] select,
+.ce-popover [data-ctr-settings] input {
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
 }
 .editorjs-container .cdx-settings-button:hover,
 .editorjs-container .cdx-settings-button--active {
@@ -332,10 +443,15 @@ body.editorjs-fullscreen-mode .editorjs-container .codex-editor__redactor {
         });
     }
 
+    // Cache-bust the vendored EditorJS bundles so Cloudflare / browser caches
+    // never serve a stale version after we patch one (e.g. the code.js
+    // [object HTMLPreElement] paste bug). Bump this when any vendor/editorjs/*
+    // file changes.
+    const VENDOR_V = '2026052702';
     async function loadAll() {
         if (window._editorjsLoaded) return;
         for (const f of FILES) {
-            try { await loadScript(BASE + '/' + f); }
+            try { await loadScript(BASE + '/' + f + '?v=' + VENDOR_V); }
             catch (e) { console.warn('[EditorJS loader]', e.message); }
         }
         window._editorjsLoaded = true;
@@ -363,6 +479,110 @@ body.editorjs-fullscreen-mode .editorjs-container .codex-editor__redactor {
     } else {
         startWhenNeeded();
     }
+})();
+</script>
+
+<script>
+/* ─── Keep EditorJS popovers inside the viewport ──────────────────────────
+   The block-settings / tunes popover (incl. the Container tool's
+   Mobile/Tablet/Desktop width panel) opens at the block's position. For a
+   block in a nested column near the right edge, the popover extends past the
+   viewport and gets clipped — its controls become unreachable.
+
+   Fix: when a popover becomes visible, measure it and nudge it back inside
+   the viewport with a transform translate. Pure transform — does not fight
+   EditorJS's own absolute top/left positioning, just shifts the painted box.
+
+   Idempotent: the nudge is computed additively from the *current* transform,
+   so once the popover sits inside the viewport the next pass writes nothing
+   (no observer feedback loop). The stale transform is cleared only on a
+   fresh closed→open transition, tracked per-element via a WeakMap. */
+(function keepEditorPopoversInView() {
+    if (window._ejPopoverFitInstalled) return;
+    window._ejPopoverFitInstalled = true;
+
+    var MARGIN = 8;
+    var SELECTOR = '.ce-popover, .ce-popover__container, .ce-settings, .ce-conversion-toolbar';
+    var openState = new WeakMap();
+
+    /* While a popover is open, force every clipping ancestor (overflow other
+       than visible) to overflow:visible so the popover — which is
+       position:absolute and otherwise trapped inside a narrow nested
+       column/editor — can paint fully. Original values are saved on the
+       element and restored when the popover closes. */
+    function unclip(popover) {
+        var touched = [];
+        var node = popover.parentElement;
+        while (node && node !== document.body && node !== document.documentElement) {
+            var cs = window.getComputedStyle(node);
+            if (cs.overflow !== 'visible' || cs.overflowX !== 'visible' || cs.overflowY !== 'visible') {
+                touched.push({
+                    el: node,
+                    o: node.style.overflow, ox: node.style.overflowX, oy: node.style.overflowY,
+                });
+                node.style.setProperty('overflow', 'visible', 'important');
+            }
+            node = node.parentElement;
+        }
+        popover._ejUnclipped = touched;
+    }
+    function reclip(popover) {
+        (popover._ejUnclipped || []).forEach(function (t) {
+            t.el.style.overflow = t.o;
+            t.el.style.overflowX = t.ox;
+            t.el.style.overflowY = t.oy;
+        });
+        popover._ejUnclipped = null;
+    }
+
+    function fit(el) {
+        if (!el || !el.isConnected) return;
+        var isOpen = el.offsetParent !== null;
+        var wasOpen = openState.get(el) === true;
+        openState.set(el, isOpen);
+
+        if (!isOpen) {
+            if (wasOpen) { reclip(el); el.style.transform = ''; }
+            return;
+        }
+        // Fresh open → un-clip ancestors and drop any stale transform.
+        if (!wasOpen) {
+            el.style.transform = '';
+            unclip(el);
+        }
+
+        var r = el.getBoundingClientRect();
+        if (r.width === 0 || r.height === 0) return;
+
+        var vw = window.innerWidth, vh = window.innerHeight, dx = 0, dy = 0;
+        if (r.right > vw - MARGIN) dx = (vw - MARGIN) - r.right;
+        if (r.left + dx < MARGIN) dx += MARGIN - (r.left + dx);
+        if (r.bottom > vh - MARGIN) dy = (vh - MARGIN) - r.bottom;
+        if (r.top + dy < MARGIN) dy += MARGIN - (r.top + dy);
+
+        // Add the delta to whatever transform is already applied — converges.
+        var m = (el.style.transform || '').match(/translate\(\s*(-?[0-9.]+)px\s*,\s*(-?[0-9.]+)px\s*\)/);
+        var cx = m ? parseFloat(m[1]) : 0;
+        var cy = m ? parseFloat(m[2]) : 0;
+        var nx = cx + dx, ny = cy + dy;
+        if (Math.abs(nx - cx) > 0.5 || Math.abs(ny - cy) > 0.5) {
+            el.style.transform = 'translate(' + Math.round(nx) + 'px,' + Math.round(ny) + 'px)';
+        }
+    }
+
+    function fitAllVisible() {
+        document.querySelectorAll(SELECTOR).forEach(function (el) {
+            requestAnimationFrame(function () { fit(el); });
+        });
+    }
+
+    var mo = new MutationObserver(function () { fitAllVisible(); });
+    mo.observe(document.body, {
+        childList: true, subtree: true,
+        attributes: true, attributeFilter: ['class', 'style'],
+    });
+    window.addEventListener('resize', fitAllVisible, { passive: true });
+    window.addEventListener('scroll', fitAllVisible, { passive: true, capture: true });
 })();
 </script>
 
@@ -1181,6 +1401,248 @@ window.attachReorderArrows = function (holderEl, editor) {
     holderEl._reorderObserver = obs;
 };
 
+/* ─── LiveHtml block: renders pasted HTML live (styled) and edits it IN PLACE.
+   Text is contentEditable; clicking an <img> opens the media picker to swap it;
+   a "</> Source" toggle exposes the raw HTML for class/structure tweaks.
+   This is what makes a pasted Tailwind component behave like WYSIWYG. ─── */
+window.LiveHtmlTool = class LiveHtmlTool {
+    static get toolbox() {
+        return { title: 'HTML (live)', icon: '<svg width="17" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>' };
+    }
+    static get sanitize() { return { html: true }; }
+    static get enableLineBreaks() { return true; }
+
+    constructor({ data, api }) {
+        this.api = api;
+        this.data = { html: (data && typeof data.html === 'string') ? data.html : '' };
+        this.wrapper = null;
+        this.content = null;
+        this.textarea = null;
+        this.sourceMode = false;
+        this.styleMode = false;
+    }
+
+    render() {
+        this.wrapper = document.createElement('div');
+        this.wrapper.className = 'ce-livehtml';
+
+        // Toolbar (Style mode + Source)
+        const bar = document.createElement('div');
+        bar.className = 'ce-livehtml__bar';
+        bar.contentEditable = 'false';
+
+        this.styleBtn = document.createElement('button');
+        this.styleBtn.type = 'button';
+        this.styleBtn.className = 'ce-livehtml__btn';
+        this.styleBtn.textContent = '🎨 Style';
+        this.styleBtn.title = 'Style mode — click any element to edit its classes';
+        this.styleBtn.addEventListener('click', (e) => { e.preventDefault(); this.toggleStyleMode(); });
+        bar.appendChild(this.styleBtn);
+
+        const srcBtn = document.createElement('button');
+        srcBtn.type = 'button';
+        srcBtn.className = 'ce-livehtml__btn';
+        srcBtn.textContent = '</> Source';
+        srcBtn.addEventListener('click', (e) => { e.preventDefault(); this.openSourceModal(); });
+        bar.appendChild(srcBtn);
+        this.wrapper.appendChild(bar);
+
+        // Rendered, editable content
+        this.content = document.createElement('div');
+        this.content.className = 'ce-livehtml__content';
+        this.content.contentEditable = 'true';
+        this.content.innerHTML = this.data.html;
+        // Keep edits in sync
+        this.content.addEventListener('input', () => {
+            clearTimeout(this._t);
+            this._t = setTimeout(() => { this.data.html = this.content.innerHTML; }, 250);
+        });
+        // Don't let EditorJS hijack keys (Enter splitting the block etc.) — keep
+        // all editing local to this block.
+        this.content.addEventListener('keydown', (e) => { e.stopPropagation(); });
+        // Click behaviour:
+        //   • Style mode ON  → clicking ANY element opens its class editor.
+        //   • Style mode OFF → clicking an image opens the media picker; text edits inline.
+        this.content.addEventListener('click', (e) => {
+            if (this.styleMode) {
+                const el = e.target;
+                if (el && el !== this.content) { e.preventDefault(); e.stopPropagation(); this.openStylePopup(el); }
+                return;
+            }
+            const img = e.target.closest && e.target.closest('img');
+            if (img) { e.preventDefault(); e.stopPropagation(); this.replaceImage(img); }
+        });
+        this.wrapper.appendChild(this.content);
+
+        return this.wrapper;
+    }
+
+    toggleStyleMode() {
+        this.styleMode = !this.styleMode;
+        this.styleBtn.classList.toggle('ce-livehtml__btn--active', this.styleMode);
+        this.wrapper.classList.toggle('ce-livehtml--style', this.styleMode);
+        // In style mode disable text editing so clicks select elements instead.
+        this.content.contentEditable = this.styleMode ? 'false' : 'true';
+        if (!this.styleMode) { this._closeStylePopup(); }
+    }
+
+    _closeStylePopup() {
+        // Remove the outside-click listener FIRST — otherwise stale listeners from
+        // previous popups accumulate and close the next popup when you click inside it.
+        if (this._styleOnDoc) { document.removeEventListener('mousedown', this._styleOnDoc, true); this._styleOnDoc = null; }
+        // Persist the final class edits once, on close (we edit silently while open
+        // to avoid re-renders that would detach the element being styled).
+        if (this._styleDirty) {
+            this._styleDirty = false;
+            this.data.html = this.content.innerHTML;
+            try { this.content.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
+        }
+        if (this._stylePop) { this._stylePop.remove(); this._stylePop = null; }
+        if (this._styleSel) { try { this._styleSel.style.outline = ''; this._styleSel.style.outlineOffset = ''; } catch (e) {} this._styleSel = null; }
+    }
+
+    /** Floating class editor for a single element inside the live HTML.
+     *  Uses INLINE styles (not a CSS class) so it always renders correctly even
+     *  if the stylesheet isn't loaded in this context. */
+    openStylePopup(el) {
+        this._closeStylePopup();
+        this._styleSel = el;
+        el.style.outline = '2px solid #6366f1';
+        el.style.outlineOffset = '1px';
+
+        const pop = document.createElement('div');
+        this._stylePop = pop;
+        pop.className = 'ce-livehtml-style-pop';
+        pop.style.cssText = 'position:fixed;z-index:100001;width:300px;background:#fff;border:1px solid #c7d2fe;border-radius:10px;box-shadow:0 12px 40px rgba(15,23,42,.28);font-family:ui-sans-serif,system-ui,-apple-system,sans-serif;overflow:hidden';
+        const tag = el.tagName.toLowerCase();
+
+        const head = document.createElement('div');
+        head.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:#f5f7ff;border-bottom:1px solid #e0e7ff;font-size:12px;color:#334155';
+        head.innerHTML = '<span style="font-family:ui-monospace,monospace;color:#4f46e5;font-weight:700">&lt;' + tag + '&gt;</span> <span style="margin-right:auto;margin-left:6px;color:#64748b">classes</span>';
+        const x = document.createElement('button'); x.type = 'button'; x.textContent = '✕';
+        x.style.cssText = 'border:0;background:transparent;color:#94a3b8;cursor:pointer;font-size:13px;padding:2px 6px;border-radius:4px';
+        x.addEventListener('click', () => this._closeStylePopup());
+        head.appendChild(x);
+        pop.appendChild(head);
+
+        const input = document.createElement('textarea');
+        input.value = el.getAttribute('class') || '';
+        input.spellcheck = false;
+        input.placeholder = 'π.χ. text-red-500 text-2xl font-bold';
+        input.style.cssText = 'display:block;width:100%;box-sizing:border-box;min-height:90px;resize:vertical;border:0;outline:none;padding:10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.5;color:#0f172a';
+        input.addEventListener('input', () => {
+            const v = input.value.trim();
+            if (v) { el.setAttribute('class', v); } else { el.removeAttribute('class'); }
+            // Update data silently (no dispatchEvent → no Livewire re-render that
+            // would detach `el`). Final sync happens once in _closeStylePopup.
+            this.data.html = this.content.innerHTML;
+            this._styleDirty = true;
+        });
+        input.addEventListener('keydown', (e) => e.stopPropagation());
+        pop.appendChild(input);
+
+        // Image-specific: quick "Change image" button
+        if (tag === 'img') {
+            const ib = document.createElement('button'); ib.type = 'button'; ib.textContent = '🖼 Change image';
+            ib.style.cssText = 'display:block;width:100%;box-sizing:border-box;border:0;border-top:1px solid #e0e7ff;background:#eef2ff;color:#4f46e5;font-size:12px;font-weight:600;padding:8px;cursor:pointer';
+            ib.addEventListener('click', () => { this.replaceImage(el); });
+            pop.appendChild(ib);
+        }
+
+        document.body.appendChild(pop);
+        // Position near the element, clamped to viewport
+        const r = el.getBoundingClientRect();
+        const pw = 300, ph = pop.offsetHeight || 150;
+        let top = r.bottom + 8, left = r.left;
+        if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+        if (left < 8) left = 8;
+        if (top + ph > window.innerHeight - 8) top = Math.max(8, r.top - ph - 8);
+        pop.style.top = top + 'px';
+        pop.style.left = left + 'px';
+        setTimeout(() => input.focus(), 30);
+
+        // Close when clicking outside the popup (but not on the selected element).
+        // Stored on the instance so _closeStylePopup can remove it (prevents stale
+        // listeners that would close the next popup when you click inside it).
+        const onDoc = (ev) => {
+            if (pop.contains(ev.target)) return;                                // click inside popup
+            if (this.styleMode && this.content.contains(ev.target)) return;     // selecting another element
+            this._closeStylePopup();
+        };
+        this._styleOnDoc = onDoc;
+        setTimeout(() => document.addEventListener('mousedown', onDoc, true), 0);
+    }
+
+    /**
+     * Edit the raw HTML in a WIDE centered modal (the inline editor panel is a
+     * narrow sidebar, so an inline textarea was unusable). Opens full-width,
+     * applies on "Εφαρμογή".
+     */
+    openSourceModal() {
+        this.data.html = this.content.innerHTML; // start from latest rendered
+        const overlay = document.createElement('div');
+        overlay.className = 'ce-livehtml-source-modal';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(15,23,42,.6);display:flex;align-items:center;justify-content:center;padding:24px';
+
+        const modal = document.createElement('div');
+        modal.style.cssText = 'background:#0f172a;border-radius:12px;width:100%;max-width:1100px;height:82vh;display:flex;flex-direction:column;box-shadow:0 24px 70px rgba(0,0,0,.45);overflow:hidden';
+
+        const hdr = document.createElement('div');
+        hdr.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #1e293b;color:#e2e8f0;font:600 13px ui-sans-serif,system-ui,-apple-system,sans-serif';
+        const title = document.createElement('span'); title.textContent = '</> HTML Source';
+        const btns = document.createElement('div'); btns.style.cssText = 'display:flex;gap:8px';
+        const cancel = document.createElement('button'); cancel.type = 'button'; cancel.textContent = 'Άκυρο';
+        cancel.style.cssText = 'padding:6px 14px;border-radius:6px;border:1px solid #334155;background:transparent;color:#cbd5e1;cursor:pointer;font-size:13px';
+        const apply = document.createElement('button'); apply.type = 'button'; apply.textContent = 'Εφαρμογή';
+        apply.style.cssText = 'padding:6px 16px;border-radius:6px;border:0;background:#4f46e5;color:#fff;cursor:pointer;font-size:13px;font-weight:600';
+        btns.appendChild(cancel); btns.appendChild(apply);
+        hdr.appendChild(title); hdr.appendChild(btns);
+        modal.appendChild(hdr);
+
+        const ta = document.createElement('textarea');
+        ta.value = this.data.html;
+        ta.spellcheck = false;
+        ta.style.cssText = 'flex:1;width:100%;box-sizing:border-box;resize:none;border:0;outline:none;padding:16px;background:#0f172a;color:#e2e8f0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;line-height:1.6;white-space:pre-wrap;word-break:break-word;overflow:auto;tab-size:2';
+        ta.addEventListener('keydown', (e) => e.stopPropagation());
+        modal.appendChild(ta);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+        setTimeout(() => ta.focus(), 50);
+
+        const close = () => overlay.remove();
+        cancel.addEventListener('click', close);
+        overlay.addEventListener('mousedown', (e) => { if (e.target === overlay) close(); });
+        apply.addEventListener('click', () => {
+            this.content.innerHTML = ta.value;
+            this.data.html = ta.value;
+            try { this.content.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
+            close();
+        });
+    }
+
+    replaceImage(img) {
+        const apply = (url) => {
+            if (!url) return;
+            img.setAttribute('src', url);
+            this.data.html = this.content.innerHTML;
+            // Trigger the editor's onChange (like typing) so the swap auto-saves.
+            // Programmatic src changes don't fire 'input', so dispatch it manually.
+            try { this.content.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
+        };
+        const mediaUrl = window._editorjsField_mediaUrl;
+        if (typeof window.editorjsMediaPicker === 'function' && mediaUrl) {
+            window.editorjsMediaPicker({ url: mediaUrl, onPick: ({ url }) => apply(url) });
+        } else {
+            const url = prompt('Νέα διεύθυνση εικόνας (URL):', img.getAttribute('src') || '');
+            if (url !== null) { apply(url); }
+        }
+    }
+
+    save() {
+        return { html: this.content ? this.content.innerHTML : this.data.html };
+    }
+};
+
 /* ─── Container block: wraps content with responsive max-width + custom classes ─── */
 window.ContainerTool = class ContainerTool {
     static get toolbox() {
@@ -1226,7 +1688,9 @@ window.ContainerTool = class ContainerTool {
 
     renderSettings() {
         const wrapper = document.createElement('div');
-        wrapper.style.cssText = 'padding:8px;display:flex;flex-direction:column;gap:10px;width:280px';
+        wrapper.setAttribute('data-ctr-settings', '');
+        // Responsive width: fill the popover, never force horizontal overflow.
+        wrapper.style.cssText = 'padding:8px;display:flex;flex-direction:column;gap:10px;width:100%;min-width:0;max-width:100%;box-sizing:border-box';
 
         const makeSelect = (label, key) => {
             const lab = document.createElement('label');
@@ -1381,12 +1845,21 @@ window.ContainerTool = class ContainerTool {
                 ...(_Marker ? { marker: _Marker } : {}),
                 ...(_InlineCode ? { inlineCode: _InlineCode } : {}),
                 ...(_Underline ? { underline: _Underline } : {}),
+                // Match the outer editor's block set so pasted HTML parsed into a
+                // container (raw / code / delimiter / table / nested container)
+                // renders editable inside the container too.
+                ...(typeof CodeTool   !== 'undefined' ? { code: CodeTool } : {}),
+                ...(typeof Delimiter  !== 'undefined' ? { delimiter: Delimiter } : {}),
+                ...(typeof RawTool    !== 'undefined' ? { raw: RawTool } : {}),
+                ...(typeof Table      !== 'undefined' ? { table: { class: Table, inlineToolbar: true } } : {}),
                 ...(window.ColorTool ? { color: { class: window.ColorTool } } : {}),
                 ...(window.InlineAlignmentTool ? { inlineAlignment: { class: window.InlineAlignmentTool } } : {}),
                 ...(window.BlockClassesTune ? { blockClasses: window.BlockClassesTune } : {}),
                 ...(window.TextAlignmentTune ? { textAlignment: window.TextAlignmentTune } : {}),
                 ...(window.ImageSizeTune ? { imageSize: window.ImageSizeTune } : {}),
                 ...(window.ColumnsTool ? { columns: { class: window.ColumnsTool } } : {}),
+                ...(window.ContainerTool ? { container: { class: window.ContainerTool } } : {}),
+                ...(window.LiveHtmlTool ? { liveHtml: { class: window.LiveHtmlTool } } : {}),
                 ...(window.SpaceTool   ? { space:   { class: window.SpaceTool   } } : {}),
                 // Match outer editor: register LinkTool inside the container too if loaded
                 ...(typeof LinkTool !== 'undefined' ? { linkTool: { class: LinkTool, config: { endpoint: (window._editorjsField_fetchUrl || '') } } } : {}),
@@ -1961,6 +2434,16 @@ if (!window._mbAlignKeyboardInited) {
             });
             el.appendChild(b);
         });
+        // Link button — wraps the selected text in an <a href> (or removes it).
+        const linkBtn = document.createElement('button');
+        linkBtn.type = 'button'; linkBtn.title = 'Add / edit link';
+        linkBtn.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:34px;height:30px;border:none;border-radius:5px;cursor:pointer;background:transparent;color:#fff;transition:background .12s;margin-left:2px';
+        linkBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
+        linkBtn.addEventListener('mouseenter', () => linkBtn.style.background = 'rgba(99,102,241,0.5)');
+        linkBtn.addEventListener('mouseleave', () => linkBtn.style.background = 'transparent');
+        linkBtn.addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); applyLinkToSelection(); });
+        el.appendChild(linkBtn);
+
         const clear = document.createElement('button');
         clear.type = 'button'; clear.title = 'Clear alignment';
         clear.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:34px;height:30px;border:none;border-radius:5px;cursor:pointer;background:transparent;color:#fca5a5;font-size:18px;font-weight:700;margin-left:2px';
@@ -1970,6 +2453,64 @@ if (!window._mbAlignKeyboardInited) {
         clear.addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); applyToCurrentSelection(null); });
         el.appendChild(clear);
         return el;
+    }
+
+    /** Wrap the current text selection in an <a href>. Uses an in-page input popup
+     *  (NOT window.prompt — prompt blurs the window, which collapsed the selection
+     *  so the link never applied AND closed the fullscreen editor). */
+    function applyLinkToSelection() {
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount || sel.isCollapsed) { return; }
+        const range = sel.getRangeAt(0).cloneRange();
+        const host = (range.commonAncestorContainer.nodeType === 1 ? range.commonAncestorContainer : range.commonAncestorContainer.parentElement);
+        const ce = host && host.closest ? host.closest('[contenteditable=""],[contenteditable=true]') : null;
+        const anchorEl = (sel.anchorNode && (sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement));
+        const existing = anchorEl && anchorEl.closest ? anchorEl.closest('a') : null;
+
+        // Remove any prior link popup
+        document.querySelectorAll('.mb-link-pop').forEach(n => n.remove());
+        const parent = (document.querySelector('.editorjs-fullscreen-mode') || document.body);
+        const pop = document.createElement('div');
+        pop.className = 'mb-link-pop';
+        pop.style.cssText = 'position:fixed;z-index:2147483647;background:#111827;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.4);padding:6px;display:flex;gap:6px;align-items:center';
+        pop.addEventListener('mousedown', (e) => e.stopPropagation());
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = existing ? (existing.getAttribute('href') || '') : '';
+        input.placeholder = 'https://… (κενό = αφαίρεση)';
+        input.style.cssText = 'width:280px;padding:6px 9px;border:1px solid #374151;border-radius:5px;background:#1f2937;color:#fff;font-size:13px;outline:none';
+        const ok = document.createElement('button');
+        ok.type = 'button'; ok.textContent = 'OK';
+        ok.style.cssText = 'padding:6px 14px;border:0;border-radius:5px;background:#4f46e5;color:#fff;font-size:13px;font-weight:600;cursor:pointer';
+        pop.appendChild(input); pop.appendChild(ok);
+
+        // Position under the alignment bar (or selection rect)
+        const r = range.getBoundingClientRect();
+        let top = (bar && bar.getBoundingClientRect().height ? bar.getBoundingClientRect().bottom + 6 : r.bottom + 8);
+        let left = r.left;
+        if (left + 360 > window.innerWidth - 8) left = window.innerWidth - 360 - 8;
+        if (left < 8) left = 8;
+        pop.style.top = Math.max(8, top) + 'px';
+        pop.style.left = left + 'px';
+        parent.appendChild(pop);
+        // Hide the alignment bar while the link input is open
+        if (bar) bar.style.display = 'none';
+        setTimeout(() => input.focus(), 30);
+
+        const apply = () => {
+            const url = input.value.trim();
+            try { if (ce) ce.focus(); sel.removeAllRanges(); sel.addRange(range); } catch (e) {}
+            if (url === '') { document.execCommand('unlink'); }
+            else { document.execCommand('createLink', false, url); }
+            if (ce) { try { ce.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {} }
+            pop.remove();
+        };
+        ok.addEventListener('click', apply);
+        input.addEventListener('keydown', (e) => {
+            e.stopPropagation();
+            if (e.key === 'Enter') { e.preventDefault(); apply(); }
+            if (e.key === 'Escape') { e.preventDefault(); pop.remove(); }
+        });
     }
 
     function ensureBar() {
@@ -2512,9 +3053,187 @@ window.ColumnsTool = class ColumnsTool {
     }
 }
 
+// ----------------------------------------------------------------------
+// Reusable HTML → EditorJS blocks parser (shared with visual-page-editor).
+// Defined UNCONDITIONALLY (no `typeof ... === undefined` guard) so the latest
+// parser always wins, even across Livewire wire:navigate transitions that keep
+// `window` alive — no full page reload needed after editing this file.
+// ----------------------------------------------------------------------
+window._veHtmlToBlocks = function (html) {
+        if (typeof html !== 'string' || html.length === 0) return { blocks: [] };
+
+        // CLEAN-NATIVE mode: every element becomes a real EditorJS primitive block
+        // (image→image, h1-6→header, p→paragraph, ul/ol→list, …). Tailwind/CSS
+        // classes are intentionally DROPPED so blocks are natively editable.
+        // Layout wrappers (div/section/…) are flattened. Decorative svg/script/
+        // style are stripped.
+        const STRUCTURAL = ['section', 'div', 'article', 'main', 'header', 'footer', 'aside', 'nav', 'figure'];
+
+        const readAlignment = (el) => {
+            const ta = (el.style && el.style.textAlign) ? el.style.textAlign.toLowerCase() : '';
+            return ['left', 'center', 'right', 'justify'].includes(ta) ? ta : null;
+        };
+        const wrapTune = (block, align) => {
+            if (align) block.tunes = { textAlignment: { alignment: align } };
+            return block;
+        };
+        const cleanInner = (el) => {
+            const c = el.cloneNode(true);
+            c.querySelectorAll('svg,script,style,noscript').forEach(n => n.remove());
+            return c.innerHTML.trim();
+        };
+
+        function parseNodes(nodeList) {
+            const out = [];
+            Array.from(nodeList).forEach(node => {
+                if (node.nodeType !== Node.ELEMENT_NODE) {
+                    if (node.textContent && node.textContent.trim()) {
+                        out.push({ type: 'paragraph', data: { text: node.textContent.trim() } });
+                    }
+                    return;
+                }
+                const tag = node.tagName.toLowerCase();
+                if (['script', 'style', 'svg', 'noscript', 'link', 'meta', 'head'].includes(tag)) return;
+
+                const align = readAlignment(node);
+                const elementChildren = Array.from(node.children);
+
+                if (tag === 'img') {
+                    out.push({ type: 'image', data: { file: { url: node.getAttribute('src') || '' }, caption: node.getAttribute('alt') || '', withBorder: false, withBackground: false, stretched: false } });
+                    return;
+                }
+                if (tag === 'figure') {
+                    const fImg = node.querySelector('img');
+                    if (fImg) {
+                        const fCap = node.querySelector('figcaption');
+                        out.push({ type: 'image', data: { file: { url: fImg.getAttribute('src') || '' }, caption: (fCap ? fCap.textContent.trim() : (fImg.getAttribute('alt') || '')), withBorder: false, withBackground: false, stretched: false } });
+                    } else {
+                        parseNodes(node.childNodes).forEach(b => out.push(b));
+                    }
+                    return;
+                }
+                if (/^h[1-6]$/.test(tag)) {
+                    const t = cleanInner(node);
+                    if (t) out.push(wrapTune({ type: 'header', data: { text: t, level: parseInt(tag[1]) } }, align));
+                    return;
+                }
+                if (tag === 'ul' || tag === 'ol') {
+                    const items = Array.from(node.querySelectorAll(':scope > li')).map(li => ({ content: cleanInner(li), items: [] })).filter(it => it.content);
+                    if (items.length) out.push(wrapTune({ type: 'list', data: { style: tag === 'ul' ? 'unordered' : 'ordered', items } }, align));
+                    return;
+                }
+                if (tag === 'blockquote') {
+                    const t = cleanInner(node);
+                    if (t) out.push(wrapTune({ type: 'quote', data: { text: t, caption: '', alignment: 'left' } }, align));
+                    return;
+                }
+                if (tag === 'pre') {
+                    const codeEl = node.querySelector('code') || node;
+                    out.push({ type: 'code', data: { code: codeEl.textContent || '' } });
+                    return;
+                }
+                if (tag === 'hr') { out.push({ type: 'delimiter', data: {} }); return; }
+                if (tag === 'table') {
+                    const rows = Array.from(node.querySelectorAll('tr')).map(tr => Array.from(tr.querySelectorAll('th,td')).map(c => cleanInner(c)));
+                    if (rows.length) out.push({ type: 'table', data: { withHeadings: !!node.querySelector('th'), content: rows } });
+                    return;
+                }
+                if (tag === 'a') {
+                    // Standalone link / button → paragraph that keeps the link (editable)
+                    const t = node.innerHTML.trim();
+                    const href = node.getAttribute('href') || '#';
+                    if (t) out.push({ type: 'paragraph', data: { text: '<a href="' + href + '">' + t + '</a>' } });
+                    return;
+                }
+
+                // Layout wrappers + generic containers: if they hold element children,
+                // flatten (drop the wrapper + its classes). Otherwise treat inline
+                // text content as a paragraph.
+                if (elementChildren.length) {
+                    parseNodes(node.childNodes).forEach(b => out.push(b));
+                } else {
+                    const t = cleanInner(node);
+                    if (t) out.push(wrapTune({ type: 'paragraph', data: { text: t } }, align));
+                }
+            });
+            return out;
+        }
+
+        let blocks = [];
+        try {
+            const tmp = document.createElement('div');
+            tmp.innerHTML = html;
+            blocks = parseNodes(tmp.childNodes);
+        } catch (e) { /* fall through */ }
+        if (!blocks.length) {
+            const tmp2 = document.createElement('div');
+            tmp2.innerHTML = html;
+            const txt = (tmp2.textContent || '').trim();
+            if (txt) return { blocks: [{ type: 'paragraph', data: { text: txt } }] };
+        }
+        return { blocks };
+};
+
+// Defined unconditionally (see note above) so it refreshes across wire:navigate.
+window._veLooksLikeHtml = function (str) {
+        if (typeof str !== 'string') return false;
+        const trimmed = str.trim();
+        if (trimmed.length < 4) return false;
+        if (trimmed[0] !== '<') return false;
+        return /<\/?[a-z][\s\S]*?>/i.test(trimmed);
+};
+
+// Click-to-replace for native image blocks: clicking a rendered image opens the
+// media picker; on pick we swap the image by replacing the block in place
+// (editor.blocks.update doesn't re-render the ImageTool, so delete+insert).
+// Defined unconditionally so it refreshes across wire:navigate.
+window._veAttachImageReplace = function (holderEl, editor) {
+    if (!holderEl || !editor || holderEl._veImgReplaceHooked) return;
+    holderEl._veImgReplaceHooked = true;
+    holderEl.addEventListener('click', function (ev) {
+        const img = ev.target && ev.target.closest && ev.target.closest('.image-tool img, .image-tool__image-picture, .image-tool__image img');
+        if (!img) return;
+        // Locate the top-level image block whose DOM contains this img
+        let index = -1;
+        try {
+            const cnt = editor.blocks.getBlocksCount();
+            for (let i = 0; i < cnt; i++) {
+                const b = editor.blocks.getBlockByIndex(i);
+                if (b && b.name === 'image' && b.holder && b.holder.contains(img)) { index = i; break; }
+            }
+        } catch (e) { return; }
+        if (index < 0) return; // image is inside a nested editor — let that editor handle it
+        ev.preventDefault();
+        ev.stopPropagation();
+        const apply = (url) => {
+            if (!url) return;
+            try {
+                const blk = editor.blocks.getBlockByIndex(index);
+                // Visual swap directly in the DOM (the ImageTool's blocks.update does
+                // not re-render the <img> by itself). Then persist the new URL via
+                // blocks.update — a NON-structural change, so it behaves like normal
+                // typing and does NOT trigger the heavy re-render that was closing
+                // the fullscreen editor (the old delete+insert did).
+                const imgEl = (blk && blk.holder) ? blk.holder.querySelector('img') : img;
+                if (imgEl) imgEl.setAttribute('src', url);
+                if (blk) editor.blocks.update(blk.id, { file: { url: url }, caption: '', withBorder: false, withBackground: false, stretched: false });
+            } catch (e) { console.warn('[image-replace] failed:', e); }
+        };
+        const mediaUrl = window._editorjsField_mediaUrl;
+        if (typeof window.editorjsMediaPicker === 'function' && mediaUrl) {
+            window.editorjsMediaPicker({ url: mediaUrl, onPick: function (sel) { apply(sel && sel.url); } });
+        } else {
+            const u = prompt('Νέα διεύθυνση εικόνας (URL):', img.getAttribute('src') || '');
+            if (u !== null) apply(u);
+        }
+    }, true);
+};
+
 function editorjsField(config) {
     return {
         editor: null,
+        undo: null,
+        dragDrop: null,
         uid: config.uid,
         wireModel: config.wireModel,
         initialValue: config.initialValue || '',
@@ -2597,6 +3316,64 @@ function editorjsField(config) {
             if (s < 3600) return Math.floor(s / 60) + 'm ago';
             if (s < 86400) return Math.floor(s / 3600) + 'h ago';
             return Math.floor(s / 86400) + 'd ago';
+        },
+
+        /**
+         * Parse a string of HTML and insert the resulting blocks at the current
+         * caret position. Replaces the current block if it is empty (so the
+         * brand-new paragraph EditorJS auto-inserts gets overwritten on first
+         * paste into an empty editor).
+         */
+        async insertHtmlAsBlocks(html) {
+            if (!this.editor || this.editor === '_loading_' || typeof this.editor.blocks?.insert !== 'function') return false;
+            // Styled markup (has class=/style=) → ONE "HTML (live)" block that renders
+            // the full design (backgrounds, colors, layout) and is editable in place:
+            // click text to edit, click image → media picker. Plain markup → clean
+            // native blocks via the parser.
+            let parsed;
+            if (window.LiveHtmlTool && /\b(class|style)\s*=/.test(html)) {
+                parsed = { blocks: [{ type: 'liveHtml', data: { html: html } }] };
+            } else {
+                parsed = window._veHtmlToBlocks(html);
+            }
+            if (!parsed || !parsed.blocks || !parsed.blocks.length) return false;
+            let insertIdx;
+            try {
+                insertIdx = this.editor.blocks.getCurrentBlockIndex();
+                if (typeof insertIdx !== 'number' || insertIdx < 0) {
+                    insertIdx = this.editor.blocks.getBlocksCount();
+                }
+            } catch (e) {
+                insertIdx = 0;
+            }
+            let replaceCurrent = false;
+            try {
+                const current = this.editor.blocks.getBlockByIndex(insertIdx);
+                if (current) {
+                    // Guard with a timeout: a container block's nested-editor save()
+                    // can hang and would otherwise freeze the whole paste.
+                    const data = await Promise.race([
+                        Promise.resolve(current.save?.()),
+                        new Promise(r => setTimeout(() => r(null), 400)),
+                    ]);
+                    const isEmpty = !data || !data.data || (
+                        (typeof data.data.text === 'string' && data.data.text.trim() === '') &&
+                        !data.data.items?.length && !data.data.code
+                    );
+                    if (isEmpty) replaceCurrent = true;
+                }
+            } catch (e) { /* keep replaceCurrent=false */ }
+
+            for (let i = 0; i < parsed.blocks.length; i++) {
+                const b = parsed.blocks[i];
+                const idx = insertIdx + (replaceCurrent ? 0 : 1) + i;
+                try {
+                    this.editor.blocks.insert(b.type, b.data, {}, idx, replaceCurrent && i === 0);
+                } catch (e) {
+                    console.warn('[paste] insert failed for block', b.type, e);
+                }
+            }
+            return true;
         },
 
         /** Open media library picker; on selection, insert an image block at end. */
@@ -2682,7 +3459,17 @@ function editorjsField(config) {
                         }
                         const tag = node.tagName.toLowerCase();
                         const align = readAlignment(node);
-                        if (tag === 'p' || tag === 'div') {
+                        // Preserve every class/id/style/data-* attribute by routing styled nodes
+                        // to a raw block (keeps full HTML, editable as HTML). Plain tags fall
+                        // through to dedicated editable blocks.
+                        const attrs = node.attributes ? Array.from(node.attributes) : [];
+                        const hasStylingAttrs = attrs.some(a =>
+                            a.name === 'class' || a.name === 'id' || a.name === 'style' || a.name.indexOf('data-') === 0
+                        );
+
+                        if (hasStylingAttrs && tag !== 'img') {
+                            blocks.push({ type: 'raw', data: { html: node.outerHTML } });
+                        } else if (tag === 'p' || tag === 'div') {
                             if (node.innerHTML.trim()) {
                                 blocks.push(wrapTune({ type: 'paragraph', data: { text: node.innerHTML } }, align));
                             }
@@ -2693,9 +3480,24 @@ function editorjsField(config) {
                             if (items.length) { blocks.push(wrapTune({ type: 'list', data: { style: tag === 'ul' ? 'unordered' : 'ordered', items } }, align)); }
                         } else if (tag === 'blockquote') {
                             blocks.push(wrapTune({ type: 'quote', data: { text: node.innerHTML, caption: '', alignment: 'left' } }, align));
+                        } else if (tag === 'pre') {
+                            const codeEl = node.querySelector('code') || node;
+                            blocks.push({ type: 'code', data: { code: codeEl.textContent || '' } });
+                        } else if (tag === 'hr') {
+                            blocks.push({ type: 'delimiter', data: {} });
                         } else if (tag === 'img') {
                             blocks.push({ type: 'image', data: { file: { url: node.getAttribute('src') || '' }, caption: node.getAttribute('alt') || '', withBorder: false, withBackground: false, stretched: false } });
+                        } else if (tag === 'figure') {
+                            const fImg = node.querySelector('img');
+                            const fCap = node.querySelector('figcaption');
+                            if (fImg) {
+                                blocks.push({ type: 'image', data: { file: { url: fImg.getAttribute('src') || '' }, caption: (fCap ? fCap.innerHTML : (fImg.getAttribute('alt') || '')), withBorder: false, withBackground: false, stretched: false } });
+                            } else {
+                                blocks.push({ type: 'raw', data: { html: node.outerHTML } });
+                            }
                         } else {
+                            // table, iframe, video, audio, section, article, header, footer,
+                            // aside, nav, details, embed, svg, … — preserved verbatim.
                             blocks.push({ type: 'raw', data: { html: node.outerHTML } });
                         }
                     });
@@ -2722,7 +3524,10 @@ function editorjsField(config) {
             await this.$nextTick();
 
             const holderEl = document.getElementById(this.uid);
-            if (!holderEl || !window.EditorJS) {
+            // Wait for the FULL editorjs script bundle — not just core. The loader sets
+            // window._editorjsLoaded = true after every tool (Header, NestedList, …) is
+            // loaded. Proceeding earlier hits "Header is not defined" inside the tools cfg.
+            if (!holderEl || !window.EditorJS || !window._editorjsLoaded || typeof Header === 'undefined') {
                 this.editor = null; // reset so retry can proceed
                 if (this._initAttempts > 30) {
                     // ~6 seconds of retries — give up and show error UI
@@ -2925,6 +3730,9 @@ function editorjsField(config) {
                     // Container block (custom) — responsive max-width
                     ...(window.ContainerTool ? { container: { class: window.ContainerTool } } : {}),
 
+                    // Live HTML block (custom) — renders pasted markup styled & editable in place
+                    ...(window.LiveHtmlTool ? { liveHtml: { class: window.LiveHtmlTool } } : {}),
+
                     // Space block (custom) — vertical spacer
                     ...(window.SpaceTool ? { space: { class: window.SpaceTool } } : {}),
                 },
@@ -3000,6 +3808,40 @@ function editorjsField(config) {
                             window.attachReorderArrows(el, self.editor);
                         }
                     }, 100);
+
+                    // ----------------------------------------------------------
+                    // Paste interceptor: if user pastes content that looks like
+                    // HTML (either text/html from a real source, or text/plain
+                    // raw markup from a code editor), convert it to editable
+                    // EditorJS blocks. Without this, pasting raw HTML lands as
+                    // one paragraph per line which is unusable.
+                    // ----------------------------------------------------------
+                    if (el && !el._vePasteHooked) {
+                        el._vePasteHooked = true;
+                        el.addEventListener('paste', async function (ev) {
+                            try {
+                                const cd = ev.clipboardData || window.clipboardData;
+                                if (!cd) return;
+                                // Only intercept raw HTML markup pasted as plain text.
+                                // text/plain = the real markup; text/html = an escaped
+                                // line-wrapped version that would parse as one paragraph
+                                // per line. Rich-content pastes (non-markup plain text)
+                                // fall through to EditorJS's native handler.
+                                const plain = cd.getData('text/plain') || '';
+                                if (!window._veLooksLikeHtml(plain)) return;
+                                ev.preventDefault();
+                                ev.stopPropagation();
+                                await self.insertHtmlAsBlocks(plain.trim());
+                            } catch (e) {
+                                console.warn('[paste] interceptor failed (non-fatal):', e);
+                            }
+                        }, true);
+                    }
+
+                    // Click an image block → open media picker to replace it
+                    if (el && typeof window._veAttachImageReplace === 'function') {
+                        window._veAttachImageReplace(el, self.editor);
+                    }
 
                     // Local autosave: snapshot every 5s. Recovery offered on next mount if
                     // the snapshot is newer than what was loaded from server.

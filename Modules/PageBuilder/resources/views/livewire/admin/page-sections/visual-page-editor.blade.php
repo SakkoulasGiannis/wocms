@@ -40,7 +40,8 @@ window.ContainerTool = class ContainerTool {
     }
     renderSettings() {
         const w = document.createElement('div');
-        w.style.cssText = 'padding:8px;display:flex;flex-direction:column;gap:10px;width:280px';
+        w.setAttribute('data-ctr-settings', '');
+        w.style.cssText = 'padding:8px;display:flex;flex-direction:column;gap:10px;width:100%;min-width:0;max-width:100%;box-sizing:border-box';
         const mkSel = (lab, k) => {
             const lbl = document.createElement('label'); lbl.textContent = lab; lbl.style.cssText = 'font-size:11px;font-weight:600;color:#374151;display:block;margin-bottom:2px';
             const s = document.createElement('select'); s.style.cssText = 'width:100%;padding:6px 8px;border:1px solid #e5e7eb;border-radius:4px;font-size:12px';
@@ -133,6 +134,10 @@ window.ContainerTool = class ContainerTool {
                 header: { class: (window.HeaderWithInlineTools || Header), inlineToolbar: true, config: { levels: [1, 2, 3, 4, 5, 6], defaultLevel: 2 } },
                 list: { class: NestedList, inlineToolbar: true },
                 quote: { class: Quote, inlineToolbar: true },
+                code: CodeTool,
+                delimiter: Delimiter,
+                raw: RawTool,
+                ...(typeof Table !== 'undefined' ? { table: { class: Table, inlineToolbar: true } } : {}),
                 marker: Marker, inlineCode: InlineCode, underline: Underline,
                 ...(window.ColorTool ? { color: { class: window.ColorTool } } : {}),
                 ...(window.InlineAlignmentTool ? { inlineAlignment: { class: window.InlineAlignmentTool } } : {}),
@@ -140,6 +145,8 @@ window.ContainerTool = class ContainerTool {
                 ...(window.TextAlignmentTune ? { textAlignment: window.TextAlignmentTune } : {}),
                 ...(window.ImageSizeTune ? { imageSize: window.ImageSizeTune } : {}),
                 ...(window.ColumnsTool ? { columns: { class: window.ColumnsTool } } : {}),
+                ...(window.ContainerTool ? { container: { class: window.ContainerTool } } : {}),
+                ...(window.LiveHtmlTool ? { liveHtml: { class: window.LiveHtmlTool } } : {}),
                 ...(window.SpaceTool   ? { space:   { class: window.SpaceTool   } } : {}),
             };
             if (window.__editorImageTool) {
@@ -624,7 +631,8 @@ window.ColumnsTool = class ColumnsTool {
     }
     renderSettings() {
         const wrapper = document.createElement('div');
-        wrapper.style.cssText = 'padding:8px;display:flex;flex-direction:column;gap:10px;width:280px';
+        wrapper.setAttribute('data-ctr-settings', '');
+        wrapper.style.cssText = 'padding:8px;display:flex;flex-direction:column;gap:10px;width:100%;min-width:0;max-width:100%;box-sizing:border-box';
 
         // Column count buttons
         const row1 = document.createElement('div');
@@ -789,6 +797,143 @@ window.ColumnsTool = class ColumnsTool {
 {{-- SortableJS still loaded directly here (used by the section list, not by EditorJS) --}}
 <script src="{{ asset('vendor/sortablejs/Sortable.min.js') }}"></script>
 <script>
+// ----------------------------------------------------------------------
+// Reusable HTML → EditorJS blocks parser (recursive).
+//
+// Structural wrappers (section/div/article/main/header/footer/aside/nav)
+// that contain block-level children are RECURSED into:
+//   • styled wrapper (class/id/style/data-*) → `container` block whose
+//     wrapperClass preserves the wrapper's classes and whose content is
+//     the parsed children — children stay individually editable.
+//   • plain wrapper → flattened (children emitted directly).
+// Leaf nodes follow the per-tag contract: styled → raw (classes intact),
+// clean p/h1-6/ul/ol/blockquote/pre/hr/img/figure → editable blocks,
+// everything else (tables, iframes, video, svg, …) → raw.
+// ----------------------------------------------------------------------
+// NOTE: defined UNCONDITIONALLY (no `typeof ... === undefined` guard) so the
+// latest parser always wins, even across Livewire wire:navigate transitions
+// that keep `window` alive. Editing this file then navigating now picks up the
+// new logic without a full page reload.
+window._veHtmlToBlocks = function (html) {
+        if (typeof html !== 'string' || html.length === 0) return { blocks: [] };
+
+        // CLEAN-NATIVE mode: every element becomes a real EditorJS primitive block
+        // (image→image, h1-6→header, p→paragraph, ul/ol→list, …). Tailwind/CSS
+        // classes are intentionally DROPPED so blocks are natively editable.
+        // Layout wrappers (div/section/…) are flattened. svg/script/style stripped.
+        const readAlignment = (el) => {
+            const ta = (el.style && el.style.textAlign) ? el.style.textAlign.toLowerCase() : '';
+            return ['left', 'center', 'right', 'justify'].includes(ta) ? ta : null;
+        };
+        const wrapTune = (block, align) => {
+            if (align) block.tunes = { textAlignment: { alignment: align } };
+            return block;
+        };
+        const cleanInner = (el) => {
+            const c = el.cloneNode(true);
+            c.querySelectorAll('svg,script,style,noscript').forEach(n => n.remove());
+            return c.innerHTML.trim();
+        };
+
+        function parseNodes(nodeList) {
+            const out = [];
+            Array.from(nodeList).forEach(node => {
+                if (node.nodeType !== Node.ELEMENT_NODE) {
+                    if (node.textContent && node.textContent.trim()) {
+                        out.push({ type: 'paragraph', data: { text: node.textContent.trim() } });
+                    }
+                    return;
+                }
+                const tag = node.tagName.toLowerCase();
+                if (['script', 'style', 'svg', 'noscript', 'link', 'meta', 'head'].includes(tag)) return;
+
+                const align = readAlignment(node);
+                const elementChildren = Array.from(node.children);
+
+                if (tag === 'img') {
+                    out.push({ type: 'image', data: { file: { url: node.getAttribute('src') || '' }, caption: node.getAttribute('alt') || '', withBorder: false, withBackground: false, stretched: false } });
+                    return;
+                }
+                if (tag === 'figure') {
+                    const fImg = node.querySelector('img');
+                    if (fImg) {
+                        const fCap = node.querySelector('figcaption');
+                        out.push({ type: 'image', data: { file: { url: fImg.getAttribute('src') || '' }, caption: (fCap ? fCap.textContent.trim() : (fImg.getAttribute('alt') || '')), withBorder: false, withBackground: false, stretched: false } });
+                    } else {
+                        parseNodes(node.childNodes).forEach(b => out.push(b));
+                    }
+                    return;
+                }
+                if (/^h[1-6]$/.test(tag)) {
+                    const t = cleanInner(node);
+                    if (t) out.push(wrapTune({ type: 'header', data: { text: t, level: parseInt(tag[1]) } }, align));
+                    return;
+                }
+                if (tag === 'ul' || tag === 'ol') {
+                    const items = Array.from(node.querySelectorAll(':scope > li')).map(li => ({ content: cleanInner(li), items: [] })).filter(it => it.content);
+                    if (items.length) out.push(wrapTune({ type: 'list', data: { style: tag === 'ul' ? 'unordered' : 'ordered', items } }, align));
+                    return;
+                }
+                if (tag === 'blockquote') {
+                    const t = cleanInner(node);
+                    if (t) out.push(wrapTune({ type: 'quote', data: { text: t, caption: '', alignment: 'left' } }, align));
+                    return;
+                }
+                if (tag === 'pre') {
+                    const codeEl = node.querySelector('code') || node;
+                    out.push({ type: 'code', data: { code: codeEl.textContent || '' } });
+                    return;
+                }
+                if (tag === 'hr') { out.push({ type: 'delimiter', data: {} }); return; }
+                if (tag === 'table') {
+                    const rows = Array.from(node.querySelectorAll('tr')).map(tr => Array.from(tr.querySelectorAll('th,td')).map(c => cleanInner(c)));
+                    if (rows.length) out.push({ type: 'table', data: { withHeadings: !!node.querySelector('th'), content: rows } });
+                    return;
+                }
+                if (tag === 'a') {
+                    const t = node.innerHTML.trim();
+                    const href = node.getAttribute('href') || '#';
+                    if (t) out.push({ type: 'paragraph', data: { text: '<a href="' + href + '">' + t + '</a>' } });
+                    return;
+                }
+
+                // Layout wrappers + generic containers → flatten (drop wrapper + classes).
+                if (elementChildren.length) {
+                    parseNodes(node.childNodes).forEach(b => out.push(b));
+                } else {
+                    const t = cleanInner(node);
+                    if (t) out.push(wrapTune({ type: 'paragraph', data: { text: t } }, align));
+                }
+            });
+            return out;
+        }
+
+        let blocks = [];
+        try {
+            const tmp = document.createElement('div');
+            tmp.innerHTML = html;
+            blocks = parseNodes(tmp.childNodes);
+        } catch (e) { /* fall through */ }
+        if (!blocks.length) {
+            const tmp2 = document.createElement('div');
+            tmp2.innerHTML = html;
+            const txt = (tmp2.textContent || '').trim();
+            if (txt) return { blocks: [{ type: 'paragraph', data: { text: txt } }] };
+        }
+        return { blocks };
+};
+
+// Heuristic: does this pasted text look like HTML? Must start with a tag
+// AND contain a closing tag (or self-closing), so plain "<3" or stray
+// "<" characters do not trigger. Defined unconditionally (see note above).
+window._veLooksLikeHtml = function (str) {
+        if (typeof str !== 'string') return false;
+        const trimmed = str.trim();
+        if (trimmed.length < 4) return false;
+        if (trimmed[0] !== '<') return false;
+        return /<\/?[a-z][\s\S]*?>/i.test(trimmed);
+};
+
 if (typeof window.editorjsField === 'undefined') {
     window.editorjsField = function(config) {
         return {
@@ -809,33 +954,66 @@ if (typeof window.editorjsField === 'undefined') {
                     try { const p = JSON.parse(val); if (p.blocks) return p; } catch(e) {}
                 }
                 if (val.startsWith('<') || val.includes('<p') || val.includes('<h')) {
-                    try {
-                        const tmp = document.createElement('div');
-                        tmp.innerHTML = val;
-                        const blocks = [];
-                        tmp.childNodes.forEach(node => {
-                            if (node.nodeType !== Node.ELEMENT_NODE) {
-                                if (node.textContent.trim()) blocks.push({ type: 'paragraph', data: { text: node.textContent } });
-                                return;
-                            }
-                            const tag = node.tagName.toLowerCase();
-                            if (tag === 'p' || tag === 'div') {
-                                if (node.innerHTML.trim()) blocks.push({ type: 'paragraph', data: { text: node.innerHTML } });
-                            } else if (/^h[1-6]$/.test(tag)) {
-                                blocks.push({ type: 'header', data: { text: node.textContent, level: parseInt(tag[1]) } });
-                            } else if (tag === 'ul' || tag === 'ol') {
-                                const items = Array.from(node.querySelectorAll('li')).map(li => ({ content: li.innerHTML, items: [] }));
-                                if (items.length) blocks.push({ type: 'list', data: { style: tag === 'ul' ? 'unordered' : 'ordered', items } });
-                            } else {
-                                blocks.push({ type: 'raw', data: { html: node.outerHTML } });
-                            }
-                        });
-                        if (blocks.length) return { blocks };
-                    } catch(e) {}
-                    return { blocks: [{ type: 'raw', data: { html: val } }] };
+                    return window._veHtmlToBlocks(val);
                 }
                 if (val.length > 0) return { blocks: [{ type: 'paragraph', data: { text: val } }] };
                 return null;
+            },
+
+            // Insert HTML-derived blocks at the current caret position.
+            // Replaces the current empty paragraph block (if empty) and
+            // inserts each parsed block sequentially.
+            async insertHtmlAsBlocks(html) {
+                if (!this.editor || typeof this.editor.blocks?.insert !== 'function') return false;
+                // Styled markup (has class=/style=) → ONE "HTML (live)" block that
+                // renders the full design and is editable in place (text + image
+                // picker). Plain markup → clean native blocks via the parser.
+                let parsed;
+                if (window.LiveHtmlTool && /\b(class|style)\s*=/.test(html)) {
+                    parsed = { blocks: [{ type: 'liveHtml', data: { html: html } }] };
+                } else {
+                    parsed = window._veHtmlToBlocks(html);
+                }
+                if (!parsed || !parsed.blocks || !parsed.blocks.length) return false;
+                let insertIdx;
+                try {
+                    insertIdx = this.editor.blocks.getCurrentBlockIndex();
+                    if (typeof insertIdx !== 'number' || insertIdx < 0) {
+                        insertIdx = this.editor.blocks.getBlocksCount();
+                    }
+                } catch (e) {
+                    insertIdx = 0;
+                }
+                // If current block is empty, replace it with the first
+                // parsed block; otherwise insert after it.
+                let replaceCurrent = false;
+                try {
+                    const current = this.editor.blocks.getBlockByIndex(insertIdx);
+                    if (current) {
+                        // Guard with a timeout: a container block's nested-editor
+                        // save() can hang and would otherwise freeze the whole paste.
+                        const data = await Promise.race([
+                            Promise.resolve(current.save?.()),
+                            new Promise(r => setTimeout(() => r(null), 400)),
+                        ]);
+                        const isEmpty = !data || !data.data || (
+                            (typeof data.data.text === 'string' && data.data.text.trim() === '') &&
+                            !data.data.items?.length && !data.data.code
+                        );
+                        if (isEmpty) replaceCurrent = true;
+                    }
+                } catch (e) { /* keep replaceCurrent=false */ }
+
+                for (let i = 0; i < parsed.blocks.length; i++) {
+                    const b = parsed.blocks[i];
+                    const idx = insertIdx + (replaceCurrent ? 0 : 1) + i;
+                    try {
+                        this.editor.blocks.insert(b.type, b.data, {}, idx, replaceCurrent && i === 0);
+                    } catch (e) {
+                        console.warn('[paste] insert failed for block', b.type, e);
+                    }
+                }
+                return true;
             },
 
             async init() {
@@ -843,7 +1021,14 @@ if (typeof window.editorjsField === 'undefined') {
                 this.editor = '_loading_';
                 await this.$nextTick();
                 const holderEl = document.getElementById(this.uid);
-                if (!holderEl || !window.EditorJS) { this.editor = null; setTimeout(() => this.init(), 200); return; }
+                // Wait until the FULL editorjs script bundle is loaded — not just EditorJS itself.
+                // window._editorjsLoaded is set by the loader in editorjs-field.blade.php after
+                // every tool (Header, NestedList, Quote, …) is loaded. Without this guard, init()
+                // can proceed after editorjs.js loads but before header.js, throwing
+                // "Header is not defined" inside the tools config below.
+                if (!holderEl || !window.EditorJS || !window._editorjsLoaded || typeof Header === 'undefined') {
+                    this.editor = null; setTimeout(() => this.init(), 200); return;
+                }
                 if (holderEl._editorjsInstance) {
                     try { await holderEl._editorjsInstance.destroy(); } catch (_) {}
                     holderEl._editorjsInstance = null;
@@ -911,6 +1096,7 @@ if (typeof window.editorjsField === 'undefined') {
                         ...(window.ImageSizeTune ? { imageSize: window.ImageSizeTune } : {}),
                         ...(window.ColumnsTool ? { columns: { class: window.ColumnsTool } } : {}),
                         ...(window.ContainerTool ? { container: { class: window.ContainerTool } } : {}),
+                        ...(window.LiveHtmlTool ? { liveHtml: { class: window.LiveHtmlTool } } : {}),
                         ...(window.SpaceTool ? { space: { class: window.SpaceTool } } : {}),
                     },
                     tunes: [
@@ -945,6 +1131,46 @@ if (typeof window.editorjsField === 'undefined') {
                         if (el && typeof window.initMultiBlockAlignmentBar === 'function') {
                             window.initMultiBlockAlignmentBar(el);
                         }
+
+                        // ----------------------------------------------------------
+                        // Paste interceptor: if user pastes plain text that looks
+                        // like HTML, convert it to editable blocks instead of
+                        // letting EditorJS treat each line as a separate paragraph.
+                        // We listen in capture phase to beat EditorJS's own paste
+                        // handler, but only intercept when the text/plain payload
+                        // genuinely starts with a tag — otherwise we let the
+                        // default behavior run (so quoting "<3" still works).
+                        // ----------------------------------------------------------
+                        if (el && !el._vePasteHooked) {
+                            el._vePasteHooked = true;
+                            el.addEventListener('paste', async function (ev) {
+                                try {
+                                    const cd = ev.clipboardData || window.clipboardData;
+                                    if (!cd) return;
+                                    // ONLY intercept when the user pasted raw HTML *markup*
+                                    // as plain text (e.g. copied source from a code editor).
+                                    // In that case text/plain holds the real markup, while
+                                    // text/html holds an ESCAPED, line-wrapped pretty version
+                                    // (<div>&lt;section…&gt;</div> per line) — parsing that
+                                    // produces one paragraph per line. So we use text/plain.
+                                    // Genuine rich-content pastes (Word, Docs, web selection)
+                                    // have non-markup plain text and are left to EditorJS's
+                                    // native handler untouched.
+                                    const plain = cd.getData('text/plain') || '';
+                                    if (!window._veLooksLikeHtml(plain)) return;
+                                    ev.preventDefault();
+                                    ev.stopPropagation();
+                                    await self.insertHtmlAsBlocks(plain.trim());
+                                } catch (e) {
+                                    console.warn('[paste] interceptor failed (non-fatal):', e);
+                                }
+                            }, true);
+                        }
+
+                        // Click an image block → open media picker to replace it
+                        if (el && typeof window._veAttachImageReplace === 'function') {
+                            window._veAttachImageReplace(el, self.editor);
+                        }
                     },
                 });
             },
@@ -965,6 +1191,15 @@ if (typeof window.editorjsField === 'undefined') {
              this.iframeLoading = true;
              const f = document.getElementById('preview-frame');
              if (!f) return;
+             // Preserve the preview scroll position across the reload so an edit
+             // doesn't jump the user back to the top of the page.
+             let savedScroll = 0;
+             try { savedScroll = (f.contentWindow && f.contentWindow.scrollY) || 0; } catch (e) {}
+             const restore = () => {
+                 try { f.contentWindow.scrollTo(0, savedScroll); } catch (e) {}
+                 f.removeEventListener('load', restore);
+             };
+             f.addEventListener('load', restore);
              const url = new URL(f.src, location.href);
              url.searchParams.set('_t', Date.now());
              f.src = url.toString();
@@ -1001,8 +1236,46 @@ if (typeof window.editorjsField === 'undefined') {
         <span x-text="message"></span>
     </div>
 
-    {{-- ===== LEFT PANEL: Sections List ===== --}}
-    <div class="w-72 bg-white border-r border-gray-200 flex flex-col shadow-lg z-10 overflow-hidden" style="min-width:288px; max-width:288px; height:100vh;">
+    {{-- ===== LEFT PANEL: Sections List — RESIZABLE ===== --}}
+    <div
+        data-ve-sidebar
+        wire:ignore.self
+        x-data="{
+            width: parseInt(localStorage.getItem('ve-sidebar-width') || '320', 10),
+            dragging: false,
+            startX: 0,
+            startWidth: 0,
+            startDrag(e) {
+                this.dragging = true;
+                this.startX = e.clientX;
+                this.startWidth = this.width;
+                document.body.style.userSelect = 'none';
+                document.body.style.cursor = 'col-resize';
+                // Disable iframe pointer events so it doesn't swallow mousemove
+                const f = document.getElementById('preview-frame');
+                if (f) { f.style.pointerEvents = 'none'; }
+            },
+            onDrag(e) {
+                if (!this.dragging) return;
+                const dx = e.clientX - this.startX;
+                this.width = Math.max(240, Math.min(720, this.startWidth + dx));
+                this.$root.style.width = this.width + 'px';
+            },
+            stopDrag() {
+                if (!this.dragging) return;
+                this.dragging = false;
+                document.body.style.userSelect = '';
+                document.body.style.cursor = '';
+                const f = document.getElementById('preview-frame');
+                if (f) { f.style.pointerEvents = ''; }
+                localStorage.setItem('ve-sidebar-width', this.width);
+            },
+        }"
+        x-init="$root.style.width = width + 'px';"
+        @mousemove.window="onDrag"
+        @mouseup.window="stopDrag"
+        class="relative bg-white border-r border-gray-200 flex flex-col shadow-lg z-10 flex-shrink-0"
+        style="height:100vh;">
 
         {{-- Header --}}
         <div class="px-4 py-3 bg-gray-900 text-white flex items-center justify-between flex-shrink-0">
@@ -1019,18 +1292,68 @@ if (typeof window.editorjsField === 'undefined') {
                     <div class="text-sm font-semibold truncate leading-tight mt-0.5">{{ $pageTitle }}</div>
                 </div>
             </div>
-            <a href="{{ $previewUrl }}" target="_blank" class="text-gray-400 hover:text-white flex-shrink-0 ml-2" title="Open page">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-                </svg>
-            </a>
+            <div class="flex items-center gap-1 flex-shrink-0 ml-2">
+                {{-- Undo / Redo (also Ctrl+Z / Ctrl+Y) --}}
+                <button type="button"
+                        wire:click="undo"
+                        @disabled(! $this->canUndo)
+                        title="Undo (Ctrl+Z)"
+                        class="p-1.5 rounded text-gray-300 enabled:hover:text-white enabled:hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 7v6h6M3 13a9 9 0 1 0 3-7.7L3 8"/>
+                    </svg>
+                </button>
+                <button type="button"
+                        wire:click="redo"
+                        @disabled(! $this->canRedo)
+                        title="Redo (Ctrl+Y)"
+                        class="p-1.5 rounded text-gray-300 enabled:hover:text-white enabled:hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 7v6h-6M21 13a9 9 0 1 1-3-7.7L21 8"/>
+                    </svg>
+                </button>
+                <a href="{{ $previewUrl }}" target="_blank" class="p-1.5 rounded text-gray-400 hover:text-white hover:bg-white/10 transition" title="Open page">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                    </svg>
+                </a>
+            </div>
         </div>
 
         {{-- Sections list --}}
         @php
             $allSectionsCollection = collect($sections);
             $rootSections = $allSectionsCollection->whereNull('parent_section_id')->sortBy('order')->values();
+            $hasAnyContainer = $allSectionsCollection->whereIn('section_type', ['primitive_div','primitive_grid','primitive_section'])->isNotEmpty();
         @endphp
+
+        @if($hasAnyContainer)
+            {{-- Collapse / expand all toolbar. Broadcasts a window event that
+                 every section-tree-item listens for. --}}
+            <div class="flex items-center gap-1 px-3 py-1.5 border-b border-gray-100 bg-gray-50">
+                <button type="button"
+                        onclick="window.dispatchEvent(new CustomEvent('ve-collapse-all'))"
+                        class="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded text-gray-600 hover:bg-gray-200">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
+                    Collapse all
+                </button>
+                <button type="button"
+                        onclick="window.dispatchEvent(new CustomEvent('ve-expand-all'))"
+                        class="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded text-gray-600 hover:bg-gray-200">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                    Expand all
+                </button>
+                <button type="button"
+                        wire:click="cleanupEmptyWrappers"
+                        wire:confirm="Remove all empty wrapper divs/sections (no class, no id)? Their children move up. This can't be undone except via Ctrl+Z."
+                        class="ml-auto inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded text-gray-600 hover:bg-amber-100 hover:text-amber-700"
+                        title="Delete redundant empty wrapper divs/sections and lift their children up">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    Clean empty
+                </button>
+            </div>
+        @endif
+
         <div class="flex-1 overflow-y-auto py-2" id="ve-sections-list" data-container="">
             @forelse($rootSections as $section)
                 @include('livewire.admin.page-sections.partials.section-tree-item', [
@@ -1084,11 +1407,23 @@ if (typeof window.editorjsField === 'undefined') {
                 Add Section
             </button>
         </div>
+
+        {{-- Drag handle — sits on the right edge, drag horizontally to resize.
+             Width is persisted in localStorage so it sticks across reloads. --}}
+        <div
+            @mousedown.prevent="startDrag"
+            class="group absolute top-0 right-0 h-full w-2 cursor-col-resize z-30 flex items-center justify-center"
+            :class="dragging ? 'bg-purple-500/30' : 'bg-gray-100 hover:bg-purple-200'"
+            title="Drag to resize sidebar">
+            <div class="h-16 w-1 rounded-full bg-gray-300 group-hover:bg-purple-500"
+                 :class="dragging ? 'bg-purple-600' : ''"></div>
+        </div>
     </div>
 
     {{-- ===== EDIT PANEL (floats over preview) ===== --}}
     @if($selectedSectionId || $showAddPanel)
-        <div class="bg-white border-r border-gray-200 flex flex-col shadow-2xl overflow-hidden"
+        <div data-edit-panel
+             class="bg-white border-r border-gray-200 flex flex-col shadow-2xl overflow-hidden"
              style="position:absolute; left:0; top:0; width:288px; height:100vh; z-index:30;">
 
             {{-- Panel Header --}}
@@ -1111,7 +1446,7 @@ if (typeof window.editorjsField === 'undefined') {
                 </button>
             </div>
 
-            <div class="flex-1 overflow-y-auto p-4 space-y-4">
+            <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
 
                 @if($showAddPanel)
                     {{-- Template picker --}}
@@ -1176,7 +1511,7 @@ if (typeof window.editorjsField === 'undefined') {
 
                     {{-- Dynamic Fields --}}
                     @foreach($selectedTemplate->fields as $field)
-                        <div>
+                        <div wire:key="ve-fld-{{ $selectedSectionId ?? 'new' }}-{{ $field->id }}">
                             @php
                                 /* Token-aware fields ── the ones where {field} placeholders
                                  * make sense. Card bindings of the entry-loop section, plus
@@ -1193,7 +1528,7 @@ if (typeof window.editorjsField === 'undefined') {
                                 $isLoopSection = ($selectedSection->section_type ?? null) === 'entry_loop';
                                 $isTemplateDesign = $sectionableType === 'App\\Models\\Template';
 
-                                if (! $isTokenAware && ($isLoopSection || $isTemplateDesign) && in_array($field->type, ['text','textarea','url'], true)) {
+                                if (! $isTokenAware && ($isLoopSection || $isTemplateDesign) && in_array($field->type, ['text','textarea','url','image'], true)) {
                                     $isTokenAware = true;
                                 }
 
@@ -1267,11 +1602,13 @@ if (typeof window.editorjsField === 'undefined') {
                                 @case('url')
                                 @case('email')
                                     @if($field->name === 'class' || str_ends_with($field->name, '_class'))
-                                        <div x-data="{
+                                        <div wire:ignore x-data="{
                                             tags: (@js($sectionContent[$field->name] ?? '')).split(/\s+/).filter(t => t !== ''),
                                             inputVal: '',
                                             open: false,
                                             suggestions: [],
+                                            copied: false,
+                                            pasted: false,
                                             addTag() {
                                                 this.inputVal.trim().split(/\s+/).forEach(part => {
                                                     const t = part.replace(/[,;]/g, '').trim();
@@ -1285,6 +1622,29 @@ if (typeof window.editorjsField === 'undefined') {
                                             sync() {
                                                 $wire.set('sectionContent.{{ $field->name }}', this.tags.filter(t => t.trim()).join(' '));
                                             },
+                                            copyAll() {
+                                                const txt = this.tags.join(' ');
+                                                navigator.clipboard.writeText(txt).then(() => {
+                                                    this.copied = true;
+                                                    setTimeout(() => this.copied = false, 1500);
+                                                });
+                                            },
+                                            pasteAll() {
+                                                navigator.clipboard.readText().then(txt => {
+                                                    (txt || '').split(/\s+/).forEach(part => {
+                                                        const t = part.replace(/[,;]/g, '').trim();
+                                                        if (t && !this.tags.includes(t)) this.tags.push(t);
+                                                    });
+                                                    this.sync();
+                                                    this.pasted = true;
+                                                    setTimeout(() => this.pasted = false, 1500);
+                                                });
+                                            },
+                                            clearAll() {
+                                                if (!this.tags.length) return;
+                                                this.tags = [];
+                                                this.sync();
+                                            },
                                             search() {
                                                 const q = this.inputVal.trim().toLowerCase();
                                                 if (!q) { this.open = false; return; }
@@ -1297,6 +1657,29 @@ if (typeof window.editorjsField === 'undefined') {
                                                 this.open = false;
                                             }
                                         }">
+                                            {{-- Copy / paste / clear toolbar — lets you move classes between fields --}}
+                                            <div class="flex items-center justify-end gap-1 mb-1">
+                                                <button type="button" @click="copyAll()"
+                                                        :disabled="!tags.length"
+                                                        class="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                                                        :title="tags.length ? 'Copy all classes' : 'Nothing to copy'">
+                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                                                    <span x-text="copied ? 'Copied!' : 'Copy'"></span>
+                                                </button>
+                                                <button type="button" @click="pasteAll()"
+                                                        class="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded border border-gray-200 text-gray-600 hover:bg-gray-50"
+                                                        title="Paste classes from clipboard (merges)">
+                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                                                    <span x-text="pasted ? 'Pasted!' : 'Paste'"></span>
+                                                </button>
+                                                <button type="button" @click="clearAll()"
+                                                        :disabled="!tags.length"
+                                                        class="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded border border-gray-200 text-gray-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                                                        title="Remove all classes">
+                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                                    Clear
+                                                </button>
+                                            </div>
                                             <div class="flex flex-wrap gap-1 p-2 border border-gray-300 rounded-lg min-h-[38px] cursor-text bg-white" @click="$refs.twInput.focus()">
                                                 <template x-for="tag in tags" :key="tag">
                                                     <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-purple-100 text-purple-800 rounded text-xs font-mono">
@@ -1362,6 +1745,12 @@ if (typeof window.editorjsField === 'undefined') {
                                             $dynamicOptions = \Modules\Slider\Models\Slider::where('is_active', true)
                                                 ->orderBy('name')->get()
                                                 ->map(fn($s) => ['value' => $s->id, 'label' => $s->name])
+                                                ->toArray();
+                                        } elseif ($field->name === 'category_slug' && class_exists(\App\Models\BlogCategory::class)) {
+                                            // Blog Loop section: populate category dropdown from BlogCategory taxonomy
+                                            $dynamicOptions = \App\Models\BlogCategory::where('is_active', true)
+                                                ->orderBy('order')->orderBy('name')->get()
+                                                ->map(fn($c) => ['value' => $c->slug, 'label' => $c->name])
                                                 ->toArray();
                                         }
 
@@ -1443,9 +1832,10 @@ if (typeof window.editorjsField === 'undefined') {
                                             </svg>
                                         </button>
                                         <input type="text"
+                                               id="ve-field-{{ $field->name }}"
                                                wire:model.live.debounce.500ms="sectionContent.{{ $field->name }}"
                                                class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-xs"
-                                               placeholder="or paste URL">
+                                               placeholder="or paste URL / {field} token">
                                     </div>
                                     @break
 
@@ -1510,7 +1900,7 @@ if (typeof window.editorjsField === 'undefined') {
                                                 <span x-text="fullscreen ? 'Κλείσιμο' : 'Fullscreen'"></span>
                                             </button>
                                         </div>
-                                        <div :class="fullscreen ? 'flex-1 overflow-y-auto' : ''"
+                                        <div :class="fullscreen ? 'flex-1 min-h-0 overflow-y-auto' : ''"
                                              :style="fullscreen ? 'padding:15px' : ''">
                                             <div :class="fullscreen ? 'w-full' : ''">
                                                 <x-editorjs-field
@@ -2016,7 +2406,7 @@ if (typeof window.editorjsField === 'undefined') {
         @endif
 
         {{-- Iframe --}}
-        <div class="flex-1 relative overflow-auto bg-gray-300">
+        <div class="flex-1 min-w-0 relative overflow-auto bg-gray-300">
             <div x-show="iframeLoading"
                  class="absolute inset-0 bg-gray-100 flex items-center justify-center z-10 pointer-events-none">
                 <div class="text-center text-gray-400">
@@ -2053,15 +2443,55 @@ if (typeof window.editorjsField === 'undefined') {
 .ve-children-list { transition: background 0.15s; }
 .ve-children-list.sortable-over { background: #f5f3ff; border-color: #a78bfa !important; }
 
+/* RawTool: vendored CSS forces min-height:200px -> a 1-line HTML snippet
+   renders as a huge box. Auto-size to content instead. */
+.ce-rawtool__textarea {
+    min-height: 2.75rem !important;
+    height: auto;
+    field-sizing: content; /* Chrome 123+: grow/shrink to fit content */
+    max-height: 60vh;
+    overflow-y: auto;
+    line-height: 1.5;
+}
+
 /* Editor heading visual styles — duplicated here so they always load on the
    visual editor page (regardless of whether x-editorjs-field's stack push fired).
    !important wins over Tailwind preflight (h1-h6 -> font-size: inherit) in app.css. */
-.editorjs-container h1, .editorjs-container h1.ce-header, .editorjs-container .ce-block h1 { font-size: 2.25rem !important; font-weight: 800 !important; line-height: 1.2  !important; margin: 0.4em 0 !important; color: #0f172a !important; }
-.editorjs-container h2, .editorjs-container h2.ce-header, .editorjs-container .ce-block h2 { font-size: 1.75rem !important; font-weight: 700 !important; line-height: 1.25 !important; margin: 0.4em 0 !important; color: #0f172a !important; }
-.editorjs-container h3, .editorjs-container h3.ce-header, .editorjs-container .ce-block h3 { font-size: 1.4rem  !important; font-weight: 700 !important; line-height: 1.3  !important; margin: 0.4em 0 !important; color: #1f2937 !important; }
-.editorjs-container h4, .editorjs-container h4.ce-header, .editorjs-container .ce-block h4 { font-size: 1.2rem  !important; font-weight: 600 !important; line-height: 1.35 !important; margin: 0.4em 0 !important; color: #1f2937 !important; }
-.editorjs-container h5, .editorjs-container h5.ce-header, .editorjs-container .ce-block h5 { font-size: 1.05rem !important; font-weight: 600 !important; line-height: 1.4  !important; margin: 0.4em 0 !important; color: #374151 !important; }
-.editorjs-container h6, .editorjs-container h6.ce-header, .editorjs-container .ce-block h6 { font-size: 0.95rem !important; font-weight: 600 !important; line-height: 1.4  !important; margin: 0.4em 0 !important; color: #4b5563 !important; text-transform: uppercase !important; letter-spacing: 0.04em !important; }
+.editorjs-container h1:not(.ce-livehtml__content *), .editorjs-container h1.ce-header, .editorjs-container .ce-block h1:not(.ce-livehtml__content *) { font-size: 2.25rem !important; font-weight: 800 !important; line-height: 1.2  !important; margin: 0.4em 0 !important; color: #0f172a !important; }
+.editorjs-container h2:not(.ce-livehtml__content *), .editorjs-container h2.ce-header, .editorjs-container .ce-block h2:not(.ce-livehtml__content *) { font-size: 1.75rem !important; font-weight: 700 !important; line-height: 1.25 !important; margin: 0.4em 0 !important; color: #0f172a !important; }
+.editorjs-container h3:not(.ce-livehtml__content *), .editorjs-container h3.ce-header, .editorjs-container .ce-block h3:not(.ce-livehtml__content *) { font-size: 1.4rem  !important; font-weight: 700 !important; line-height: 1.3  !important; margin: 0.4em 0 !important; color: #1f2937 !important; }
+.editorjs-container h4:not(.ce-livehtml__content *), .editorjs-container h4.ce-header, .editorjs-container .ce-block h4:not(.ce-livehtml__content *) { font-size: 1.2rem  !important; font-weight: 600 !important; line-height: 1.35 !important; margin: 0.4em 0 !important; color: #1f2937 !important; }
+.editorjs-container h5:not(.ce-livehtml__content *), .editorjs-container h5.ce-header, .editorjs-container .ce-block h5:not(.ce-livehtml__content *) { font-size: 1.05rem !important; font-weight: 600 !important; line-height: 1.4  !important; margin: 0.4em 0 !important; color: #374151 !important; }
+.editorjs-container h6:not(.ce-livehtml__content *), .editorjs-container h6.ce-header, .editorjs-container .ce-block h6:not(.ce-livehtml__content *) { font-size: 0.95rem !important; font-weight: 600 !important; line-height: 1.4  !important; margin: 0.4em 0 !important; color: #4b5563 !important; text-transform: uppercase !important; letter-spacing: 0.04em !important; }
+/* Inside the Live HTML block, the editor's heading defaults above are scoped out
+   (:not(.ce-livehtml__content *)) so headings/text use ONLY their own pasted
+   Tailwind classes — the Style class editor can now actually change colors/sizes. */
+
+/* ── Container/Columns settings popover ONLY ──────────────────────────────
+   Scoped with :has([data-ctr-settings]) so it targets the popover that holds
+   the Mobile/Tablet/Desktop width panel and NOTHING else — the EditorJS
+   toolbox / block-add menu (also .ce-popover) is untouched. Gives the panel
+   enough width and kills the horizontal scrollbar. */
+.ce-popover:has([data-ctr-settings]),
+.ce-popover__container:has([data-ctr-settings]) {
+    width: 320px !important;
+    max-width: calc(100vw - 24px) !important;
+    max-height: 78vh !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+    /* Sit above the column blocks / editor toolbars — the popover's top
+       (Mobile width) was painting behind the columns row. */
+    z-index: 2147483000 !important;
+}
+.ce-popover:has([data-ctr-settings]) [data-ctr-settings] {
+    width: 100% !important; min-width: 0 !important; max-width: 100% !important;
+    box-sizing: border-box !important;
+}
+.ce-popover:has([data-ctr-settings]) [data-ctr-settings] select,
+.ce-popover:has([data-ctr-settings]) [data-ctr-settings] input {
+    max-width: 100% !important; min-width: 0 !important; box-sizing: border-box !important;
+}
 </style>
 @endpush
 
@@ -2183,6 +2613,31 @@ document.addEventListener('livewire:initialized', function () {
     initAllSortables();
     Livewire.hook('morph.updated', () => setTimeout(initAllSortables, 100));
 
+    // Close edit/add panel when clicking OUTSIDE both the panel and the
+    // sidebar. Iframe clicks don't bubble to the parent document, so we also
+    // listen for window.blur which fires when the iframe gains focus.
+    function panelIsOpen() {
+        return !!document.querySelector('[data-edit-panel]');
+    }
+    document.addEventListener('mousedown', function (e) {
+        if (!panelIsOpen()) return;
+        if (e.target.closest('[data-edit-panel]')) return; // click inside the panel
+        if (e.target.closest('[data-ve-sidebar]')) return; // click inside the sidebar (don't fight wire:click on items)
+        // Editor UI that floats to <body> (media picker, EditorJS popovers, tunes,
+        // toolbars, link tool, etc.) is logically part of the editor — clicking it
+        // must NOT close the panel. Without this, picking an image from the media
+        // library overlay was closing the whole editor.
+        if (e.target.closest('.ejs-media-overlay, .ce-livehtml-source-modal, .ce-livehtml-style-pop, #mb-align-bar, .mb-link-pop, .ce-popover, .ce-popover--opened, .ce-inline-toolbar, .ce-conversion-toolbar, .ce-settings, .ce-toolbar, .codex-editor, .image-tool, [data-ctr-settings], .tippy-box, .cdx-search-field')) return;
+        wireCall('closePanel');
+    });
+    window.addEventListener('blur', function () {
+        // Fires when the iframe receives focus → user clicked into the preview.
+        if (!panelIsOpen()) return;
+        if (document.activeElement && document.activeElement.tagName === 'IFRAME') {
+            wireCall('closePanel');
+        }
+    });
+
     // Keyboard shortcuts
     document.addEventListener('keydown', function (e) {
         const tag = document.activeElement?.tagName;
@@ -2220,21 +2675,65 @@ document.addEventListener('livewire:initialized', function () {
         }
     });
 
+    // Scroll the sidebar tree to a section and expand any collapsed ancestors
+    // so the just-clicked element is actually visible & highlighted.
+    let _revealPending = null;
+    function revealInTree(sectionId) {
+        const tree = document.getElementById('ve-sections-list');
+        if (!tree || !sectionId) return false;
+        const target = tree.querySelector('[data-id="' + sectionId + '"]');
+        if (!target) return false;
+
+        // Expand collapsed ancestors (each .ve-section-item carries its own
+        // Alpine collapse state + localStorage key).
+        let node = target.parentElement;
+        while (node && node !== tree) {
+            if (node.classList && node.classList.contains('ve-section-item') && node.dataset.id) {
+                try {
+                    const data = window.Alpine && Alpine.$data(node);
+                    if (data && typeof data.setCollapsed === 'function' && data.collapsed) {
+                        data.setCollapsed(false);
+                    }
+                } catch (e) {}
+            }
+            node = node.parentElement;
+        }
+
+        setTimeout(() => {
+            try { target.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {
+                target.scrollIntoView();
+            }
+        }, 90);
+        return true;
+    }
+
     // Listen for section clicks from the preview iframe
     window.addEventListener('message', function (e) {
         if (e.data && e.data.type === 've-section-click') {
-            wireCall('selectSection', e.data.sectionId);
+            const id = e.data.sectionId;
+            wireCall('selectSection', id);
+            // The tree re-renders via Livewire; reveal once it has morphed.
+            _revealPending = id;
+            // Also try immediately (in case it's already in the DOM/visible).
+            setTimeout(() => revealInTree(id), 60);
         }
     });
 
     // Highlight active section in iframe when selected from sidebar
     document.addEventListener('livewire:navigated', syncActiveSection);
-    Livewire.hook('morph.updated', syncActiveSection);
+    Livewire.hook('morph.updated', () => {
+        syncActiveSection();
+        if (_revealPending) {
+            const id = _revealPending;
+            _revealPending = null;
+            setTimeout(() => revealInTree(id), 40);
+        }
+    });
     function syncActiveSection() {
         const frame = document.getElementById('preview-frame');
         if (!frame || !frame.contentDocument) return;
         const activeSectionId = {{ $selectedSectionId ?? 'null' }};
-        frame.contentDocument.querySelectorAll('.ve-section-wrapper').forEach(el => {
+        frame.contentDocument.querySelectorAll('[data-ve-section-id]').forEach(el => {
             el.classList.toggle('ve-active', parseInt(el.dataset.veSectionId) === activeSectionId);
         });
     }
@@ -2463,6 +2962,119 @@ document.addEventListener('livewire:initialized', function () {
             }, 100);
         }
     });
+})();
+</script>
+
+<script>
+/* ─── Float the Container/Columns settings popover above everything ───────
+   ONLY the popover that contains [data-ctr-settings] (the width panel) is
+   touched — the EditorJS toolbox / block-add menu is never affected, so the
+   container's central tool stays intact.
+
+   When that popover opens it is RE-PARENTED to <body> with position:fixed and
+   a maximal z-index. This escapes every ancestor's overflow clipping AND any
+   trapping stacking context in one move (a fixed element re-parented to body
+   can't be clipped or out-stacked by editor internals). On close it is moved
+   back to its original spot so EditorJS keeps working normally. */
+(function floatCtrSettingsPopover() {
+    if (window._veCtrPopoverFix) return;
+    window._veCtrPopoverFix = true;
+
+    var MARGIN = 8;
+    var Z = '2147483000';
+    var openState = new WeakMap();
+
+    function isTarget(el) {
+        return el && el.classList && el.classList.contains('ce-popover')
+            && !!el.querySelector('[data-ctr-settings]');
+    }
+
+    function floatOut(p) {
+        if (p._veFloated) return;
+        // Remember where it lived so we can put it back on close.
+        p._veHome = { parent: p.parentNode, next: p.nextSibling };
+
+        // Measure WHILE still in place. Anchor to the ⋮ settings button of the
+        // SAME toolbar this popover belongs to (scoped — nested editors have
+        // their own buttons, a global querySelector would grab the wrong one).
+        var r = p.getBoundingClientRect();
+        var toolbar = p.closest('.ce-toolbar');
+        var btn = toolbar
+            ? (toolbar.querySelector('.ce-toolbar__settings-btn') || toolbar.querySelector('.ce-toolbar__plus'))
+            : null;
+        var b = btn ? btn.getBoundingClientRect() : null;
+
+        document.body.appendChild(p);
+        p.style.setProperty('position', 'fixed', 'important');
+        p.style.setProperty('z-index', Z, 'important');
+        p.style.setProperty('margin', '0', 'important');
+        p.style.setProperty('transform', 'none', 'important');
+
+        var w = p.offsetWidth || r.width || 320;
+        var h = p.offsetHeight || r.height || 300;
+        var vw = window.innerWidth, vh = window.innerHeight;
+
+        var left, top;
+        if (b && b.width) {
+            // Drop down from the ⋮ button, right-aligned to it (RIGHT side).
+            left = b.right - w;
+            top = b.bottom + 4;
+        } else if (r.width) {
+            // Fallback: keep the popover's native top-left.
+            left = r.left;
+            top = r.top;
+        } else {
+            left = vw - w - MARGIN;
+            top = MARGIN;
+        }
+        // Keep fully on screen — only pull in as far as needed.
+        if (left + w > vw - MARGIN) left = vw - w - MARGIN;
+        if (left < MARGIN) left = MARGIN;
+        if (top + h > vh - MARGIN) top = Math.max(MARGIN, vh - h - MARGIN);
+        if (top < MARGIN) top = MARGIN;
+
+        p.style.setProperty('left', Math.round(left) + 'px', 'important');
+        p.style.setProperty('top', Math.round(top) + 'px', 'important');
+        p._veFloated = true;
+    }
+
+    function floatBack(p) {
+        if (!p._veFloated) return;
+        ['position', 'z-index', 'margin', 'left', 'top', 'transform'].forEach(function (k) {
+            p.style.removeProperty(k);
+        });
+        var home = p._veHome;
+        if (home && home.parent) {
+            if (home.next && home.next.parentNode === home.parent) {
+                home.parent.insertBefore(p, home.next);
+            } else {
+                home.parent.appendChild(p);
+            }
+        }
+        p._veHome = null;
+        p._veFloated = false;
+    }
+
+    function update(p) {
+        var isOpen = p.offsetParent !== null || p.classList.contains('ce-popover--opened');
+        var wasOpen = openState.get(p) === true;
+        openState.set(p, isOpen);
+        if (isOpen && !wasOpen) {
+            // measure in its native spot first, then float out next frame
+            requestAnimationFrame(function () { floatOut(p); });
+        } else if (!isOpen && wasOpen) {
+            floatBack(p);
+        }
+    }
+
+    function scan() {
+        document.querySelectorAll('.ce-popover').forEach(function (el) {
+            if (isTarget(el) || el._veFloated) update(el);
+        });
+    }
+    var mo = new MutationObserver(scan);
+    mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
+    window.addEventListener('resize', scan, { passive: true });
 })();
 </script>
 @endpush

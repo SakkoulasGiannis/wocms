@@ -1,13 +1,28 @@
 @php
     $containers = ['primitive_div', 'primitive_grid', 'primitive_section'];
     $isContainer = in_array($section['section_type'], $containers);
-    $indent = ($depth ?? 0) * 12;
+    // Tighter indent per nesting level so deeply nested items still show meaningful labels
+    $indent = ($depth ?? 0) * 10;
     $children = $allSections->where('parent_section_id', $section['id'])->sortBy('order')->values();
+    $hasChildren = $isContainer && $children->isNotEmpty();
 @endphp
 
 <div wire:key="ve-section-{{ $section['id'] }}"
      class="ve-section-item"
-     data-id="{{ $section['id'] }}">
+     data-id="{{ $section['id'] }}"
+     x-data="{
+        collapsed: (localStorage.getItem('ve-collapse-{{ $section['id'] }}') ?? '1') !== '0',
+        toggle() {
+            this.collapsed = !this.collapsed;
+            localStorage.setItem('ve-collapse-{{ $section['id'] }}', this.collapsed ? '1' : '0');
+        },
+        setCollapsed(v) {
+            this.collapsed = v;
+            localStorage.setItem('ve-collapse-{{ $section['id'] }}', v ? '1' : '0');
+        }
+     }"
+     @ve-collapse-all.window="setCollapsed(true)"
+     @ve-expand-all.window="setCollapsed(false)">
 
     {{-- Row --}}
     @php $isHiddenSection = isset($section['is_visible']) && !$section['is_visible']; @endphp
@@ -24,6 +39,23 @@
             </svg>
         </div>
 
+        {{-- Collapse / expand toggle (only when this container has children) --}}
+        @if($hasChildren)
+            <button type="button"
+                    @click.stop="toggle()"
+                    class="flex-shrink-0 text-gray-400 hover:text-gray-700 p-0.5 -ml-0.5"
+                    :title="collapsed ? 'Expand' : 'Collapse'">
+                <svg class="w-3 h-3 transition-transform duration-150"
+                     :class="collapsed ? '-rotate-90' : ''"
+                     fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+                </svg>
+            </button>
+        @elseif($isContainer)
+            {{-- keep alignment for empty containers --}}
+            <span class="w-3 h-3 flex-shrink-0"></span>
+        @endif
+
         {{-- Container icon --}}
         @if($isContainer)
             <svg class="w-3 h-3 text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -36,9 +68,14 @@
         @endif
 
         {{-- Label --}}
-        <div class="flex-1 min-w-0">
+        <div class="flex-1 min-w-0" title="{{ $section['name'] ?: 'Section' }}">
             <div class="text-xs font-medium text-gray-800 truncate leading-tight">
                 {{ $section['name'] ?: 'Section' }}
+                @if($hasChildren)
+                    <span x-show="collapsed"
+                          class="ml-1 inline-flex items-center px-1 py-0 rounded bg-gray-200 text-gray-600 text-[9px] font-semibold align-middle"
+                          x-cloak>{{ $children->count() }}</span>
+                @endif
             </div>
             <div class="text-[10px] text-gray-400 truncate leading-tight">{{ str_replace('primitive_', '', $section['section_type']) }}</div>
         </div>
@@ -90,11 +127,14 @@
         </div>
     </div>
 
-    {{-- Children drop zone (always rendered for containers) --}}
+    {{-- Children drop zone (always rendered for containers).
+         Collapsible: x-show toggles visibility, but we keep it in the DOM so
+         SortableJS keeps its drop-zone bindings. --}}
     @if($isContainer)
         <div class="ve-children-list"
              id="ve-children-{{ $section['id'] }}"
              data-container="{{ $section['id'] }}"
+             x-show="!collapsed"
              style="margin-left: {{ 12 + $indent }}px; min-height: 28px; border-left: 2px dashed #e5e7eb; margin-bottom: 2px;">
             @foreach($children as $child)
                 @include('livewire.admin.page-sections.partials.section-tree-item', [

@@ -79,6 +79,7 @@ class EditorJsRenderer
             'embed' => $this->renderEmbed($data),
             'table' => $this->renderTable($data),
             'raw' => $data['html'] ?? '',
+            'liveHtml' => $data['html'] ?? '',
             'checklist' => $this->renderChecklist($data),
             'warning' => $this->renderWarning($data),
             'attaches' => $this->renderAttachment($data),
@@ -191,9 +192,9 @@ class EditorJsRenderer
                 foreach ($col['blocks'] as $block) {
                     $colHtml .= $this->renderBlock($block);
                 }
-                $html .= '<div class="prose prose-sm max-w-none">'.$colHtml.'</div>';
+                $html .= '<div>'.$colHtml.'</div>';
             } else {
-                $html .= '<div class="prose prose-sm max-w-none">'.(is_string($col) ? $col : '').'</div>';
+                $html .= '<div>'.(is_string($col) ? $col : '').'</div>';
             }
         }
         $html .= '</div>';
