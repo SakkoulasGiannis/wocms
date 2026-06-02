@@ -142,6 +142,18 @@
                     </a>
                 @endif
                 <a
+                    href="https://portal.kretaeiendom.com/login"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Client portal login"
+                    aria-label="Client portal login"
+                    class="hidden sm:flex h-9 w-9 items-center justify-center rounded-full bg-brand-soft text-brand transition-colors hover:bg-brand hover:text-white whitespace-nowrap"
+                >
+                    <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h6a3 3 0 013 3v1" />
+                    </svg>
+                </a>
+                <a
                     href="{{ url('/contact') }}"
                     class="rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-dark whitespace-nowrap"
                 >
@@ -289,6 +301,17 @@
                     @endif
 
                     {{-- Mobile CTA --}}
+                    <a
+                        href="https://portal.kretaeiendom.com/login"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full border border-brand px-6 py-3 text-sm font-semibold text-brand transition-colors hover:bg-brand hover:text-white"
+                    >
+                        <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h6a3 3 0 013 3v1" />
+                        </svg>
+                        Client Portal
+                    </a>
                     <a
                         href="{{ url('/contact') }}"
                         class="mt-2 inline-flex w-full items-center justify-center rounded-full bg-brand px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-dark"
