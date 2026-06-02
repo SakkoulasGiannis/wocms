@@ -36,6 +36,21 @@
       ]
     },
     {
+      "section": "Blog",
+      "items": [
+        {
+          "label": "Categories",
+          "icon": "folder",
+          "route": "admin.blog.categories.index"
+        },
+        {
+          "label": "Tags",
+          "icon": "tag",
+          "route": "admin.blog.tags.index"
+        }
+      ]
+    },
+    {
       "section": "Team",
       "items": [
         {

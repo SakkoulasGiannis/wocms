@@ -505,6 +505,12 @@
                                 $hiddenInSections = ['grapejs', 'wysiwyg', 'markdown', 'code'];
                                 $mainFields = $mainFields->whereNotIn('type', $hiddenInSections);
                             }
+                            // Blog template: hide the legacy free-text `tags` field.
+                            // It is replaced by the categories tree + tag-chip input
+                            // rendered in the dedicated taxonomies card below.
+                            if ($templateSlug === 'blog') {
+                                $mainFields = $mainFields->reject(fn ($f) => $f->name === 'tags');
+                            }
                         @endphp
                         @if($mainFields->count() > 0)
                             <div class="bg-white rounded-lg shadow p-6">
@@ -516,6 +522,59 @@
                                             'entry' => $entry
                                         ])
                                     @endforeach
+                                </div>
+                            </div>
+                        @endif
+
+                        {{-- Blog taxonomies card (categories + tags) --}}
+                        @if($templateSlug === 'blog')
+                            @php
+                                $allCategoryRoots = \App\Models\BlogCategory::with('children.children.children')
+                                    ->whereNull('parent_id')->orderBy('order')->orderBy('name')->get();
+                            @endphp
+                            <div class="bg-white rounded-lg shadow p-6 mt-6">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-4">Categories &amp; Tags</h3>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {{-- Categories tree --}}
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Categories</label>
+                                        @if($allCategoryRoots->isEmpty())
+                                            <p class="text-sm text-gray-500">No categories yet. <a href="{{ route('admin.blog.categories.create') }}" class="text-blue-600 hover:underline">Create the first one</a>.</p>
+                                        @else
+                                            <div class="border border-gray-200 rounded-lg p-3 max-h-72 overflow-y-auto bg-gray-50">
+                                                @php
+                                                    // Recursive renderer for the category tree as nested checkboxes
+                                                    $renderCat = function ($nodes, $depth = 0) use (&$renderCat) {
+                                                        foreach ($nodes as $node) {
+                                                            echo '<label class="flex items-center text-sm py-0.5" style="padding-left:'.($depth*16).'px">';
+                                                            echo '<input type="checkbox" wire:model="blogCategoryIds" value="'.$node->id.'" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2">';
+                                                            echo e($node->name);
+                                                            echo '</label>';
+                                                            if ($node->children->isNotEmpty()) {
+                                                                $renderCat($node->children, $depth + 1);
+                                                            }
+                                                        }
+                                                    };
+                                                    $renderCat($allCategoryRoots);
+                                                @endphp
+                                            </div>
+                                            <p class="mt-1 text-xs text-gray-500">
+                                                <a href="{{ route('admin.blog.categories.index') }}" class="text-blue-600 hover:underline" target="_blank">Manage categories →</a>
+                                            </p>
+                                        @endif
+                                    </div>
+
+                                    {{-- Tags input (auto-creates new tags on save) --}}
+                                    <div>
+                                        <label for="blogTagsInput" class="block text-sm font-medium text-gray-700 mb-2">Tags</label>
+                                        <input type="text" id="blogTagsInput"
+                                               wire:model="blogTagsInput"
+                                               placeholder="e.g. Real Estate, Crete, Investment"
+                                               class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm">
+                                        <p class="mt-1 text-xs text-gray-500">Comma-separated. Tags that don't exist yet are created automatically on save.</p>
+                                        @error('blogTagsInput')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                                    </div>
                                 </div>
                             </div>
                         @endif

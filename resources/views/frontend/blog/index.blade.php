@@ -38,17 +38,30 @@
         </div>
     </div>
 
+    <!-- Categories Filter -->
+    @if(!empty($allCategories) && $allCategories->isNotEmpty())
+    <div class="mb-4">
+        <p class="text-sm text-gray-600 mb-2">Filter by category:</p>
+        <div class="flex flex-wrap gap-2">
+            @foreach($allCategories as $cat)
+                <a href="{{ route('blog.category', $cat->slug) }}"
+                   class="px-3 py-1 text-sm rounded-full {{ request('category') === $cat->slug ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-700 hover:bg-blue-200' }}">
+                    {{ $cat->name }}
+                </a>
+            @endforeach
+        </div>
+    </div>
+    @endif
+
     <!-- Tags Filter -->
     @if($allTags->isNotEmpty())
     <div class="mb-8">
         <p class="text-sm text-gray-600 mb-2">Filter by tag:</p>
         <div class="flex flex-wrap gap-2">
             @foreach($allTags->take(20) as $tag)
-                <a
-                    href="{{ route('blog.index', ['tag' => $tag] + request()->except('tag')) }}"
-                    class="px-3 py-1 text-sm rounded-full {{ request('tag') === $tag ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300' }}"
-                >
-                    {{ $tag }}
+                <a href="{{ route('blog.tag', $tag->slug) }}"
+                   class="px-3 py-1 text-sm rounded-full {{ request('tag') === $tag->slug ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300' }}">
+                    #{{ $tag->name }}
                 </a>
             @endforeach
         </div>
@@ -101,10 +114,13 @@
                             <p class="text-gray-600 mb-4 line-clamp-3">{{ $post->excerpt }}</p>
                         @endif
 
-                        @if($post->tags)
+                        @if($post->categories->isNotEmpty() || $post->tags->isNotEmpty())
                             <div class="flex flex-wrap gap-2 mb-4">
-                                @foreach(array_slice(array_map('trim', explode(',', $post->tags)), 0, 3) as $tag)
-                                    <span class="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">{{ $tag }}</span>
+                                @foreach($post->categories->take(2) as $cat)
+                                    <a href="{{ route('blog.category', $cat->slug) }}" class="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200">{{ $cat->name }}</a>
+                                @endforeach
+                                @foreach($post->tags->take(3) as $tag)
+                                    <a href="{{ route('blog.tag', $tag->slug) }}" class="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200">#{{ $tag->name }}</a>
                                 @endforeach
                             </div>
                         @endif

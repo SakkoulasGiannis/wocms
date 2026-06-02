@@ -61,15 +61,19 @@
             @endif
         </div>
 
-        <!-- Tags -->
-        @if($post->tags)
+        <!-- Categories + Tags -->
+        @if($post->categories->isNotEmpty() || $post->tags->isNotEmpty())
             <div class="mt-4 flex flex-wrap gap-2">
-                @foreach(array_map('trim', explode(',', $post->tags)) as $tag)
-                    <a
-                        href="{{ route('blog.index', ['tag' => $tag]) }}"
-                        class="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200"
-                    >
-                        {{ $tag }}
+                @foreach($post->categories as $cat)
+                    <a href="{{ route('blog.category', $cat->slug) }}"
+                       class="px-3 py-1 text-sm bg-blue-600 text-white rounded-full hover:bg-blue-700">
+                        {{ $cat->name }}
+                    </a>
+                @endforeach
+                @foreach($post->tags as $tag)
+                    <a href="{{ route('blog.tag', $tag->slug) }}"
+                       class="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200">
+                        #{{ $tag->name }}
                     </a>
                 @endforeach
             </div>

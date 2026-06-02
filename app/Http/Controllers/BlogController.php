@@ -29,29 +29,32 @@ class BlogController extends Controller
             $query->active();
         }
 
-        $posts = $query->when($request->search, function ($query, $search) {
-            $query->where('title', 'like', "%{$search}%")
-                ->orWhere('excerpt', 'like', "%{$search}%")
-                ->orWhere('tags', 'like', "%{$search}%");
-        })
-            ->when($request->tag, function ($query, $tag) {
-                $query->where('tags', 'like', "%{$tag}%");
+        $posts = $query->with(['tags', 'categories'])
+            ->when($request->search, function ($q, $search) {
+                $q->where(function ($qq) use ($search) {
+                    $qq->where('title', 'like', "%{$search}%")
+                        ->orWhere('excerpt', 'like', "%{$search}%")
+                        ->orWhereHas('tags', fn ($t) => $t->where('name', 'like', "%{$search}%"));
+                });
             })
-            ->when($request->author, function ($query, $author) {
-                $query->where('author', $author);
+            ->when($request->tag, function ($q, $tag) {
+                // Filter by tag slug (preferred) or name (legacy)
+                $q->whereHas('tags', fn ($t) => $t->where('slug', $tag)->orWhere('name', $tag));
+            })
+            ->when($request->category, function ($q, $cat) {
+                $q->whereHas('categories', fn ($c) => $c->where('slug', $cat)->orWhere('name', $cat));
+            })
+            ->when($request->author, function ($q, $author) {
+                $q->where('author', $author);
             })
             ->whereNotNull('published_at')
             ->orderBy('published_at', 'desc')
             ->paginate(12);
 
-        // Get all unique tags and authors for filters (only from active posts)
-        $allTags = Blog::active()
-            ->whereNotNull('tags')
-            ->pluck('tags')
-            ->flatMap(fn ($tags) => array_map('trim', explode(',', $tags)))
-            ->unique()
-            ->sort()
-            ->values();
+        // Taxonomy lists for filter dropdowns
+        $allTags = \App\Models\BlogTag::orderBy('name')->get();
+        $allCategories = \App\Models\BlogCategory::where('is_active', true)
+            ->orderBy('order')->orderBy('name')->get();
 
         $allAuthors = Blog::active()
             ->whereNotNull('author')
@@ -63,7 +66,39 @@ class BlogController extends Controller
         $themeManager = app(ThemeManager::class);
         $view = $themeManager->getTemplateView('blog.index') ?? 'frontend.blog.index';
 
-        return view($view, compact('posts', 'template', 'allTags', 'allAuthors'));
+        return view($view, compact('posts', 'template', 'allTags', 'allCategories', 'allAuthors'));
+    }
+
+    /**
+     * Filter blog by category slug — /blog/category/{slug}.
+     * Reuses the index() view by populating $request->category.
+     */
+    public function category(Request $request, string $slug)
+    {
+        $category = \App\Models\BlogCategory::where('slug', $slug)->firstOrFail();
+        $request->merge(['category' => $category->slug]);
+        $response = $this->index($request);
+        // share the filter context with the view so it can render a heading
+        if (method_exists($response, 'with')) {
+            $response->with(['activeCategory' => $category]);
+        }
+
+        return $response;
+    }
+
+    /**
+     * Filter blog by tag slug — /blog/tag/{slug}.
+     */
+    public function tag(Request $request, string $slug)
+    {
+        $tag = \App\Models\BlogTag::where('slug', $slug)->firstOrFail();
+        $request->merge(['tag' => $tag->slug]);
+        $response = $this->index($request);
+        if (method_exists($response, 'with')) {
+            $response->with(['activeTag' => $tag]);
+        }
+
+        return $response;
     }
 
     /**
@@ -107,18 +142,15 @@ class BlogController extends Controller
             ->whereNotNull('published_at')
             ->firstOrFail();
 
-        // Get related posts (same tags)
+        // Get related posts — share at least one tag with the current post.
         $relatedPosts = collect();
-        if ($post->tags) {
-            $tags = array_map('trim', explode(',', $post->tags));
+        $tagIds = $post->tags->pluck('id')->all();
+        if ($tagIds) {
             $relatedPosts = Blog::active()
                 ->where('id', '!=', $post->id)
                 ->whereNotNull('published_at')
-                ->where(function ($query) use ($tags) {
-                    foreach ($tags as $tag) {
-                        $query->orWhere('tags', 'like', "%{$tag}%");
-                    }
-                })
+                ->whereHas('tags', fn ($q) => $q->whereIn('blog_tags.id', $tagIds))
+                ->with('tags', 'categories')
                 ->orderBy('published_at', 'desc')
                 ->limit(3)
                 ->get();

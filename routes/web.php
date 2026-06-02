@@ -7,8 +7,11 @@ use Illuminate\Support\Facades\Route;
 // Frontend routes
 Route::get('/', [FrontendController::class, 'home'])->name('home');
 
-// Blog routes
+// Blog routes — taxonomy filter routes come BEFORE the generic {slug} route
+// so /blog/category/x and /blog/tag/x don't get swallowed by show().
 Route::get('/blog', [\App\Http\Controllers\BlogController::class, 'index'])->name('blog.index');
+Route::get('/blog/category/{slug}', [\App\Http\Controllers\BlogController::class, 'category'])->name('blog.category');
+Route::get('/blog/tag/{slug}', [\App\Http\Controllers\BlogController::class, 'tag'])->name('blog.tag');
 Route::get('/blog/{slug}', [\App\Http\Controllers\BlogController::class, 'show'])->name('blog.show');
 
 // Properties routes
@@ -109,6 +112,12 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     Route::get('/agents', \App\Livewire\Admin\Agents\AgentList::class)->name('agents.index');
     Route::get('/agents/create', \App\Livewire\Admin\Agents\AgentForm::class)->name('agents.create');
     Route::get('/agents/{agentId}/edit', \App\Livewire\Admin\Agents\AgentForm::class)->name('agents.edit');
+
+    // Blog taxonomies (categories + tags)
+    Route::get('/blog/categories', \App\Livewire\Admin\Blog\CategoryList::class)->name('blog.categories.index');
+    Route::get('/blog/categories/create', \App\Livewire\Admin\Blog\CategoryForm::class)->name('blog.categories.create');
+    Route::get('/blog/categories/{categoryId}/edit', \App\Livewire\Admin\Blog\CategoryForm::class)->name('blog.categories.edit');
+    Route::get('/blog/tags', \App\Livewire\Admin\Blog\TagList::class)->name('blog.tags.index');
 
     // Auto-load module admin routes (must be before the wildcard {templateSlug} catch-all)
     foreach (\Nwidart\Modules\Facades\Module::allEnabled() as $module) {

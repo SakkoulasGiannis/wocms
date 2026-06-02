@@ -42,6 +42,13 @@ class EntryForm extends Component
 
     public $cacheEnabled = ''; // Cache override: '' = use template, '1' = force enable, '0' = force disable
 
+    // Blog taxonomies (only used when $template->slug === 'blog')
+    /** @var array<int, int> selected BlogCategory ids */
+    public array $blogCategoryIds = [];
+
+    /** @var string comma-separated tag names; auto-creates BlogTag rows on save */
+    public string $blogTagsInput = '';
+
     // Prevent re-render on file upload
     protected $listeners = ['fileUploaded' => 'handleFileUploaded'];
 
@@ -232,6 +239,12 @@ class EntryForm extends Component
                         $this->fieldValues[$cssFieldName] = $this->entry->{$cssFieldName};
                     }
                 }
+            }
+
+            // Load blog taxonomies (categories + tags) for the blog template only
+            if ($this->templateSlug === 'blog' && method_exists($this->entry, 'categories')) {
+                $this->blogCategoryIds = $this->entry->categories()->pluck('blog_categories.id')->all();
+                $this->blogTagsInput = $this->entry->tags()->orderBy('name')->pluck('name')->implode(', ');
             }
 
             // Load SEO fields if template has SEO enabled
@@ -498,10 +511,32 @@ class EntryForm extends Component
                     break;
             }
 
+            // Enforce URL uniqueness at the validation layer (per-template table,
+            // ignoring the current entry on edit). Without this, duplicate slugs
+            // pass validation and only fail at the DB unique index — surfacing as
+            // a 500 instead of a friendly "URL already in use" form error.
+            if (
+                $field->name === 'slug'
+                && $this->template->requires_database
+                && $this->template->table_name
+                && \Illuminate\Support\Facades\Schema::hasColumn($this->template->table_name, 'slug')
+            ) {
+                $rules["fieldValues.{$field->name}"] = array_merge($fieldRules, [
+                    \Illuminate\Validation\Rule::unique($this->template->table_name, 'slug')
+                        ->ignore($this->entryId),
+                ]);
+
+                continue;
+            }
+
             $rules["fieldValues.{$field->name}"] = implode('|', $fieldRules);
         }
 
-        $this->validate($rules);
+        $this->validate(
+            $rules,
+            ['fieldValues.slug.unique' => 'This URL slug is already used by another entry. Choose a different slug.'],
+            ['fieldValues.slug' => 'URL slug']
+        );
 
         // Clean GrapeJS fields - remove <body> tags
         $this->cleanGrapeJsFields();
@@ -549,6 +584,9 @@ class EntryForm extends Component
             // Reload entry to ensure trait methods are available
             $this->entry->refresh();
             $this->syncSections($this->entry);
+
+            // Sync blog categories/tags (no-op for non-blog templates)
+            $this->syncBlogTaxonomies($this->entry);
 
             // Update ContentNode only if template is public
             if ($this->template->is_public) {
@@ -599,6 +637,9 @@ class EntryForm extends Component
             // Sync sections if template uses sections
             $this->syncSections($newEntry);
 
+            // Sync blog categories/tags (no-op for non-blog templates)
+            $this->syncBlogTaxonomies($newEntry);
+
             // Create ContentNode only if template is public
             if ($this->template->is_public) {
                 $this->createContentNode($newEntry);
@@ -614,6 +655,33 @@ class EntryForm extends Component
                 'entryId' => $newEntry->id,
             ]);
         }
+    }
+
+    /**
+     * Persist Blog category + tag pivots from the form state. Tags are
+     * auto-created from the comma-separated input (case-insensitive by slug).
+     * No-op for any template other than the blog.
+     */
+    protected function syncBlogTaxonomies($entry): void
+    {
+        if ($this->templateSlug !== 'blog' || ! ($entry instanceof \App\Models\Blog)) {
+            return;
+        }
+
+        // Categories
+        $catIds = array_values(array_filter(array_map('intval', $this->blogCategoryIds ?? [])));
+        $entry->categories()->sync($catIds);
+
+        // Tags — parse the comma-separated input, find-or-create each tag,
+        // then sync the resulting pivot.
+        $names = collect(explode(',', (string) $this->blogTagsInput))
+            ->map(fn ($n) => trim((string) $n))
+            ->filter()
+            ->unique(fn ($n) => \Illuminate\Support\Str::slug($n))
+            ->values();
+
+        $tagIds = $names->map(fn ($n) => \App\Models\BlogTag::findOrCreateByName($n)->id)->all();
+        $entry->tags()->sync($tagIds);
     }
 
     /**

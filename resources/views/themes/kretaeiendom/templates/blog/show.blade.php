@@ -53,12 +53,17 @@
                     @endif
                 </div>
 
-                <!-- Tags -->
-                @if($post->tags)
+                <!-- Categories + Tags -->
+                @if($post->categories->isNotEmpty() || $post->tags->isNotEmpty())
                     <div class="d-flex flex-wrap gap-2 mb-4">
-                        @foreach(array_map('trim', explode(',', $post->tags)) as $tag)
-                            <a href="{{ route('blog.index', ['tag' => $tag]) }}" class="badge rounded-pill bg-primary text-decoration-none" style="font-size: 13px; padding: 6px 14px;">
-                                {{ $tag }}
+                        @foreach($post->categories as $cat)
+                            <a href="{{ route('blog.category', $cat->slug) }}" class="badge rounded-pill bg-primary text-decoration-none" style="font-size: 13px; padding: 6px 14px;">
+                                {{ $cat->name }}
+                            </a>
+                        @endforeach
+                        @foreach($post->tags as $tag)
+                            <a href="{{ route('blog.tag', $tag->slug) }}" class="badge rounded-pill bg-secondary text-decoration-none" style="font-size: 13px; padding: 6px 14px;">
+                                #{{ $tag->name }}
                             </a>
                         @endforeach
                     </div>

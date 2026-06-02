@@ -38,16 +38,32 @@
             </div>
         </div>
 
+        <!-- Categories Filter -->
+        @if(!empty($allCategories) && $allCategories->isNotEmpty())
+        <div class="mb-3">
+            <p class="text-muted mb-2">Filter by category:</p>
+            <div class="d-flex flex-wrap gap-2">
+                @foreach($allCategories as $cat)
+                    <a href="{{ route('blog.category', $cat->slug) }}"
+                       class="badge rounded-pill {{ request('category') === $cat->slug ? 'bg-primary' : 'bg-info text-dark' }} text-decoration-none"
+                       style="font-size: 13px; padding: 6px 14px;">
+                        {{ $cat->name }}
+                    </a>
+                @endforeach
+            </div>
+        </div>
+        @endif
+
         <!-- Tags Filter -->
         @if($allTags->isNotEmpty())
         <div class="mb-4">
             <p class="text-muted mb-2">Filter by tag:</p>
             <div class="d-flex flex-wrap gap-2">
                 @foreach($allTags->take(20) as $tag)
-                    <a href="{{ route('blog.index', ['tag' => $tag] + request()->except('tag')) }}"
-                       class="badge rounded-pill {{ request('tag') === $tag ? 'bg-primary' : 'bg-light text-dark' }} text-decoration-none"
+                    <a href="{{ route('blog.tag', $tag->slug) }}"
+                       class="badge rounded-pill {{ request('tag') === $tag->slug ? 'bg-primary' : 'bg-light text-dark' }} text-decoration-none"
                        style="font-size: 13px; padding: 6px 14px;">
-                        {{ $tag }}
+                        #{{ $tag->name }}
                     </a>
                 @endforeach
             </div>
@@ -77,11 +93,12 @@
                                     @if($post->author)
                                         <span><i class="icon-profile"></i> {{ $post->author }}</span>
                                     @endif
-                                    @if($post->tags)
-                                        @foreach(array_slice(array_map('trim', explode(',', $post->tags)), 0, 2) as $tag)
-                                            <span>{{ $tag }}</span>
-                                        @endforeach
-                                    @endif
+                                    @foreach($post->categories->take(1) as $cat)
+                                        <a href="{{ route('blog.category', $cat->slug) }}">{{ $cat->name }}</a>
+                                    @endforeach
+                                    @foreach($post->tags->take(2) as $tag)
+                                        <a href="{{ route('blog.tag', $tag->slug) }}">#{{ $tag->name }}</a>
+                                    @endforeach
                                 </div>
                                 <h5 class="title">
                                     <a href="{{ route('blog.show', $post->slug) }}">{{ $post->title }}</a>
