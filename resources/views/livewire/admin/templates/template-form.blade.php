@@ -66,6 +66,31 @@
                                 </span>
                             </label>
                         </div>
+
+                        {{-- Visual-editor scope toggles. Independent of useSlugPrefix:
+                             show the "Design listing" / "Design entry" buttons in the admin
+                             entry list regardless of URL structure. --}}
+                        <div class="mt-4 pt-4 border-t border-gray-200">
+                            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Visual editor</p>
+                            <label class="flex items-center mb-2">
+                                <input type="checkbox"
+                                       wire:model="design_listing_enabled"
+                                       class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <span class="ml-2 text-sm text-gray-700">
+                                    Enable <span class="font-semibold text-indigo-700">Design listing</span> button
+                                    <span class="block text-xs text-gray-500">Lets you build a custom layout for the index page (e.g. /{{ $slug ?: 'template-slug' }})</span>
+                                </span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox"
+                                       wire:model="design_entry_enabled"
+                                       class="rounded border-gray-300 text-purple-600 shadow-sm focus:border-purple-500 focus:ring-purple-500">
+                                <span class="ml-2 text-sm text-gray-700">
+                                    Enable <span class="font-semibold text-purple-700">Design entry</span> button
+                                    <span class="block text-xs text-gray-500">Lets you build a custom layout for the single-entry page (used by every entry of this template)</span>
+                                </span>
+                            </label>
+                        </div>
                     </div>
                 </div>
 

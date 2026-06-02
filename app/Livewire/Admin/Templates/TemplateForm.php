@@ -21,6 +21,13 @@ class TemplateForm extends Component
 
     public $useSlugPrefix = false;
 
+    // Per-template visual-editor toggles — independent of useSlugPrefix.
+    // Default true for new database-backed templates so the buttons show
+    // out of the box; user can still uncheck.
+    public bool $design_listing_enabled = true;
+
+    public bool $design_entry_enabled = true;
+
     public $description = '';
 
     public $has_physical_file = false;
@@ -68,8 +75,9 @@ class TemplateForm extends Component
     // Tree Structure
     public $parent_id = null;
 
-    // Settings (JSON column)
-    public bool $sortable = false;
+    // Settings (JSON column) — default true so the admin entry list gets
+    // drag-to-reorder out of the box; can still be turned off in the form.
+    public bool $sortable = true;
 
     // Fields Array
     public $fields = [];
@@ -94,6 +102,8 @@ class TemplateForm extends Component
             $this->name = $this->template->name;
             $this->slug = $this->template->slug;
             $this->useSlugPrefix = $this->template->use_slug_prefix ?? false;
+            $this->design_listing_enabled = (bool) ($this->template->design_listing_enabled ?? false);
+            $this->design_entry_enabled = (bool) ($this->template->design_entry_enabled ?? false);
             $this->description = $this->template->description;
             $this->has_physical_file = $this->template->has_physical_file;
             $this->file_path = $this->template->file_path;
@@ -420,6 +430,8 @@ class TemplateForm extends Component
             'name' => 'required|string|max:255',
             'slug' => 'required|string|unique:templates,slug,'.($this->templateId ?? 'NULL'),
             'useSlugPrefix' => 'boolean',
+            'design_listing_enabled' => 'boolean',
+            'design_entry_enabled' => 'boolean',
             'description' => 'nullable|string',
             'has_physical_file' => 'boolean',
             'file_path' => 'nullable|string',

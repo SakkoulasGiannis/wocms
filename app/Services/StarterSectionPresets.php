@@ -48,42 +48,46 @@ class StarterSectionPresets
     protected function listingPreset(Template $template): array
     {
         $loop = $this->sectionTemplateId('entry-loop');
-        if (! $loop) return [];
+        if (! $loop) {
+            return [];
+        }
 
         // Pick best token defaults based on the template's actual field names
         $fieldNames = $template->fields()->pluck('name')->toArray();
-        $titleField   = $this->firstMatching($fieldNames, ['name', 'title', 'heading']) ?? 'name';
-        $imageField   = $this->firstMatching($fieldNames, ['main_image', 'featured_image', 'image']) ?? 'main_image';
+        $titleField = $this->firstMatching($fieldNames, ['name', 'title', 'heading']) ?? 'name';
+        $imageField = $this->firstMatching($fieldNames, ['main_image', 'featured_image', 'image']) ?? 'main_image';
         $subFieldGuesses = [
-            in_array('location', $fieldNames, true)  ? '{location}'  : null,
-            in_array('city',     $fieldNames, true)  ? '{city}'      : null,
+            in_array('location', $fieldNames, true) ? '{location}' : null,
+            in_array('city', $fieldNames, true) ? '{city}' : null,
             in_array('year_built', $fieldNames, true) ? '{year_built}' : null,
         ];
         $subtitle = collect(array_filter($subFieldGuesses))->take(2)->implode(' · ');
-        if ($subtitle === '') $subtitle = '{slug}';
+        if ($subtitle === '') {
+            $subtitle = '{slug}';
+        }
 
         return [
             [
                 'section_template_id' => $loop,
                 'section_type' => 'entry_loop',
-                'name' => 'All ' . $template->name,
+                'name' => 'All '.$template->name,
                 'content' => [
-                    'source_template'     => $template->slug,
-                    'heading'             => 'All ' . $template->name,
-                    'subheading'          => '',
-                    'limit'               => 0,
-                    'order_by'            => 'created_at',
-                    'order_dir'           => 'desc',
-                    'show_pagination'     => true,
-                    'per_page'            => 12,
-                    'columns'             => 3,
-                    'gap'                 => 'normal',
-                    'card_image_token'    => '{' . $imageField . ':preview}',
-                    'card_title_token'    => '{' . $titleField . '}',
+                    'source_template' => $template->slug,
+                    'heading' => 'All '.$template->name,
+                    'subheading' => '',
+                    'limit' => 0,
+                    'order_by' => 'created_at',
+                    'order_dir' => 'desc',
+                    'show_pagination' => true,
+                    'per_page' => 12,
+                    'columns' => 3,
+                    'gap' => 'normal',
+                    'card_image_token' => '{'.$imageField.':preview}',
+                    'card_title_token' => '{'.$titleField.'}',
                     'card_subtitle_token' => $subtitle,
-                    'card_link_pattern'   => '/{template_slug}/{slug}',
+                    'card_link_pattern' => '/{template_slug}/{slug}',
                     'card_image_fallback' => '/themes/kretaeiendom/images/home/house-7.jpg',
-                    'section_class'       => 'py-20 lg:py-24 bg-white',
+                    'section_class' => 'py-20 lg:py-24 bg-white',
                 ],
                 'settings' => [],
                 'order' => 1,
@@ -106,11 +110,11 @@ class StarterSectionPresets
                 'name' => 'Project hero',
                 'content' => [
                     'background_image' => '{main_image:hero}',
-                    'heading'          => '{name}',
-                    'subheading'       => '{location}',
-                    'text'             => '',
-                    'button_text'      => '',
-                    'button_url'       => '',
+                    'heading' => '{name}',
+                    'subheading' => '{location}',
+                    'text' => '',
+                    'button_text' => '',
+                    'button_url' => '',
                 ],
                 'settings' => [],
                 'order' => $order++,
@@ -129,6 +133,27 @@ class StarterSectionPresets
         ];
         $out[] = $this->specsSection('Project details', $specs, $order++);
 
+        // Photo gallery — auto-pulls from the entry's 'gallery' media collection.
+        $galleryTpl = $this->sectionTemplateId('entry_gallery_grid');
+        if ($galleryTpl) {
+            $out[] = [
+                'section_template_id' => $galleryTpl,
+                'section_type' => 'entry_gallery_grid',
+                'name' => 'Photo gallery',
+                'content' => [
+                    'heading' => 'Photo Gallery',
+                    'subheading' => 'EXPLORE',
+                    'media_collection' => 'gallery',
+                    'columns' => '3',
+                    'gap' => 'normal',
+                    'lightbox' => true,
+                    'section_class' => 'py-16 lg:py-20 bg-surface',
+                ],
+                'settings' => [],
+                'order' => $order++,
+            ];
+        }
+
         return $out;
     }
 
@@ -146,11 +171,11 @@ class StarterSectionPresets
                 'name' => 'Post hero',
                 'content' => [
                     'background_image' => '{featured_image}',
-                    'heading'          => '{title}',
-                    'subheading'       => '{author|}',
-                    'text'             => '',
-                    'button_text'      => '',
-                    'button_url'       => '',
+                    'heading' => '{title}',
+                    'subheading' => '{author|}',
+                    'text' => '',
+                    'button_text' => '',
+                    'button_url' => '',
                 ],
                 'settings' => [],
                 'order' => $order++,
@@ -186,11 +211,11 @@ class StarterSectionPresets
                 'name' => 'Property hero',
                 'content' => [
                     'background_image' => '{featured_image:hero}',
-                    'heading'          => '{title}',
-                    'subheading'       => '{city|}',
-                    'text'             => '',
-                    'button_text'      => '',
-                    'button_url'       => '',
+                    'heading' => '{title}',
+                    'subheading' => '{city|}',
+                    'text' => '',
+                    'button_text' => '',
+                    'button_url' => '',
                 ],
                 'settings' => [],
                 'order' => $order++,
@@ -215,10 +240,10 @@ class StarterSectionPresets
      */
     protected function specsSection(string $heading, array $specs, int $order): array
     {
-        $primSection   = $this->sectionTemplateId('primitive-section');
-        $primDiv       = $this->sectionTemplateId('primitive-div');
-        $primHeading   = $this->sectionTemplateId('primitive-heading');
-        $primGrid      = $this->sectionTemplateId('primitive-grid');
+        $primSection = $this->sectionTemplateId('primitive-section');
+        $primDiv = $this->sectionTemplateId('primitive-div');
+        $primHeading = $this->sectionTemplateId('primitive-heading');
+        $primGrid = $this->sectionTemplateId('primitive-grid');
         $primParagraph = $this->sectionTemplateId('primitive-paragraph');
 
         // If primitives aren't installed yet, fall back to a flat list of
@@ -228,8 +253,8 @@ class StarterSectionPresets
                 'section_template_id' => $this->sectionTemplateId('custom-html'),
                 'section_type' => 'custom_html',
                 'name' => $heading,
-                'content' => ['html' => '<div class="py-16"><h2>' . $heading . '</h2><ul>' .
-                    implode('', array_map(fn ($s) => '<li><strong>' . $s['label'] . ':</strong> ' . $s['token'] . '</li>', $specs)) .
+                'content' => ['html' => '<div class="py-16"><h2>'.$heading.'</h2><ul>'.
+                    implode('', array_map(fn ($s) => '<li><strong>'.$s['label'].':</strong> '.$s['token'].'</li>', $specs)).
                     '</ul></div>'],
                 'settings' => [],
                 'order' => $order,
@@ -252,7 +277,7 @@ class StarterSectionPresets
                     [
                         'section_template_id' => $primParagraph,
                         'section_type' => 'primitive_paragraph',
-                        'name' => $spec['label'] . ' (label)',
+                        'name' => $spec['label'].' (label)',
                         'content' => ['content' => $spec['label'], 'class' => 'text-sm text-variant-1', 'id' => ''],
                         'settings' => [],
                         'order' => 1,
@@ -260,7 +285,7 @@ class StarterSectionPresets
                     [
                         'section_template_id' => $primParagraph,
                         'section_type' => 'primitive_paragraph',
-                        'name' => $spec['label'] . ' (value)',
+                        'name' => $spec['label'].' (value)',
                         'content' => ['content' => $spec['token'], 'class' => 'font-semibold text-on-surface', 'id' => ''],
                         'settings' => [],
                         'order' => 2,
@@ -316,7 +341,9 @@ class StarterSectionPresets
     protected function genericEntryPreset(Template $template): array
     {
         $hero = $this->sectionTemplateId('hero-simple');
-        if (! $hero) return [];
+        if (! $hero) {
+            return [];
+        }
 
         $fields = $template->fields()->orderBy('order')->get();
         $titleField = $fields->where('type', 'text')->first()?->name ?? 'title';
@@ -329,11 +356,11 @@ class StarterSectionPresets
                 'name' => 'Hero',
                 'content' => [
                     'background_image' => $imageField ? '{'.$imageField.'}' : '',
-                    'heading'          => '{'.$titleField.'}',
-                    'subheading'       => '',
-                    'text'             => '',
-                    'button_text'      => '',
-                    'button_url'       => '',
+                    'heading' => '{'.$titleField.'}',
+                    'subheading' => '',
+                    'text' => '',
+                    'button_text' => '',
+                    'button_url' => '',
                 ],
                 'settings' => [],
                 'order' => 1,
@@ -351,8 +378,11 @@ class StarterSectionPresets
     protected function firstMatching(array $haystack, array $candidates): ?string
     {
         foreach ($candidates as $c) {
-            if (in_array($c, $haystack, true)) return $c;
+            if (in_array($c, $haystack, true)) {
+                return $c;
+            }
         }
+
         return null;
     }
 }
