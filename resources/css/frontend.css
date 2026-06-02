@@ -13,6 +13,13 @@
 @source "../../Modules/**/resources/views/**/*.blade.php";
 @source "../../app/**/*.php";
 
+/* Safelist — utility classes typed by hand in the visual editor live in the
+   database, not in any scanned source file, so Tailwind would purge them
+   (e.g. bg-blue-700 entered as a section class never renders). Force-generate
+   the full color palette across the common property prefixes + variants. */
+@source inline("{hover:,}{bg,text,border}-{slate,gray,zinc,neutral,stone,red,orange,amber,yellow,lime,green,emerald,teal,cyan,sky,blue,indigo,violet,purple,fuchsia,pink,rose}-{50,100,200,300,400,500,600,700,800,900,950}");
+@source inline("{bg,text,border}-{white,black,transparent}");
+
 @theme {
     /* Brand colors — homelengo design tokens (scss/abstracts/_variable.scss) */
     --color-brand:        #1563df;

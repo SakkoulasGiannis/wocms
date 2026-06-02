@@ -287,7 +287,19 @@ class FrontendController extends Controller
             }
         }
 
-        $entries = $query->latest()->paginate(12);
+        // Respect the manual drag-ordering set in the admin entry list when the
+        // template is sortable and the model's table has a sort_order column.
+        // Falls back to newest-first for non-sortable templates (unchanged).
+        $sortable = (bool) ($template->settings['sortable'] ?? false);
+        $table = (new $modelClass)->getTable();
+
+        if ($sortable && \Illuminate\Support\Facades\Schema::hasColumn($table, 'sort_order')) {
+            $query->orderBy('sort_order')->orderBy('id');
+        } else {
+            $query->latest();
+        }
+
+        $entries = $query->paginate(12);
 
         // Prepare data
         $data = [
