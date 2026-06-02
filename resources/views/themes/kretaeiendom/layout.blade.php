@@ -108,17 +108,17 @@
 
     @if(request()->has('ve'))
     <style>
-        /* wrapper is display:contents — style its first child instead */
-        .ve-section-wrapper { display: contents; }
-        .ve-section-wrapper > *:first-child {
+        /* Markers are injected directly on the section's own first element
+           (no extra wrapper div) — style that element. */
+        .ve-section {
             cursor: pointer;
             outline: 2px solid transparent;
             outline-offset: 3px;
             transition: outline-color 0.15s;
         }
-        .ve-section-wrapper > *:first-child:hover { outline-color: #c4b5fd !important; }
-        .ve-section-wrapper.ve-active > *:first-child { outline: 2px solid #7c3aed !important; outline-offset: 3px; }
-        .ve-section-wrapper.ve-hidden > *:first-child { opacity: 0.35; outline: 2px dashed #9ca3af !important; }
+        .ve-section:hover { outline-color: #c4b5fd !important; }
+        .ve-section.ve-active { outline: 2px solid #7c3aed !important; outline-offset: 3px; }
+        .ve-section.ve-hidden { opacity: 0.35; outline: 2px dashed #9ca3af !important; }
     </style>
     <script>
         // Event delegation — works for dynamically patched sections too
@@ -128,7 +128,7 @@
             e.preventDefault();
             e.stopPropagation();
             const id = parseInt(wrapper.dataset.veSectionId);
-            document.querySelectorAll('.ve-section-wrapper').forEach(w => w.classList.remove('ve-active'));
+            document.querySelectorAll('.ve-section').forEach(w => w.classList.remove('ve-active'));
             wrapper.classList.add('ve-active');
             window.parent.postMessage({ type: 've-section-click', sectionId: id }, '*');
         }, true);

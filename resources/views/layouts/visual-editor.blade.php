@@ -6,6 +6,14 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Visual Editor — {{ config('app.name') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    {{-- Tailwind Play CDN (JIT): the compiled app.css only contains utility classes
+         actually used in the project, so arbitrary classes from pasted HTML
+         components (e.g. lg:flex-row, sm:grid-cols-2, bg-white/3, xl:gap-x-20)
+         have no CSS to resolve to and the layout collapses. The Play CDN generates
+         ANY utility on demand (incl. dynamically inserted blocks), so pasted
+         components render exactly like their source while editing. Matches the
+         admin layouts which already load this CDN. --}}
+    <script src="https://cdn.tailwindcss.com"></script>
     @stack('styles')
     <style>
         html, body { height: 100%; overflow: hidden; }

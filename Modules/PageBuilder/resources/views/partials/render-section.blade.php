@@ -59,10 +59,20 @@
 @endphp
 
 @if(!$isVeMode && $isHidden){{-- Hidden section: skip in production --}}@else
-@if($isVeMode)<div class="ve-section-wrapper{{ $isHidden ? ' ve-hidden' : '' }}"
-    data-ve-section-id="{{ $section->id }}"
-    data-ve-label="{{ $section->name ?: $section->section_type }}"
-    style="display:contents">@endif
+@php
+    ob_start();
+    // A primitive div/section with NO class and NO id is a purely structural
+    // wrapper. Rendering it as a normal <div> inserts an extra block box that
+    // breaks the parent's grid/flex layout (e.g. a child's col-span-full stops
+    // working because it's no longer a direct grid item). Mark it so we can
+    // make it layout-transparent with display:contents.
+    $__isStructuralWrapper = false;
+    if (in_array($section->section_type, ['primitive_div', 'primitive_section'], true)) {
+        $__cls = trim((string) ($sectionContent['class'] ?? ''));
+        $__pid = trim((string) ($sectionContent['id'] ?? ''));
+        $__isStructuralWrapper = ($__cls === '' && $__pid === '');
+    }
+@endphp
 
 {{-- 1. Pre-rendered / cached HTML --}}
 @if(!empty($section->rendered_html))
@@ -77,6 +87,7 @@
                 'section'  => $section,
                 'content'  => $sectionContent,
                 'settings' => $sectionSettings,
+                'entry'    => $entryContext,
             ])->render();
         } catch (\Throwable $e) {
             if (config('app.debug')) {
@@ -98,6 +109,7 @@
                 'section'  => $section,
                 'content'  => $sectionContent,
                 'settings' => $sectionSettings,
+                'entry'    => $entryContext,
             ])->render();
         } catch (\Throwable $e) {
             if (config('app.debug')) {
@@ -113,6 +125,7 @@
             echo view('components.sections.' . $sectionTypeSlug, [
                 'content'  => $sectionContent,
                 'settings' => $sectionSettings,
+                'entry'    => $entryContext,
             ])->render();
         } catch (\Throwable $e) {
             if (config('app.debug')) {
@@ -131,5 +144,51 @@
     </div>
 @endif
 
-@if($isVeMode)</div>@endif
+@php
+    $__html = ob_get_clean();
+
+    // Transform the section's FIRST element in a single pass:
+    //  • structural wrapper (no class/no id)  → add style="display:contents"
+    //    so it doesn't create a box that breaks the ancestor grid/flex layout
+    //  • ve mode → add data-ve-section-id / data-ve-label / .ve-section so the
+    //    editor overlay can find & highlight the section (no wrapper div)
+    if ($__isStructuralWrapper || $isVeMode) {
+        $__veClass = 've-section' . ($isHidden ? ' ve-hidden' : '');
+        $__veData  = ' data-ve-section-id="' . $section->id . '"'
+                   . ' data-ve-label="' . e($section->name ?: $section->section_type) . '"';
+        $__done = false;
+        $__html = preg_replace_callback('/<([a-zA-Z][a-zA-Z0-9-]*)((?:\s[^>]*?)?)(\/?)>/s', function ($m) use ($__veData, $__veClass, $isVeMode, $__isStructuralWrapper, &$__done) {
+            if ($__done) {
+                return $m[0];
+            }
+            $__done = true;
+            $tag = $m[1];
+            $rest = $m[2];
+            $selfClose = $m[3];
+
+            if ($__isStructuralWrapper) {
+                // Merge into an existing style attr or add one. display:contents
+                // removes the box; children join the ancestor's grid/flex flow.
+                if (preg_match('/\sstyle="([^"]*)"/i', $rest)) {
+                    $rest = preg_replace('/\sstyle="([^"]*)"/i', ' style="$1;display:contents"', $rest, 1);
+                } else {
+                    $rest .= ' style="display:contents"';
+                }
+            }
+
+            if ($isVeMode) {
+                if (preg_match('/\sclass="([^"]*)"/i', $rest)) {
+                    $rest = preg_replace('/\sclass="([^"]*)"/i', ' class="$1 ' . $__veClass . '"', $rest, 1);
+                } else {
+                    $rest .= ' class="' . $__veClass . '"';
+                }
+                return '<' . $tag . $__veData . $rest . $selfClose . '>';
+            }
+
+            return '<' . $tag . $rest . $selfClose . '>';
+        }, $__html, 1);
+    }
+
+    echo $__html;
+@endphp
 @endif{{-- end hidden check --}}

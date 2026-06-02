@@ -659,10 +659,28 @@ class VisualPageEditor extends Component
 
     public function buildAssets(): void
     {
+        // PHP-FPM runs with a minimal environment — its PATH usually lacks the
+        // directory holding node/npm, so a bare `npm run build` fails with
+        // "vite: not found" (vite's `#!/usr/bin/env node` shebang can't locate
+        // node). Resolve an absolute npm binary and pass an explicit PATH (incl.
+        // node_modules/.bin where the vite binary lives) so it works like an
+        // interactive shell.
+        $npm = collect(['/usr/local/bin/npm', '/usr/bin/npm', '/opt/homebrew/bin/npm'])
+            ->first(fn ($p) => is_executable($p)) ?: 'npm';
+        $nodeBinDir = $npm !== 'npm' ? dirname($npm) : '/usr/bin';
+
+        $env = [
+            'PATH' => $nodeBinDir.':'.base_path().'/node_modules/.bin:/usr/local/bin:/usr/bin:/bin',
+            'HOME' => base_path(), // npm needs a writable HOME for its cache
+            'NODE_ENV' => 'production',
+        ];
+
         $process = proc_open(
-            'cd '.base_path().' && npm run build 2>&1',
+            escapeshellarg($npm).' run build 2>&1',
             [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
-            $pipes
+            $pipes,
+            base_path(),
+            $env
         );
 
         if (! is_resource($process)) {

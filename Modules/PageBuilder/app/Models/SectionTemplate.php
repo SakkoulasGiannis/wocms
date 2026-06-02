@@ -120,13 +120,92 @@ class SectionTemplate extends Model
                 continue; // Arrays are handled by {{#each}} above
             }
 
-            $html = str_replace('{{'.$key.'}}', (string) $value, $html);
+            // EditorJS JSON detection: WYSIWYG fields persist their output as
+            // {"time":..., "blocks":[...], "version":"..."}. Plain str_replace
+            // would dump that raw into the HTML. Detect + render to HTML first.
+            $stringValue = (string) $value;
+            if ($this->looksLikeEditorJsJson($stringValue)) {
+                try {
+                    $stringValue = app(\App\Services\EditorJsRenderer::class)->toHtml($stringValue);
+                } catch (\Throwable $e) {
+                    // If the renderer service isn't available or throws, fall
+                    // back to stripping JSON so the user at least sees the text.
+                    $decoded = json_decode($stringValue, true);
+                    if (is_array($decoded) && isset($decoded['blocks'])) {
+                        $stringValue = collect($decoded['blocks'])
+                            ->map(fn ($b) => $b['data']['text'] ?? '')
+                            ->filter()
+                            ->implode(' ');
+                    }
+                }
+            }
+
+            $html = str_replace('{{'.$key.'}}', $stringValue, $html);
         }
 
         // 3. Remove any unreplaced placeholders
         $html = preg_replace('/\{\{[^}]+\}\}/', '', $html);
 
+        // 4. Tidy attributes left messy by empty token substitutions, e.g.
+        //    <div id="" class="p-2 "> or <div class="grid grid-cols- gap- ">.
+        //    Keeps the markup lean and avoids invalid dangling Tailwind utilities.
+        $html = $this->tidyAttributes($html);
+
         return $html;
+    }
+
+    /**
+     * Clean up attributes after placeholder substitution:
+     *  - drop empty id="" attributes
+     *  - collapse whitespace inside class="" and trim
+     *  - strip incomplete Tailwind utilities (tokens ending in '-', e.g.
+     *    grid-cols-, gap-, col-span-) caused by an empty {{columns}}/{{gap}}
+     *  - drop the class attribute entirely if nothing's left
+     */
+    protected function tidyAttributes(string $html): string
+    {
+        // Remove blank id attributes: id="" or id="   "
+        $html = preg_replace('/\sid="\s*"/', '', $html);
+
+        // Normalise class attributes
+        $html = preg_replace_callback('/\sclass="([^"]*)"/', function (array $m): string {
+            $tokens = preg_split('/\s+/', trim($m[1])) ?: [];
+            $clean = array_filter($tokens, function (string $t): bool {
+                if ($t === '') {
+                    return false;
+                }
+
+                // Incomplete utility like "grid-cols-", "gap-", "col-span-"
+                return ! str_ends_with($t, '-');
+            });
+
+            if (empty($clean)) {
+                return ''; // remove the whole class="" attribute
+            }
+
+            return ' class="'.implode(' ', $clean).'"';
+        }, $html);
+
+        return $html;
+    }
+
+    /**
+     * Heuristic — is this string an EditorJS JSON payload? Avoids running
+     * json_decode for every plain text replacement.
+     */
+    protected function looksLikeEditorJsJson(string $value): bool
+    {
+        $value = ltrim($value);
+        if ($value === '' || $value[0] !== '{') {
+            return false;
+        }
+        if (! str_contains($value, '"blocks"')) {
+            return false;
+        }
+
+        $decoded = json_decode($value, true);
+
+        return is_array($decoded) && isset($decoded['blocks']) && is_array($decoded['blocks']);
     }
 
     /**

@@ -101,8 +101,13 @@ class VisualPageEditor extends Component
             if ($model) {
                 $name = $model->title ?? $model->name ?? '#'.$this->sectionableId;
                 // Suffix the scope so the page heading is unambiguous
-                if ($this->scope === 'listing') return $name.' — Listing page design';
-                if ($this->scope === 'entry')   return $name.' — Entry page design';
+                if ($this->scope === 'listing') {
+                    return $name.' — Listing page design';
+                }
+                if ($this->scope === 'entry') {
+                    return $name.' — Entry page design';
+                }
+
                 return $name;
             }
         }
@@ -116,7 +121,9 @@ class VisualPageEditor extends Component
         // Listing → /{template_slug}, Entry → first entry of that template.
         if ($this->sectionableType === \App\Models\Template::class) {
             $tpl = \App\Models\Template::find($this->sectionableId);
-            if (! $tpl) return '/';
+            if (! $tpl) {
+                return '/';
+            }
 
             if ($this->scope === 'entry') {
                 // Try to find the first entry of this template
@@ -130,14 +137,17 @@ class VisualPageEditor extends Component
                         if ($entry && isset($entry->slug) && $tpl->slug) {
                             return '/'.$tpl->slug.'/'.$entry->slug;
                         }
-                    } catch (\Throwable $e) {}
+                    } catch (\Throwable $e) {
+                    }
                 }
                 // Fall back to ContentNode lookup for entries of this template
                 $node = ContentNode::where('template_id', $tpl->id)
                     ->whereNotNull('content_id')
                     ->latest()
                     ->first();
-                if ($node) return $node->url_path;
+                if ($node) {
+                    return $node->url_path;
+                }
             }
 
             // Listing scope (or fallback) → the template's slug root
@@ -177,7 +187,9 @@ class VisualPageEditor extends Component
             $query->where('scope', $this->scope);
         }
 
-        $this->sections = $query->orderBy('order')->get()->toArray();
+        // Secondary sort by id so ties on `order` (transient state during a
+        // drag-reorder save) stay deterministic and don't visually flicker.
+        $this->sections = $query->orderBy('order')->orderBy('id')->get()->toArray();
     }
 
     /**
@@ -190,7 +202,10 @@ class VisualPageEditor extends Component
             return false;
         }
         $tpl = \App\Models\Template::find($this->sectionableId);
-        if (! $tpl) return false;
+        if (! $tpl) {
+            return false;
+        }
+
         return ! empty(app(\App\Services\StarterSectionPresets::class)->presetsFor($tpl, $this->scope));
     }
 
@@ -207,14 +222,19 @@ class VisualPageEditor extends Component
         if (! empty($this->sections)) {
             // Don't overwrite existing work
             session()->flash('error', 'Sections already exist — clear them first if you want to start from defaults.');
+
             return;
         }
 
         $tpl = \App\Models\Template::find($this->sectionableId);
-        if (! $tpl) return;
+        if (! $tpl) {
+            return;
+        }
 
         $preset = app(\App\Services\StarterSectionPresets::class)->presetsFor($tpl, $this->scope);
-        if (empty($preset)) return;
+        if (empty($preset)) {
+            return;
+        }
 
         \DB::transaction(function () use ($preset) {
             $this->createPresetTree($preset, null);
@@ -238,12 +258,12 @@ class VisualPageEditor extends Component
             unset($cfg['children']);
 
             $section = PageSection::create(array_merge($cfg, [
-                'sectionable_type'  => $this->sectionableType,
-                'sectionable_id'    => $this->sectionableId,
-                'scope'             => $this->scope,
+                'sectionable_type' => $this->sectionableType,
+                'sectionable_id' => $this->sectionableId,
+                'scope' => $this->scope,
                 'parent_section_id' => $parentId,
-                'is_active'         => true,
-                'is_visible'        => true,
+                'is_active' => true,
+                'is_visible' => true,
             ]));
 
             if (! empty($children)) {
@@ -273,6 +293,16 @@ class VisualPageEditor extends Component
         }
 
         $this->historyIndex = count($this->historyStack) - 1;
+    }
+
+    public function getCanUndoProperty(): bool
+    {
+        return $this->historyIndex > 0;
+    }
+
+    public function getCanRedoProperty(): bool
+    {
+        return $this->historyIndex < count($this->historyStack) - 1;
     }
 
     public function undo(): void
@@ -360,6 +390,97 @@ class VisualPageEditor extends Component
         $this->dispatch('preview-reload');
     }
 
+    /**
+     * Remove redundant empty wrapper sections: primitive_div / primitive_section
+     * that have NO class and NO id. Their children are reparented to the
+     * wrapper's parent, taking the wrapper's slot (sibling order preserved).
+     * Runs repeatedly until the tree is stable so chains of empty wrappers
+     * collapse fully. Reusable across templates via the toolbar button.
+     */
+    public function cleanupEmptyWrappers(): void
+    {
+        $this->pushHistory();
+
+        $base = function () {
+            $q = PageSection::where('sectionable_type', $this->sectionableType)
+                ->where('sectionable_id', $this->sectionableId);
+            if ($this->scope !== null) {
+                $q->where('scope', $this->scope);
+            }
+
+            return $q;
+        };
+
+        $removed = 0;
+        $guard = 0;
+
+        \DB::transaction(function () use ($base, &$removed, &$guard) {
+            do {
+                $changed = false;
+                $sections = $base()->orderBy('order')->orderBy('id')->get();
+
+                foreach ($sections as $wrapper) {
+                    if (! in_array($wrapper->section_type, ['primitive_div', 'primitive_section'], true)) {
+                        continue;
+                    }
+
+                    $content = is_array($wrapper->content) ? $wrapper->content : [];
+                    $cls = trim((string) ($content['class'] ?? ''));
+                    $pid = trim((string) ($content['id'] ?? ''));
+
+                    if ($cls !== '' || $pid !== '') {
+                        continue; // has styling/identity — keep it
+                    }
+
+                    // Build the new sibling order for the wrapper's parent group:
+                    // walk existing siblings; at the wrapper's slot, splice in its
+                    // children (in their own order); drop the wrapper itself.
+                    $parentId = $wrapper->parent_section_id;
+                    $children = $sections
+                        ->where('parent_section_id', $wrapper->id)
+                        ->sortBy('order')
+                        ->values();
+
+                    $siblings = $sections
+                        ->where('parent_section_id', $parentId)
+                        ->sortBy('order')
+                        ->values();
+
+                    $ordered = [];
+                    foreach ($siblings as $sib) {
+                        if ((int) $sib->id === (int) $wrapper->id) {
+                            foreach ($children as $ch) {
+                                $ordered[] = $ch;
+                            }
+
+                            continue;
+                        }
+                        $ordered[] = $sib;
+                    }
+
+                    $pos = 1;
+                    foreach ($ordered as $node) {
+                        $node->parent_section_id = $parentId;
+                        $node->order = $pos++;
+                        $node->save();
+                    }
+
+                    $wrapper->delete();
+                    $removed++;
+                    $changed = true;
+                    break; // restart with fresh data
+                }
+            } while ($changed && ++$guard < 200);
+        });
+
+        $this->loadSections();
+        $this->dispatch('preview-reload');
+        $this->dispatch('notify',
+            message: $removed > 0 ? "Removed {$removed} empty wrapper section(s)" : 'No empty wrappers found',
+            type: 'success'
+        );
+    }
+
     // ─── Section CRUD ────────────────────────────────────────────────────────
 
     public function moveSection(int $sectionId, ?int $parentSectionId, int $order): void
@@ -376,13 +497,80 @@ class VisualPageEditor extends Component
 
         $this->pushHistory();
 
+        // Remember the old parent so we reflow its remaining children too
+        // (relevant when moving between containers).
+        $oldParentId = $section->parent_section_id;
+
         $section->update([
             'parent_section_id' => $parentSectionId,
             'order' => $order,
         ]);
 
+        // Reflow sibling order for the NEW parent group. Without this, two
+        // sections can end up with the same `order` value — and since
+        // loadSections() orders only by `order`, the secondary tie-break (id)
+        // can drop the moved section back into its original slot.
+        $this->reflowSiblings($parentSectionId, $sectionId, $order);
+
+        // Also tidy the OLD parent if the section changed containers.
+        if ($oldParentId !== $parentSectionId) {
+            $this->reflowSiblings($oldParentId, null, null);
+        }
+
         $this->loadSections();
         $this->dispatch('preview-reload');
+    }
+
+    /**
+     * Re-number sibling `order` values 1..N for a given parent group, keeping
+     * the moved section at its desired slot. When called with $movedId = null,
+     * simply re-densifies the existing order with no slot enforcement.
+     */
+    protected function reflowSiblings(?int $parentSectionId, ?int $movedId, ?int $movedOrder): void
+    {
+        $query = PageSection::where('sectionable_type', $this->sectionableType)
+            ->where('sectionable_id', $this->sectionableId);
+
+        if ($this->scope !== null) {
+            $query->where('scope', $this->scope);
+        }
+
+        $query->where(function ($q) use ($parentSectionId) {
+            if ($parentSectionId === null) {
+                $q->whereNull('parent_section_id');
+            } else {
+                $q->where('parent_section_id', $parentSectionId);
+            }
+        });
+
+        $siblings = $query->orderBy('order')->orderBy('id')->get();
+
+        if ($movedId !== null && $movedOrder !== null) {
+            // Build an explicit slot list with the moved item placed at $movedOrder.
+            $others = $siblings->reject(fn ($s) => (int) $s->id === $movedId)->values();
+            $moved = $siblings->firstWhere('id', $movedId);
+
+            // Convert from 1-based requested slot to 0-based array index, clamp.
+            $targetIdx = max(0, min($others->count(), $movedOrder - 1));
+            $rebuilt = $others->splice(0, $targetIdx)
+                ->push($moved)
+                ->merge($others)
+                ->values();
+        } else {
+            $rebuilt = $siblings;
+        }
+
+        $position = 1;
+        foreach ($rebuilt as $s) {
+            if (! $s) {
+                continue;
+            }
+            // Only write when changed to avoid noisy UPDATEs.
+            if ((int) $s->order !== $position) {
+                $s->update(['order' => $position]);
+            }
+            $position++;
+        }
     }
 
     public function selectSection(int $sectionId): void
@@ -486,10 +674,21 @@ class VisualPageEditor extends Component
         ]);
 
         $this->showAddPanel = false;
-        $this->resetForm();
         $this->loadSections();
         $this->pushHistory();
+
+        // Open the edit panel for the just-created section with its fields
+        // already populated. Previously we called resetForm() before setting
+        // $selectedSectionId, which blanked $selectedTemplateId / $sectionContent
+        // / $sectionSettings — so the panel rendered empty until the user closed
+        // it and re-clicked the item.
         $this->selectedSectionId = $section->id;
+        $this->editingSectionId = $section->id;
+        // sectionName / sectionContent / sectionSettings are still set from the
+        // add-section form; carry them through so the edit panel reflects what
+        // was just saved. addingChildOfSectionId is no longer relevant.
+        $this->addingChildOfSectionId = null;
+
         $this->dispatch('preview-reload');
     }
 

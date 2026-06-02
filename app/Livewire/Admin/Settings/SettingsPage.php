@@ -394,15 +394,37 @@ class SettingsPage extends Component
         try {
             \Log::info('🔨 Starting npm build...');
 
-            // Run npm build in background
+            // PHP-FPM runs with a minimal environment — its PATH usually lacks
+            // the directory holding node/npm, so `npm run build` fails with
+            // "vite: not found" (vite's shebang can't locate `node`). Resolve an
+            // absolute npm binary and pass an explicit PATH so the build works
+            // the same as it does from an interactive shell.
+            $npm = null;
+            foreach (['/usr/local/bin/npm', '/usr/bin/npm', '/opt/homebrew/bin/npm'] as $candidate) {
+                if (is_executable($candidate)) {
+                    $npm = $candidate;
+                    break;
+                }
+            }
+            $npm = $npm ?: 'npm';
+            $nodeBinDir = $npm !== 'npm' ? dirname($npm) : '/usr/bin';
+
+            $env = [
+                'PATH' => $nodeBinDir.':'.base_path().'/node_modules/.bin:/usr/local/bin:/usr/bin:/bin',
+                'HOME' => base_path(), // npm needs a writable HOME for its cache
+                'NODE_ENV' => 'production',
+            ];
+
             $process = proc_open(
-                'cd '.base_path().' && npm run build 2>&1',
+                escapeshellarg($npm).' run build 2>&1',
                 [
                     0 => ['pipe', 'r'], // stdin
                     1 => ['pipe', 'w'], // stdout
                     2 => ['pipe', 'w'], // stderr
                 ],
-                $pipes
+                $pipes,
+                base_path(),
+                $env
             );
 
             if (is_resource($process)) {
