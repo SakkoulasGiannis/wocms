@@ -28,8 +28,6 @@
 
 <section class="section-wysiwyg {{ $paddingClass }}">
     <div class="{{ $containerClass }}">
-        <div class="prose prose-lg max-w-none">
-            {!! $rendered !!}
-        </div>
+        {!! $rendered !!}
     </div>
 </section>

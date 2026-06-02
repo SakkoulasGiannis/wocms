@@ -3,10 +3,10 @@
 namespace App\Services;
 
 use App\Models\Template;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class TemplateTableGenerator
 {
@@ -17,8 +17,9 @@ class TemplateTableGenerator
     {
         try {
             // Skip if template doesn't require database
-            if (!$template->requires_database) {
+            if (! $template->requires_database) {
                 \Log::info("Template '{$template->name}' doesn't require database, skipping table/model generation.");
+
                 return true;
             }
 
@@ -29,7 +30,7 @@ class TemplateTableGenerator
             $modelClass = Str::studly(Str::singular($template->slug));
 
             // Update template with table and model info if not set
-            if (!$template->table_name || !$template->model_class) {
+            if (! $template->table_name || ! $template->model_class) {
                 $template->update([
                     'table_name' => $tableName,
                     'model_class' => $modelClass,
@@ -48,7 +49,8 @@ class TemplateTableGenerator
 
             return true;
         } catch (\Exception $e) {
-            \Log::error('Failed to create table/model for template: ' . $e->getMessage());
+            \Log::error('Failed to create table/model for template: '.$e->getMessage());
+
             return false;
         }
     }
@@ -65,12 +67,12 @@ class TemplateTableGenerator
         $expectedColumns = $templateFields;
         foreach ($template->fields as $field) {
             if ($field->type === 'grapejs') {
-                $expectedColumns[] = $field->name . '_css';
+                $expectedColumns[] = $field->name.'_css';
             }
         }
 
         // Protected columns that should never be dropped
-        $protectedColumns = ['id', 'render_mode', 'status', 'created_at', 'updated_at', 'deleted_at'];
+        $protectedColumns = ['id', 'render_mode', 'status', 'sort_order', 'created_at', 'updated_at', 'deleted_at'];
 
         // Add SEO columns to protected list if template has SEO
         if ($template->has_seo) {
@@ -81,7 +83,7 @@ class TemplateTableGenerator
                 'seo_twitter_card', 'seo_twitter_title', 'seo_twitter_description', 'seo_twitter_image',
                 'seo_twitter_site', 'seo_twitter_creator',
                 'seo_schema_type', 'seo_schema_custom',
-                'seo_redirect_url', 'seo_redirect_type', 'seo_sitemap_include', 'seo_sitemap_priority', 'seo_sitemap_changefreq'
+                'seo_redirect_url', 'seo_redirect_type', 'seo_sitemap_include', 'seo_sitemap_priority', 'seo_sitemap_changefreq',
             ];
             $protectedColumns = array_merge($protectedColumns, $seoColumns);
         }
@@ -89,19 +91,19 @@ class TemplateTableGenerator
         // First, drop removed columns
         $columnsToDelete = [];
         foreach ($existingColumns as $columnName) {
-            if (!in_array($columnName, $expectedColumns) && !in_array($columnName, $protectedColumns)) {
+            if (! in_array($columnName, $expectedColumns) && ! in_array($columnName, $protectedColumns)) {
                 $columnsToDelete[] = $columnName;
             }
         }
 
-        if (!empty($columnsToDelete)) {
+        if (! empty($columnsToDelete)) {
             Schema::table($tableName, function (Blueprint $table) use ($columnsToDelete) {
                 foreach ($columnsToDelete as $columnName) {
                     try {
                         $table->dropColumn($columnName);
                         \Log::info("Dropped column: {$columnName}");
                     } catch (\Exception $e) {
-                        \Log::error("Failed to drop column {$columnName}: " . $e->getMessage());
+                        \Log::error("Failed to drop column {$columnName}: ".$e->getMessage());
                     }
                 }
             });
@@ -111,22 +113,32 @@ class TemplateTableGenerator
         Schema::table($tableName, function (Blueprint $table) use ($template, $existingColumns) {
             $previousFieldName = 'id'; // Start after ID column
             foreach ($template->fields->sortBy('order') as $field) {
-                if (!in_array($field->name, $existingColumns)) {
+                if (! in_array($field->name, $existingColumns)) {
                     try {
                         $this->addColumnForField($table, $field, $previousFieldName);
                         \Log::info("Added column: {$field->name}");
                     } catch (\Exception $e) {
-                        \Log::error("Failed to add column {$field->name}: " . $e->getMessage());
+                        \Log::error("Failed to add column {$field->name}: ".$e->getMessage());
                     }
                 }
                 // For grapejs fields, the CSS column is created automatically, so update the previousFieldName accordingly
                 if ($field->type === 'grapejs') {
-                    $previousFieldName = $field->name . '_css';
+                    $previousFieldName = $field->name.'_css';
                 } else {
                     $previousFieldName = $field->name;
                 }
             }
         });
+
+        // Back-fill `sort_order` for tables created before this column was a
+        // baseline — adds the column with an index if it's missing. Safe to
+        // run on every save: a no-op once present.
+        if (! in_array('sort_order', $existingColumns, true)) {
+            Schema::table($tableName, function (Blueprint $table): void {
+                $table->unsignedInteger('sort_order')->default(0)->index();
+            });
+            \Log::info("Added system column: sort_order on {$tableName}");
+        }
     }
 
     /**
@@ -142,6 +154,11 @@ class TemplateTableGenerator
 
             // Add status column for all dynamic tables (active, draft, disabled)
             $table->string('status', 20)->default('active')->comment('Status: active, draft, disabled');
+
+            // Add sort_order column for admin drag-to-reorder support. Indexed so
+            // `orderBy('sort_order')` stays fast. Default 0 — new entries land
+            // at the top until manually positioned.
+            $table->unsignedInteger('sort_order')->default(0)->index();
 
             // Add columns based on template fields in order
             // Note: Don't use ->after() in CREATE TABLE, only in ALTER TABLE
@@ -163,7 +180,7 @@ class TemplateTableGenerator
     /**
      * Add column to table based on field type
      */
-    protected function addColumnForField(Blueprint $table, $field, string $afterColumn = null): void
+    protected function addColumnForField(Blueprint $table, $field, ?string $afterColumn = null): void
     {
         $columnName = $field->name;
 
@@ -197,7 +214,7 @@ class TemplateTableGenerator
                 }
 
                 // Create the CSS column right after the HTML column
-                $cssColumn = $table->longText($columnName . '_css')->nullable();
+                $cssColumn = $table->longText($columnName.'_css')->nullable();
 
                 // Only use ->after() in ALTER TABLE operations (when $afterColumn is provided)
                 // In CREATE TABLE, columns are created in order, so no ->after() is needed
@@ -298,7 +315,7 @@ class TemplateTableGenerator
         foreach ($template->fields as $field) {
             $fillable[] = $field->name;
             if ($field->type === 'grapejs') {
-                $fillable[] = $field->name . '_css';
+                $fillable[] = $field->name.'_css';
             }
         }
 
@@ -311,16 +328,17 @@ class TemplateTableGenerator
                 'seo_twitter_card', 'seo_twitter_title', 'seo_twitter_description', 'seo_twitter_image',
                 'seo_twitter_site', 'seo_twitter_creator',
                 'seo_schema_type', 'seo_schema_custom',
-                'seo_redirect_url', 'seo_redirect_type', 'seo_sitemap_include', 'seo_sitemap_priority', 'seo_sitemap_changefreq'
+                'seo_redirect_url', 'seo_redirect_type', 'seo_sitemap_include', 'seo_sitemap_priority', 'seo_sitemap_changefreq',
             ]);
         }
 
-        // Add system fields (render_mode, status, created_at for custom setting)
+        // Add system fields (render_mode, status, sort_order, created_at for custom setting)
         $fillable[] = 'render_mode';
         $fillable[] = 'status';
+        $fillable[] = 'sort_order';
         $fillable[] = 'created_at';
 
-        $fillableString = "'" . implode("', '", $fillable) . "'";
+        $fillableString = "'".implode("', '", $fillable)."'";
 
         // Get fields that should be cast
         $casts = [];
@@ -361,17 +379,21 @@ class TemplateTableGenerator
             }
         }
 
+        // System columns — always cast sort_order as integer so reordering math
+        // and comparisons stay numeric.
+        $casts['sort_order'] = 'integer';
+
         $castsString = '';
-        if (!empty($casts)) {
+        if (! empty($casts)) {
             $castLines = [];
             foreach ($casts as $key => $type) {
                 $castLines[] = "        '{$key}' => '{$type}'";
             }
-            $castsString = "\n\n    protected \$casts = [\n" . implode(",\n", $castLines) . ",\n    ];";
+            $castsString = "\n\n    protected \$casts = [\n".implode(",\n", $castLines).",\n    ];";
         }
 
         // Generate methods using ModelMethodsGenerator
-        $methodsGenerator = new ModelMethodsGenerator();
+        $methodsGenerator = new ModelMethodsGenerator;
         $generatedMethods = $methodsGenerator->generateMethods($template);
 
         // Add active() scope for published content filtering
@@ -396,8 +418,8 @@ PHP;
         $hasImageFields = $template->fields->whereIn('type', ['image', 'gallery'])->count() > 0;
 
         $mediaImport = $hasImageFields ? "\nuse Spatie\MediaLibrary\HasMedia;\nuse Spatie\MediaLibrary\InteractsWithMedia;" : '';
-        $mediaTrait = $hasImageFields ? ", InteractsWithMedia" : '';
-        $mediaImplements = $hasImageFields ? " implements HasMedia" : '';
+        $mediaTrait = $hasImageFields ? ', InteractsWithMedia' : '';
+        $mediaImplements = $hasImageFields ? ' implements HasMedia' : '';
 
         $modelContent = <<<PHP
 <?php
@@ -443,7 +465,8 @@ PHP;
 
             return true;
         } catch (\Exception $e) {
-            \Log::error('Failed to drop table/model for template: ' . $e->getMessage());
+            \Log::error('Failed to drop table/model for template: '.$e->getMessage());
+
             return false;
         }
     }

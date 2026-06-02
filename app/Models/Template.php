@@ -34,6 +34,8 @@ class Template extends Model
         'name',
         'slug',
         'use_slug_prefix',
+        'design_listing_enabled',
+        'design_entry_enabled',
         'url_segment',
         'table_name',
         'model_class',
@@ -79,6 +81,8 @@ class Template extends Model
         'is_system' => 'boolean',
         'show_in_menu' => 'boolean',
         'use_slug_prefix' => 'boolean',
+        'design_listing_enabled' => 'boolean',
+        'design_entry_enabled' => 'boolean',
         'settings' => 'array',
         'enable_full_page_cache' => 'boolean',
         'cache_ttl' => 'integer',
@@ -108,7 +112,7 @@ class Template extends Model
         static::deleting(function ($template) {
             // Delete physical file if exists
             if ($template->has_physical_file && $template->file_path) {
-                $fullPath = resource_path('views/' . $template->file_path);
+                $fullPath = resource_path('views/'.$template->file_path);
                 if (file_exists($fullPath)) {
                     @unlink($fullPath);
                 }
@@ -141,7 +145,7 @@ class Template extends Model
 
     public function createPhysicalFile(bool $overwrite = false): bool
     {
-        if (!$this->has_physical_file || !$this->file_path) {
+        if (! $this->has_physical_file || ! $this->file_path) {
             return false;
         }
 
@@ -154,7 +158,7 @@ class Template extends Model
         $fullPath = $this->getPhysicalFilePath();
         $directory = dirname($fullPath);
 
-        if (!is_dir($directory)) {
+        if (! is_dir($directory)) {
             mkdir($directory, 0755, true);
         }
 
@@ -162,7 +166,7 @@ class Template extends Model
         // Auto-regeneration during db:seed (or any subsequent createTableAndModel call)
         // used to clobber custom views/models and surface as "View not found" or
         // broken scopeActive on live.
-        if (file_exists($fullPath) && !$overwrite) {
+        if (file_exists($fullPath) && ! $overwrite) {
             return true;
         }
 
@@ -176,20 +180,20 @@ class Template extends Model
      */
     protected function createIndexAndSingleFiles(bool $overwrite = false): bool
     {
-        if (!$this->file_path) {
+        if (! $this->file_path) {
             return false;
         }
 
         $basePath = dirname($this->getPhysicalFilePath());
 
-        if (!is_dir($basePath)) {
+        if (! is_dir($basePath)) {
             mkdir($basePath, 0755, true);
         }
 
         // Index file (plural — e.g., templates/services.blade.php)
         $indexPath = $this->getPhysicalFilePath();
         $indexCreated = true;
-        if (!file_exists($indexPath) || $overwrite) {
+        if (! file_exists($indexPath) || $overwrite) {
             $indexContent = $this->getDefaultIndexTemplateContent();
             $indexCreated = file_put_contents($indexPath, $indexContent) !== false;
         }
@@ -197,7 +201,7 @@ class Template extends Model
         // Single entry file (singular — e.g., templates/service.blade.php)
         $singlePath = $this->getSingularFilePath();
         $singleCreated = true;
-        if (!file_exists($singlePath) || $overwrite) {
+        if (! file_exists($singlePath) || $overwrite) {
             $singleContent = $this->html_content ?: $this->getDefaultTemplateContent();
             $singleCreated = file_put_contents($singlePath, $singleContent) !== false;
         }
@@ -223,9 +227,9 @@ class Template extends Model
         $singularPart = Str::singular($lastPart);
 
         $parts[] = $singularPart;
-        $singularPath = implode('/', $parts) . '.blade.php';
+        $singularPath = implode('/', $parts).'.blade.php';
 
-        return resource_path('views/' . $singularPath);
+        return resource_path('views/'.$singularPath);
     }
 
     /**
@@ -233,7 +237,7 @@ class Template extends Model
      */
     public function getPhysicalFilePath(): string
     {
-        if (!$this->file_path) {
+        if (! $this->file_path) {
             return resource_path('views/');
         }
 
@@ -247,12 +251,12 @@ class Template extends Model
             $pluralPart = Str::plural($lastPart);
 
             $parts[] = $pluralPart;
-            $pluralPath = implode('/', $parts) . '.blade.php';
+            $pluralPath = implode('/', $parts).'.blade.php';
 
-            return resource_path('views/' . $pluralPath);
+            return resource_path('views/'.$pluralPath);
         }
 
-        return resource_path('views/' . $this->file_path);
+        return resource_path('views/'.$this->file_path);
     }
 
     protected function getDefaultIndexTemplateContent(): string

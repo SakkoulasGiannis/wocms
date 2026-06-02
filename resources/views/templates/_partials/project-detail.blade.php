@@ -51,13 +51,23 @@
         }
     }
 
+    // Size fields are DECIMAL(12,2). Show whole numbers with no decimals and
+    // fractional values with up to 2 (trailing zeros trimmed): 120 → "120",
+    // 120.50 → "120.5", 1200.05 → "1,200.05". Keeps thousand separators.
+    $fmtSize = function ($v) {
+        $v = (float) $v;
+        return $v == floor($v)
+            ? number_format($v, 0)
+            : rtrim(rtrim(number_format($v, 2), '0'), '.');
+    };
+
     // Specs
     $specs = [];
     if (! empty($content->location))      { $specs['Location']        = $content->location; }
     if (! empty($content->year_built))    { $specs['Year Built']      = $content->year_built; }
-    if (! empty($content->building_size)) { $specs['Building Size']   = number_format((float) $content->building_size, 0) . ' m²'; }
-    if (! empty($content->plot_size))     { $specs['Plot Size']       = number_format((float) $content->plot_size, 0) . ' m²'; }
-    if (! empty($content->pool_size))     { $specs['Pool Size']       = number_format((float) $content->pool_size, 0) . ' m²'; }
+    if (! empty($content->building_size)) { $specs['Building Size']   = $fmtSize($content->building_size) . ' m²'; }
+    if (! empty($content->plot_size))     { $specs['Plot Size']       = $fmtSize($content->plot_size) . ' m²'; }
+    if (! empty($content->pool_size))     { $specs['Pool Size']       = $fmtSize($content->pool_size) . ' m²'; }
     if (! empty($content->drawn_by))      { $specs['Drawn By']        = $content->drawn_by; }
 @endphp
 
@@ -111,8 +121,25 @@
                 </div>
             </aside>
 
-            {{-- Gallery --}}
+            {{-- Body (rich text) + Gallery --}}
             <div class="lg:col-span-2 lg:order-1">
+                @php
+                    $bodyHtml = '';
+                    if (! empty($content->body)) {
+                        try {
+                            $bodyHtml = app(\App\Services\EditorJsRenderer::class)->toHtml($content->body);
+                        } catch (\Throwable $e) {
+                            // Fallback: plain content if it isn't EditorJS JSON
+                            $bodyHtml = is_string($content->body) ? $content->body : '';
+                        }
+                    }
+                @endphp
+                @if(trim(strip_tags($bodyHtml)) !== '')
+                    <div class="mb-12">
+                        {!! $bodyHtml !!}
+                    </div>
+                @endif
+
                 @if(count($galleryItems))
                     <h2 class="text-2xl font-bold text-on-surface md:text-3xl">Gallery</h2>
                     <p class="mt-2 text-sm text-variant-1">{{ count($galleryItems) }} {{ \Illuminate\Support\Str::plural('photo', count($galleryItems)) }}</p>

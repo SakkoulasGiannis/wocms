@@ -4,6 +4,15 @@
     $subtitle = $subtitle ?? 'Project showcase';
     $description = $description ?? null;
     $entryUrlPrefix = '/' . ($template->slug ?? '');
+
+    // DECIMAL(12,2) size fields: whole → no decimals, fractional → up to 2
+    // (trailing zeros trimmed). Same formatter as the project-detail partial.
+    $fmtSize = function ($v) {
+        $v = (float) $v;
+        return $v == floor($v)
+            ? number_format($v, 0)
+            : rtrim(rtrim(number_format($v, 2), '0'), '.');
+    };
 @endphp
 
 <section class="py-20 lg:py-24 bg-white">
@@ -88,14 +97,14 @@
                                     <li class="flex items-center gap-1.5">
                                         <svg class="h-4 w-4 text-variant-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M5 21V7l7-4 7 4v14M9 9h.01M9 13h.01M9 17h.01M15 9h.01M15 13h.01M15 17h.01"/></svg>
                                         <span class="text-variant-1">Building:</span>
-                                        <span class="font-semibold text-on-surface">{{ number_format((float) $entry->building_size, 0) }} m²</span>
+                                        <span class="font-semibold text-on-surface">{{ $fmtSize($entry->building_size) }} m²</span>
                                     </li>
                                 @endif
                                 @if(! empty($entry->plot_size))
                                     <li class="flex items-center gap-1.5">
                                         <svg class="h-4 w-4 text-variant-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4h16v16H4zM4 9h16M9 4v16"/></svg>
                                         <span class="text-variant-1">Plot:</span>
-                                        <span class="font-semibold text-on-surface">{{ number_format((float) $entry->plot_size, 0) }} m²</span>
+                                        <span class="font-semibold text-on-surface">{{ $fmtSize($entry->plot_size) }} m²</span>
                                     </li>
                                 @endif
                             </ul>
