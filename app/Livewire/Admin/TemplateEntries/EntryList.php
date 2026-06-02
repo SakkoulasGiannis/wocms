@@ -18,6 +18,33 @@ class EntryList extends Component
 
     public $filters = [];
 
+    /** Items per page. Bound to the per-page selector; persisted in the query string. */
+    public int $perPage = 50;
+
+    /** @var array<int, int> */
+    public array $perPageOptions = [50, 100, 300, 500];
+
+    protected function queryString(): array
+    {
+        return [
+            'perPage' => ['except' => 50],
+            'search' => ['except' => ''],
+        ];
+    }
+
+    public function updatingPerPage(): void
+    {
+        $this->resetPage();
+    }
+
+    /** Clamp perPage to an allowed option so the query string can't request unbounded rows. */
+    protected function resolvedPerPage(): int
+    {
+        return in_array((int) $this->perPage, $this->perPageOptions, true)
+            ? (int) $this->perPage
+            : 50;
+    }
+
     protected function resolveModelClass(): string
     {
         $mc = $this->template->model_class;
@@ -166,7 +193,7 @@ class EntryList extends Component
                 $query->orderBy('created_at', 'desc');
             }
 
-            $children = $query->paginate(20);
+            $children = $query->paginate($this->resolvedPerPage());
 
             return view('livewire.admin.template-entries.entry-list-container', [
                 'children' => $children,
@@ -230,7 +257,7 @@ class EntryList extends Component
             }, function ($query) {
                 $query->latest();
             })
-            ->paginate(15);
+            ->paginate($this->resolvedPerPage());
 
         return view('livewire.admin.template-entries.entry-list', [
             'entries' => $entries,

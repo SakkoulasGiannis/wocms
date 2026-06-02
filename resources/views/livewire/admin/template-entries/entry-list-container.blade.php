@@ -48,6 +48,27 @@
 
     @php $sortable = $sortable ?? false; @endphp
 
+    {{-- Per-page selector + result count --}}
+    <div class="flex items-center justify-between gap-3 mb-3">
+        <div class="text-sm text-gray-500">
+            @if(method_exists($children, 'total'))
+                Showing {{ $children->firstItem() ?? 0 }}–{{ $children->lastItem() ?? 0 }} of {{ $children->total() }}
+            @else
+                {{ $children->count() }} {{ \Illuminate\Support\Str::plural('item', $children->count()) }}
+            @endif
+        </div>
+        <div class="flex items-center gap-2">
+            <label for="perPageC" class="text-sm text-gray-600">Per page</label>
+            <select id="perPageC"
+                    wire:model.live="perPage"
+                    class="rounded-lg border-gray-300 text-sm py-1.5 pl-3 pr-8 focus:border-blue-500 focus:ring-blue-500">
+                @foreach($perPageOptions as $opt)
+                    <option value="{{ $opt }}">{{ $opt }}</option>
+                @endforeach
+            </select>
+        </div>
+    </div>
+
     <!-- Children Table -->
     <div class="bg-white rounded-lg shadow overflow-hidden">
         @if($children->count() > 0)

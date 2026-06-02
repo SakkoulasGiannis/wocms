@@ -52,13 +52,23 @@
         try {
             if (class_exists($modelClass)) {
                 $table = (new $modelClass)->getTable();
-                $orderColumn = \Illuminate\Support\Facades\Schema::hasColumn($table, $orderBy) ? $orderBy : 'created_at';
 
                 $query = $modelClass::query();
                 if (method_exists($modelClass, 'scopeActive')) {
                     try { $query->active(); } catch (\Throwable $e) {}
                 }
-                $query->orderBy($orderColumn, $orderDir);
+
+                // When the source template is sortable (admin drag-ordering)
+                // and the table has a sort_order column, honour that manual
+                // order — that is the whole point of marking it sortable.
+                // Otherwise fall back to the section's configured order_by.
+                $isSortable = (bool) ($sourceTemplate->settings['sortable'] ?? false);
+                if ($isSortable && \Illuminate\Support\Facades\Schema::hasColumn($table, 'sort_order')) {
+                    $query->orderBy('sort_order')->orderBy('id');
+                } else {
+                    $orderColumn = \Illuminate\Support\Facades\Schema::hasColumn($table, $orderBy) ? $orderBy : 'created_at';
+                    $query->orderBy($orderColumn, $orderDir);
+                }
 
                 if ($showPagination) {
                     $paginator = $query->paginate($perPage);
@@ -107,9 +117,12 @@
                         $image    = $resolver->resolve($cardImageToken,    $entry) ?: $cardImageFallback;
                         $title    = $resolver->resolve($cardTitleToken,    $entry);
                         $subtitle = $resolver->resolve($cardSubtitleTok,   $entry);
-                        // Link pattern: also substitute {template_slug}
-                        $linkRaw  = $resolver->resolve($cardLinkPattern,   $entry);
-                        $link     = str_replace('{template_slug}', $sourceTemplate->slug, $linkRaw);
+                        // Link pattern: substitute {template_slug} FIRST (it's a
+                        // section-level token, not a field on the entry — so it must
+                        // be replaced before the per-entry resolver sees it, otherwise
+                        // the resolver finds no $entry->template_slug and wipes it).
+                        $linkPatternPrefilled = str_replace('{template_slug}', $sourceTemplate->slug, $cardLinkPattern);
+                        $link     = $resolver->resolve($linkPatternPrefilled, $entry);
                     @endphp
                     <article class="group flex flex-col overflow-hidden rounded-2xl bg-white shadow-card ring-1 ring-outline transition-all duration-300 hover:-translate-y-1 hover:shadow-soft hover:ring-brand/30">
                         <a href="{{ $link }}" class="relative block aspect-[4/3] overflow-hidden bg-slate-100">

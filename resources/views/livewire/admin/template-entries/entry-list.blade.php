@@ -25,10 +25,11 @@
                     </svg>
                 </a>
 
-                {{-- Template design: TWO modes for each database-backed template.
-                     - Listing: design how /{slug}  index page looks (e.g. /completed-villas)
-                     - Entry:   design how /{slug}/{entry-slug} detail page looks --}}
-                @if($template->requires_database && $template->is_active && $template->use_slug_prefix)
+                {{-- Template design buttons — gated by per-template flags
+                     (`design_listing_enabled`, `design_entry_enabled`), not by
+                     use_slug_prefix. Each button is independently toggleable in
+                     the Template edit form → Visual editor section. --}}
+                @if($template->is_active && $template->design_listing_enabled)
                     <a href="{{ url('/admin/page-sections/visual/App-Models-Template/' . $template->id . '?scope=listing') }}"
                        class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
                        title="Design the listing page (e.g. /{{ $template->slug }})">
@@ -37,6 +38,8 @@
                         </svg>
                         Design listing
                     </a>
+                @endif
+                @if($template->is_active && $template->design_entry_enabled)
                     <a href="{{ url('/admin/page-sections/visual/App-Models-Template/' . $template->id . '?scope=entry') }}"
                        class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
                        title="Design the entry page used by every {{ Str::singular($template->name) }}">
@@ -83,6 +86,27 @@
     </div>
 
     @php $sortable = $sortable ?? false; @endphp
+
+    {{-- Per-page selector + result count --}}
+    <div class="flex items-center justify-between gap-3 mb-3">
+        <div class="text-sm text-gray-500">
+            @if(method_exists($entries, 'total'))
+                Showing {{ $entries->firstItem() ?? 0 }}–{{ $entries->lastItem() ?? 0 }} of {{ $entries->total() }}
+            @else
+                {{ $entries->count() }} {{ \Illuminate\Support\Str::plural('item', $entries->count()) }}
+            @endif
+        </div>
+        <div class="flex items-center gap-2">
+            <label for="perPage" class="text-sm text-gray-600">Per page</label>
+            <select id="perPage"
+                    wire:model.live="perPage"
+                    class="rounded-lg border-gray-300 text-sm py-1.5 pl-3 pr-8 focus:border-blue-500 focus:ring-blue-500">
+                @foreach($perPageOptions as $opt)
+                    <option value="{{ $opt }}">{{ $opt }}</option>
+                @endforeach
+            </select>
+        </div>
+    </div>
 
     <!-- Entries Table -->
     <div class="bg-white rounded-lg shadow overflow-hidden">
