@@ -68,6 +68,83 @@ class PageSelector extends Component
         return class_basename($type).' #'.$id;
     }
 
+    /**
+     * Deep-clone a Page (the entity itself + every PageSection that targets it,
+     * preserving the parent_section_id tree). Only runs for actual Page rows
+     * — Home and other singletons are skipped.
+     */
+    public function duplicatePage(string $type, int $id): void
+    {
+        if (class_basename($type) !== 'Page' || ! class_exists($type)) {
+            session()->flash('error', 'Μόνο σελίδες (Pages) μπορούν να αντιγραφούν.');
+
+            return;
+        }
+
+        $original = $type::find($id);
+        if (! $original) {
+            return;
+        }
+
+        $newPage = null;
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($type, $id, $original, &$newPage) {
+            $newPage = $original->replicate();
+            $newPage->title = ($original->title ?? 'Untitled').' (αντίγραφο)';
+
+            $baseSlug = $original->slug ?: \Illuminate\Support\Str::slug($newPage->title);
+            $slug = $baseSlug.'-copy';
+            $i = 2;
+            while ($type::where('slug', $slug)->exists()) {
+                $slug = $baseSlug.'-copy-'.$i++;
+            }
+            $newPage->slug = $slug;
+
+            if (\Illuminate\Support\Facades\Schema::hasColumn($newPage->getTable(), 'status')) {
+                $newPage->status = 'draft';
+            }
+            if (\Illuminate\Support\Facades\Schema::hasColumn($newPage->getTable(), 'published_at')) {
+                $newPage->published_at = null;
+            }
+            $newPage->save();
+
+            $sections = PageSection::where('sectionable_type', $type)
+                ->where('sectionable_id', $id)
+                ->orderByRaw('parent_section_id IS NULL DESC, parent_section_id ASC')
+                ->orderBy('order')
+                ->get();
+
+            $idMap = [];
+            foreach ($sections as $sec) {
+                $copy = $sec->replicate();
+                $copy->sectionable_type = $type;
+                $copy->sectionable_id = $newPage->id;
+                $copy->parent_section_id = $sec->parent_section_id
+                    ? ($idMap[$sec->parent_section_id] ?? null)
+                    : null;
+                $copy->save();
+                $idMap[$sec->id] = $copy->id;
+
+                if (method_exists($sec, 'getMedia')) {
+                    foreach ($sec->getMedia() as $m) {
+                        try { $m->copy($copy, $m->collection_name); } catch (\Throwable $e) {}
+                    }
+                }
+            }
+
+            if (method_exists($original, 'getMedia')) {
+                foreach ($original->getMedia() as $m) {
+                    try { $m->copy($newPage, $m->collection_name); } catch (\Throwable $e) {}
+                }
+            }
+        });
+
+        $this->loadPages();
+        session()->flash('success',
+            'Η σελίδα "'.($original->title ?? '#'.$id).'" αντιγράφηκε ως "'.$newPage->title.'".'
+        );
+    }
+
     public function render(): \Illuminate\View\View
     {
         return view('pagebuilder::livewire.admin.page-sections.page-selector')
