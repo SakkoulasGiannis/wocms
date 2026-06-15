@@ -34,7 +34,7 @@ class DefaultTemplatesSeeder extends Seeder
                 'menu_label' => 'Pages',
                 'menu_icon' => 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
                 'menu_order' => 10,
-                'render_mode' => 'full_page_grapejs',
+                'render_mode' => 'sections',
                 'allow_children' => true,
                 'allow_new_pages' => true,
                 'has_physical_file' => true,
@@ -113,7 +113,7 @@ class DefaultTemplatesSeeder extends Seeder
                 'body' => '<h2>Welcome to our About page</h2><p>This is a sample page. You can edit or delete this page from the admin panel.</p><p>You can create more pages and organize them in a hierarchical structure.</p>',
                 'body_css' => null,
                 'featured_image' => null,
-                'render_mode' => 'full_page_grapejs',
+                'render_mode' => 'sections',
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
