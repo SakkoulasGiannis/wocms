@@ -733,6 +733,14 @@ class VisualPageEditor extends Component
         }
     }
 
+    /**
+     * Set transiently by the JS background-autosave (via $wire.set) so the
+     * server skips the preview-reload dispatch and the iframe doesn't flash
+     * every 30 seconds while the user is just editing. Explicit X click +
+     * sectionName edits still reload the preview.
+     */
+    public bool $silentBackgroundSave = false;
+
     public function updateSection(): void
     {
         if (! $this->editingSectionId) {
@@ -752,7 +760,10 @@ class VisualPageEditor extends Component
         ]);
 
         $this->loadSections();
-        $this->dispatch('preview-reload');
+        if (! $this->silentBackgroundSave) {
+            $this->dispatch('preview-reload');
+        }
+        $this->silentBackgroundSave = false;
     }
 
     protected function renderSectionHtml(int $sectionId): string
@@ -1020,7 +1031,7 @@ class VisualPageEditor extends Component
         // "vite: not found" (vite's `#!/usr/bin/env node` shebang can't locate
         // node). Resolve an absolute npm binary and pass an explicit PATH (incl.
         // node_modules/.bin where the vite binary lives) so it works like an
-        // interactive shell.
+        // interactive shell. escapeshellarg + explicit cwd avoids shell concat.
         $npm = collect(['/usr/local/bin/npm', '/usr/bin/npm', '/opt/homebrew/bin/npm'])
             ->first(fn ($p) => is_executable($p)) ?: 'npm';
         $nodeBinDir = $npm !== 'npm' ? dirname($npm) : '/usr/bin';
@@ -1076,6 +1087,39 @@ class VisualPageEditor extends Component
         $this->selectedSectionId = null;
         $this->showAddPanel = false;
         $this->resetForm();
+    }
+
+    /**
+     * Save the section's content + close the panel in a SINGLE atomic call.
+     * Avoids the race where Livewire.set (fire-and-forget) was still in flight
+     * when closePanel landed — server saw editingSectionId already null and
+     * dropped the save. Bold / color / class changes ended up lost.
+     *
+     * The client passes the final editor JSON for each wysiwyg field as
+     * `$contentPatch = ['fieldName' => '{"blocks":...}', ...]`.
+     */
+    public function saveAndClose(array $contentPatch = []): void
+    {
+        if ($this->editingSectionId && ! empty($contentPatch)) {
+            foreach ($contentPatch as $fieldName => $json) {
+                $this->sectionContent[$fieldName] = $json;
+            }
+
+            $section = PageSection::find($this->editingSectionId);
+            if ($section) {
+                $section->update([
+                    'name' => $this->sectionName,
+                    'content' => $this->sectionContent,
+                    'settings' => $this->sectionSettings,
+                ]);
+                $this->loadSections();
+            }
+        }
+
+        $this->selectedSectionId = null;
+        $this->showAddPanel = false;
+        $this->resetForm();
+        $this->dispatch('preview-reload');
     }
 
     protected function resetForm(): void
