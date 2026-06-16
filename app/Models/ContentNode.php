@@ -28,6 +28,7 @@ class ContentNode extends Model
         'cache_enabled',
         'sort_order',
         'page_layout',
+        'layout',
     ];
 
     protected $casts = [

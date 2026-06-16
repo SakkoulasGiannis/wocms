@@ -42,6 +42,8 @@ class EntryForm extends Component
 
     public $cacheEnabled = ''; // Cache override: '' = use template, '1' = force enable, '0' = force disable
 
+    public $layout = ''; // Page chrome layout slug: '' = inherit from parent / default
+
     // Blog taxonomies (only used when $template->slug === 'blog')
     /** @var array<int, int> selected BlogCategory ids */
     public array $blogCategoryIds = [];
@@ -306,6 +308,8 @@ class EntryForm extends Component
                 $this->parentNodeId = $contentNode->parent_id;
                 // Load cache setting
                 $this->cacheEnabled = $contentNode->cache_enabled === null ? '' : (string) $contentNode->cache_enabled;
+                // Load layout (page chrome) — '' means inherit/default
+                $this->layout = $contentNode->layout ?? '';
             }
 
             // Load created_at for editing
@@ -474,6 +478,7 @@ class EntryForm extends Component
             if ($field->type === 'gallery') {
                 $rules["uploadedFiles.{$field->name}"] = 'nullable|array';
                 $rules["uploadedFiles.{$field->name}.*"] = 'nullable|image|max:10240';
+
                 continue;
             }
 
@@ -702,6 +707,7 @@ class EntryForm extends Component
             'slug' => $slug,
             'is_published' => true,
             'cache_enabled' => $this->cacheEnabled === '' ? null : (bool) $this->cacheEnabled,
+            'layout' => $this->layout === '' ? null : $this->layout,
         ]);
 
         // Use selected parent node or auto-detect
@@ -739,6 +745,7 @@ class EntryForm extends Component
             'slug' => $slug,
             'parent_id' => $this->parentNodeId,
             'cache_enabled' => $this->cacheEnabled === '' ? null : (bool) $this->cacheEnabled,
+            'layout' => $this->layout === '' ? null : $this->layout,
         ]);
     }
 
@@ -868,9 +875,10 @@ class EntryForm extends Component
                             ->toMediaCollection($field->name);
                         \Log::info('Single image uploaded', ['mediaId' => $media->id, 'collection' => $field->name]);
                     } catch (\Exception $e) {
-                        \Log::error("Error uploading image {$field->name}: " . $e->getMessage());
+                        \Log::error("Error uploading image {$field->name}: ".$e->getMessage());
                     }
                 }
+
                 continue;
             }
 
@@ -885,10 +893,10 @@ class EntryForm extends Component
                             $media = $entry->getMedia($field->name)->firstWhere('id', (int) $mediaId);
                             if ($media) {
                                 $media->delete();
-                                \Log::info("Gallery item removed", ['mediaId' => $mediaId, 'collection' => $field->name]);
+                                \Log::info('Gallery item removed', ['mediaId' => $mediaId, 'collection' => $field->name]);
                             }
                         } catch (\Exception $e) {
-                            \Log::error("Error removing gallery item {$mediaId}: " . $e->getMessage());
+                            \Log::error("Error removing gallery item {$mediaId}: ".$e->getMessage());
                         }
                     }
                 }
@@ -897,14 +905,16 @@ class EntryForm extends Component
                 $files = $this->uploadedFiles[$field->name] ?? null;
                 if (! empty($files) && is_array($files)) {
                     foreach ($files as $file) {
-                        if (! $file) continue;
+                        if (! $file) {
+                            continue;
+                        }
                         try {
                             $media = $entry->addMedia($file->getRealPath())
                                 ->usingFileName($file->getClientOriginalName())
                                 ->toMediaCollection($field->name);
                             \Log::info('Gallery item uploaded', ['mediaId' => $media->id, 'collection' => $field->name]);
                         } catch (\Exception $e) {
-                            \Log::error("Error uploading gallery file {$field->name}: " . $e->getMessage());
+                            \Log::error("Error uploading gallery file {$field->name}: ".$e->getMessage());
                         }
                     }
                 }
@@ -923,10 +933,11 @@ class EntryForm extends Component
                             \Spatie\MediaLibrary\MediaCollections\Models\Media::setNewOrder($ids);
                             \Log::info('Gallery reordered', ['collection' => $field->name, 'ids' => $ids]);
                         } catch (\Exception $e) {
-                            \Log::error("Error reordering gallery {$field->name}: " . $e->getMessage());
+                            \Log::error("Error reordering gallery {$field->name}: ".$e->getMessage());
                         }
                     }
                 }
+
                 continue;
             }
         }

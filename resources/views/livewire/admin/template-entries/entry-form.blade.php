@@ -250,6 +250,19 @@
                         window.syncGrapeJS();
                     }
 
+                    // Explicitly push the Page Layout select value to the server
+                    // BEFORE save. This form has a known wire:model binding gap
+                    // (same reason gallery/file fields are synced manually below),
+                    // so without this the layout dropdown's selection never
+                    // reaches $this->layout and the node's layout column stays null.
+                    try {
+                        const layoutSel = document.querySelector('select[wire\\:model\\.live="layout"]')
+                            || document.querySelector('select[wire\\:model="layout"]');
+                        if (layoutSel) {
+                            await @this.set('layout', layoutSel.value);
+                        }
+                    } catch (e) { console.warn('layout sync failed (non-fatal):', e); }
+
                     // Sync gallery removal IDs to Livewire BEFORE saving
                     if (window.galleryRemoveIds && Object.keys(window.galleryRemoveIds).length > 0) {
                         for (const fieldName of Object.keys(window.galleryRemoveIds)) {
@@ -408,6 +421,29 @@
                     Back to {{ $template->menu_label ?: $template->name }}
                 </a>
                 <div class="flex items-center gap-3">
+                    {{-- AI: edit this entity with AI — works for any model with a Template --}}
+                    @if($entryId && $template->model_class)
+                        @if(in_array($template->model_class, ['Page', 'App\\Models\\Page']))
+                            <livewire:admin.ai-page-builder.page-history-button
+                                :page-id="(int) $entryId"
+                                :key="'history-page-'.$entryId" />
+                        @else
+                            <livewire:admin.ai-page-builder.page-history-button
+                                :entity-type="$template->model_class"
+                                :entity-id="(int) $entryId"
+                                :template-slug="$template->slug"
+                                :key="'history-entity-'.$template->slug.'-'.$entryId" />
+                        @endif
+
+                        <livewire:admin.ai-page-builder.ai-action-button
+                            mode="edit"
+                            :model-class="$template->model_class"
+                            :template-slug="$template->slug"
+                            :entity-id="$entryId"
+                            :entity-label="$fieldValues['title'] ?? $fieldValues['name'] ?? ''"
+                            :key="'ai-edit-'.$template->slug.'-'.$entryId" />
+                    @endif
+
                     @if($entryId && $this->frontendUrl)
                         <a href="{{ $this->frontendUrl }}"
                            target="_blank"
@@ -1139,6 +1175,33 @@
                                             </p>
                                         </div>
                                     @endif
+                                </div>
+                            </div>
+
+                            {{-- Page Layout (chrome) — header/footer/menu wrapper.
+                                 Empty = inherit from the nearest parent page, else
+                                 the site default. Set once on a section root and
+                                 every child page inherits it. --}}
+                            <div>
+                                <h4 class="text-sm font-semibold text-gray-900 mb-3">Page Layout</h4>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Layout</label>
+                                    {{-- @selected() marks the current option server-side so the
+                                         dropdown displays correctly on load. wire:model binding for
+                                         this select is unreliable inside this form's custom-morph
+                                         tab, so saveEntry() also pushes the value explicitly before
+                                         save (see the JS above). Both directions covered. --}}
+                                    <select wire:model="layout"
+                                            class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2">
+                                        <option value="" @selected(($layout ?? '') === '')>Inherit from parent / site default</option>
+                                        @foreach(config('layouts.layouts', []) as $slug => $cfg)
+                                            <option value="{{ $slug }}" @selected(($layout ?? '') === $slug)>{{ $cfg['label'] ?? $slug }}</option>
+                                        @endforeach
+                                    </select>
+                                    <p class="mt-1 text-xs text-gray-500">
+                                        Controls the header/footer/menu wrapper. Leave empty to inherit
+                                        from the parent page (or the site default).
+                                    </p>
                                 </div>
                             </div>
                         </div>

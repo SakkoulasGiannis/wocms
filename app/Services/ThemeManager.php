@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\Setting;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
-use App\Models\Setting;
 
 class ThemeManager
 {
@@ -28,9 +28,27 @@ class ThemeManager
      */
     protected ?array $metadata = null;
 
+    /**
+     * Active layout view name for the current request. Set per-node by the
+     * FrontendController (via LayoutResolver) just before the view renders.
+     * Because ThemeManager is a singleton, every
+     * `@extends(app(ThemeManager)->getLayout())` call in the views picks
+     * this up automatically — no per-view edits needed. Null → 'layout'.
+     */
+    protected ?string $activeLayout = null;
+
     public function __construct()
     {
         $this->themesPath = resource_path('views/themes');
+    }
+
+    /**
+     * Set the layout the current request should render with. Pass a view
+     * name understood by getLayout() (e.g. 'layout', 'layouts.minimal').
+     */
+    public function setActiveLayout(?string $layoutView): void
+    {
+        $this->activeLayout = $layoutView;
     }
 
     /**
@@ -54,7 +72,7 @@ class ThemeManager
      */
     public function setActiveTheme(string $slug): void
     {
-        if (!$this->themeExists($slug)) {
+        if (! $this->themeExists($slug)) {
             throw new \Exception("Theme '{$slug}' does not exist.");
         }
 
@@ -69,13 +87,13 @@ class ThemeManager
      */
     public function themeExists(string $slug): bool
     {
-        return File::isDirectory($this->themesPath . '/' . $slug);
+        return File::isDirectory($this->themesPath.'/'.$slug);
     }
 
     /**
      * Get theme metadata
      */
-    public function getMetadata(string $slug = null): ?array
+    public function getMetadata(?string $slug = null): ?array
     {
         $slug = $slug ?? $this->getActiveTheme();
 
@@ -84,13 +102,14 @@ class ThemeManager
         }
 
         return Cache::remember("theme_metadata.{$slug}", self::CACHE_TTL, function () use ($slug) {
-            $metadataPath = $this->themesPath . '/' . $slug . '/theme.json';
+            $metadataPath = $this->themesPath.'/'.$slug.'/theme.json';
 
-            if (!File::exists($metadataPath)) {
+            if (! File::exists($metadataPath)) {
                 return null;
             }
 
             $json = File::get($metadataPath);
+
             return json_decode($json, true);
         });
     }
@@ -118,8 +137,15 @@ class ThemeManager
     /**
      * Get layout view path
      */
-    public function getLayout(string $layout = 'layout'): string
+    public function getLayout(?string $layout = null): string
     {
+        // When no explicit layout is requested (the case for every view's
+        // `@extends(app(ThemeManager)->getLayout())`), use the per-request
+        // active layout set by the controller, falling back to 'layout'.
+        if ($layout === null) {
+            $layout = $this->activeLayout ?: 'layout';
+        }
+
         $theme = $this->getActiveTheme();
 
         // Check if theme has this layout
@@ -202,7 +228,7 @@ class ThemeManager
     {
         $metadata = $this->getMetadata();
 
-        if (!$metadata || empty($metadata['assets']['css'])) {
+        if (! $metadata || empty($metadata['assets']['css'])) {
             return '';
         }
 
@@ -227,7 +253,7 @@ class ThemeManager
     {
         $metadata = $this->getMetadata();
 
-        if (!$metadata || empty($metadata['assets']['js'])) {
+        if (! $metadata || empty($metadata['assets']['js'])) {
             return '';
         }
 
@@ -251,6 +277,7 @@ class ThemeManager
     public function usesVite(): bool
     {
         $metadata = $this->getMetadata();
+
         return $metadata['vite'] ?? false;
     }
 

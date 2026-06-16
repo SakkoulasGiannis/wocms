@@ -187,12 +187,23 @@ class FrontendController extends Controller
         }
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")
-                    ->orWhere('address', 'like', "%{$search}%")
-                    ->orWhere('city', 'like', "%{$search}%")
-                    ->orWhere('description', 'like', "%{$search}%");
-            });
+            // Only search columns that actually exist on this environment.
+            // The rental_properties schema on production never ran the
+            // "add address/state/country" migration, so blindly filtering
+            // by `address` 500s the page.
+            $searchable = array_values(array_filter(
+                ['title', 'address', 'city', 'description'],
+                fn ($col) => \Illuminate\Support\Facades\Schema::hasColumn('rental_properties', $col),
+            ));
+            if (! empty($searchable)) {
+                $query->where(function ($q) use ($searchable, $search) {
+                    foreach ($searchable as $i => $col) {
+                        $i === 0
+                            ? $q->where($col, 'like', "%{$search}%")
+                            : $q->orWhere($col, 'like', "%{$search}%");
+                    }
+                });
+            }
         }
 
         $sort = $request->get('sort', 'newest');
@@ -320,10 +331,11 @@ class FrontendController extends Controller
             if ($listingSections->isNotEmpty()) {
                 $data['sections'] = $listingSections;
                 $view = $this->themeManager->getTemplateView('sections') ?? 'frontend.sections';
+
                 return view($view, $data);
             }
         } catch (\Throwable $e) {
-            \Log::warning('Template listing-design section load failed for ' . $template->slug . ': ' . $e->getMessage());
+            \Log::warning('Template listing-design section load failed for '.$template->slug.': '.$e->getMessage());
         }
 
         // Check if template has index view (plural)
@@ -407,6 +419,18 @@ class FrontendController extends Controller
      */
     protected function renderNodeContent(ContentNode $node, $template)
     {
+        // Resolve the page chrome (layout) for this node, walking up the
+        // tree for inheritance, and make it the active layout for this
+        // request. ThemeManager is a singleton, so every view's
+        // @extends(...->getLayout()) picks it up with no per-view changes.
+        // Nodes with no layout (the default) resolve to 'layout' = current
+        // behaviour, so existing pages render identically.
+        try {
+            $layoutView = app(\App\Services\LayoutResolver::class)->resolveView($node);
+            $this->themeManager->setActiveLayout($layoutView);
+        } catch (\Throwable $e) {
+            $this->themeManager->setActiveLayout(null); // safe default
+        }
 
         // Get the content data if it exists
         $content = null;
@@ -457,10 +481,11 @@ class FrontendController extends Controller
                 if ($tplSections->isNotEmpty()) {
                     $data['sections'] = $tplSections;
                     $view = $this->themeManager->getTemplateView('sections') ?? 'frontend.sections';
+
                     return view($view, $data);
                 }
             } catch (\Throwable $e) {
-                \Log::warning('Template entry-design section load failed for ' . $template->slug . ': ' . $e->getMessage());
+                \Log::warning('Template entry-design section load failed for '.$template->slug.': '.$e->getMessage());
             }
         }
 
