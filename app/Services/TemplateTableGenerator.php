@@ -312,6 +312,7 @@ class TemplateTableGenerator
 
         // Get fillable fields (including CSS columns for grapejs fields)
         $fillable = [];
+        $template->load('fields');
         foreach ($template->fields as $field) {
             $fillable[] = $field->name;
             if ($field->type === 'grapejs') {

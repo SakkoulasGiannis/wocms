@@ -404,6 +404,18 @@ class TemplateEntryCreationTest extends TestCase
             \Schema::drop('test_templates');
         }
 
+        // Clean up generated model files
+        $modelFiles = [
+            app_path('Models/TestTemplate.php'),
+            app_path('Models/TestFillable.php'),
+        ];
+
+        foreach ($modelFiles as $file) {
+            if (file_exists($file)) {
+                unlink($file);
+            }
+        }
+
         parent::tearDown();
     }
 }
