@@ -129,9 +129,20 @@ class FileEditor extends Component
         $this->loadFile();
     }
 
+    protected function validateSelectedFile()
+    {
+        if (! $this->selectedFile) {
+            return false;
+        }
+
+        $editableFiles = array_column($this->getEditableFiles(), 'path');
+
+        return in_array($this->selectedFile, $editableFiles);
+    }
+
     public function loadFile()
     {
-        if (! $this->selectedFile || ! File::exists($this->selectedFile)) {
+        if (! $this->selectedFile || ! $this->validateSelectedFile() || ! File::exists($this->selectedFile)) {
             $this->fileContent = '';
             $this->originalContent = '';
             $this->isDirty = false;
@@ -162,9 +173,9 @@ class FileEditor extends Component
             'fileContent_md5' => md5($this->fileContent ?? ''),
         ]);
 
-        if (! $this->selectedFile) {
-            \Log::warning('❌ Save failed: No file selected');
-            session()->flash('error', 'No file selected');
+        if (! $this->selectedFile || ! $this->validateSelectedFile()) {
+            \Log::warning('❌ Save failed: No file selected or invalid file');
+            session()->flash('error', 'No file selected or invalid file');
 
             return;
         }
@@ -291,8 +302,19 @@ class FileEditor extends Component
     public function restoreBackup($backupFile)
     {
         try {
-            if (! File::exists($backupFile)) {
-                session()->flash('error', 'Backup file not found');
+            if (! $this->validateSelectedFile()) {
+                session()->flash('error', 'Invalid file selected');
+
+                return;
+            }
+
+            // Ensure the backup file belongs to the selected file
+            $directory = dirname($this->selectedFile);
+            $filename = basename($this->selectedFile);
+            $expectedBackupPrefix = $directory . '/' . $filename . '.backup-';
+
+            if (! str_starts_with($backupFile, $expectedBackupPrefix) || ! File::exists($backupFile)) {
+                session()->flash('error', 'Invalid backup file');
 
                 return;
             }
@@ -311,7 +333,7 @@ class FileEditor extends Component
 
     public function getBackups()
     {
-        if (! $this->selectedFile) {
+        if (! $this->selectedFile || ! $this->validateSelectedFile()) {
             return [];
         }
 
@@ -396,6 +418,20 @@ class FileEditor extends Component
             'createDirectory' => 'required|string',
         ]);
 
+        // Prevent path traversal in name
+        if (str_contains($this->createName, '..')) {
+            session()->flash('error', 'Invalid name.');
+
+            return;
+        }
+
+        $writableDirs = array_keys($this->getWritableDirectories());
+        if (! in_array($this->createDirectory, $writableDirs)) {
+            session()->flash('error', 'Invalid directory selected.');
+
+            return;
+        }
+
         $targetDir = $this->createDirectory;
 
         if (! is_dir($targetDir) || ! is_writable($targetDir)) {
@@ -448,8 +484,8 @@ class FileEditor extends Component
 
     public function deleteCurrentFile(): void
     {
-        if (! $this->selectedFile || ! File::exists($this->selectedFile)) {
-            session()->flash('error', 'No file selected.');
+        if (! $this->selectedFile || ! $this->validateSelectedFile() || ! File::exists($this->selectedFile)) {
+            session()->flash('error', 'No file selected or invalid file.');
 
             return;
         }

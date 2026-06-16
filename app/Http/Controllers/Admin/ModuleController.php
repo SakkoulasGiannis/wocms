@@ -127,14 +127,19 @@ class ModuleController extends Controller
             // Extract ZIP
             $zip = new ZipArchive;
             if ($zip->open($tempPath) === true) {
-                // Get the first folder name in the ZIP (module name)
+                // Get the first folder name in the ZIP (module name) and validate all files
                 $moduleName = null;
                 for ($i = 0; $i < $zip->numFiles; $i++) {
                     $filename = $zip->getNameIndex($i);
+
+                    // Prevent path traversal
+                    if (str_contains($filename, '..')) {
+                        throw new \Exception('Invalid ZIP content: Path traversal detected.');
+                    }
+
                     $parts = explode('/', $filename);
-                    if (count($parts) > 0 && ! empty($parts[0])) {
+                    if ($moduleName === null && count($parts) > 0 && ! empty($parts[0])) {
                         $moduleName = $parts[0];
-                        break;
                     }
                 }
 
