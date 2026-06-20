@@ -86,8 +86,10 @@
             }
             var n = located.node;
             var tab = state.inspectorTab || 'props';
+            var isImg = (n.type || '').toLowerCase() === 'img';
+            var imgSrc = (n.attributes && n.attributes.src) || '';
             var attrRows = Object.entries(n.attributes || {})
-                .filter(function (pair) { return pair[0] !== 'style'; })
+                .filter(function (pair) { return pair[0] !== 'style' && !(isImg && pair[0] === 'src'); })
                 .map(function (pair) {
                     return '<div class="nb-attr-row">' +
                         '<input class="nb-attr-key" value="' + NB.escapeHtml(pair[0]) + '" placeholder="name">' +
@@ -112,6 +114,13 @@
                     '<input data-field="classes" value="' + NB.escapeHtml(n.classes || '') + '"></div>' +
                     '<div class="nb-field"><label>Class picker</label>' +
                     '<div data-chips class="nb-chip-picker">' + chipMarkup(n) + '</div></div>' +
+                    (isImg
+                        ? '<div class="nb-field"><label>Image source</label>' +
+                          '<div class="nb-img-src-row">' +
+                          '<input data-field="img-src" value="' + NB.escapeHtml(imgSrc) + '" placeholder="https://… or pick from library">' +
+                          '<button type="button" data-act="pick-image" class="nb-pick-btn">&#128247; Pick</button>' +
+                          '</div></div>'
+                        : '') +
                     '<div class="nb-field"><label>Content (direct text)</label>' +
                     '<textarea data-field="content" rows="2">' + NB.escapeHtml(n.content || '') + '</textarea></div>' +
                     '<div class="nb-field"><label>Attributes</label>' +
@@ -167,8 +176,23 @@
                 var styleStr = textToStyle(styleEl.value);
                 if (styleStr) { attrs.style = styleStr; }
             }
+            var imgSrcEl = ins.querySelector('[data-field="img-src"]');
+            if (imgSrcEl) {
+                var src = imgSrcEl.value.trim();
+                if (src) { attrs.src = src; }
+            }
             n.attributes = attrs;
             return true;
+        }
+
+        /** Set the selected node's image src (from the media picker) and refresh. */
+        function setImageSrc(url) {
+            var located = state.selectedId ? state.findNode(state.selectedId) : null;
+            if (!located) { return; }
+            located.node.attributes = located.node.attributes || {};
+            located.node.attributes.src = url;
+            controller.applyInspector();
+            render();
         }
 
         function toggleChip(cls) {
@@ -192,6 +216,14 @@
                 });
                 var body = state.els.inspector.querySelector('.nb-insp-body');
                 if (body) { body.setAttribute('data-insp-active', state.inspectorTab); }
+                return;
+            }
+            if (e.target.closest('[data-act="pick-image"]')) {
+                e.preventDefault();
+                var picker = state.rootEl && state.rootEl.__nbMedia;
+                if (picker && typeof picker.open === 'function') {
+                    picker.open(setImageSrc);
+                }
                 return;
             }
             var chip = e.target.closest('[data-chip]');

@@ -34,7 +34,8 @@
             "App\\": "app/",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/",
-            "Modules\\": "Modules/"
+            "Modules\\": "Modules/",
+            "Weborange\\VisualBuilder\\": "packages/weborange/visual-builder/src/"
         }
     },
     "autoload-dev": {

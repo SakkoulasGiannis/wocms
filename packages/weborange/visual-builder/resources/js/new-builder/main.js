@@ -82,6 +82,54 @@
             hover.syncSelection();
         }
 
+        /**
+         * Insert a block (contract JSON) into the model. Appends as a child of
+         * the selected node when one is selected, otherwise as a new root. The
+         * new node becomes the selection. Used by the component palette.
+         */
+        function insertBlock(json) {
+            var node = NB.decorate([json])[0];
+            var located = state.selectedId ? state.findNode(state.selectedId) : null;
+            if (located) {
+                located.node.children = located.node.children || [];
+                located.node.children.push(node);
+                located.node._collapsed = false;
+            } else {
+                state.roots.push(node);
+            }
+            state.selectedId = node._id;
+            renderAll();
+        }
+
+        /**
+         * Append a dynamic {token} to the selected node — into its content, or
+         * into an <img> src. Returns false if nothing is selected.
+         */
+        function insertToken(text) {
+            var located = state.selectedId ? state.findNode(state.selectedId) : null;
+            if (!located) { return false; }
+            var n = located.node;
+            if ((n.type || '').toLowerCase() === 'img') {
+                n.attributes = n.attributes || {};
+                n.attributes.src = (n.attributes.src || '') + text;
+            } else {
+                n.content = (n.content || '') + text;
+            }
+            renderAll();
+            return true;
+        }
+
+        /**
+         * Replace the whole document with the given roots (array of contract
+         * JSON). Used by "edit existing section" to load a saved section back.
+         */
+        function loadRoots(roots) {
+            var list = Array.isArray(roots) ? roots : [roots];
+            state.roots = NB.decorate(list.map(NB.clean));
+            state.selectedId = null;
+            renderAll();
+        }
+
         function toggleCollapse(id) {
             var located = state.findNode(id);
             if (!located) { return; }
@@ -98,6 +146,10 @@
                 located.node._collapsed = false;
             } else if (act === 'add-sibling') {
                 located.siblings.splice(located.index + 1, 0, NB.decorate([{ type: 'div', children: [] }])[0]);
+            } else if (act === 'duplicate') {
+                var copy = NB.decorate([NB.clean(located.node)])[0];
+                located.siblings.splice(located.index + 1, 0, copy);
+                state.selectedId = copy._id;
             } else if (act === 'delete') {
                 located.siblings.splice(located.index, 1);
                 if (state.selectedId === id) {
@@ -258,7 +310,9 @@
         history.reset();
         history.updateButtons();
 
-        return { state: state };
+        var api = { state: state, insertBlock: insertBlock, loadRoots: loadRoots, insertToken: insertToken };
+        rootEl.__nb = api;
+        return api;
     }
 
     NB.init = NewBuilder;
@@ -268,6 +322,10 @@
         if (root && !root.dataset.nbBooted) {
             root.dataset.nbBooted = '1';
             NewBuilder(root);
+            if (typeof NB.createPalette === 'function') { NB.createPalette(root); }
+            if (typeof NB.createMediaPicker === 'function') { NB.createMediaPicker(root); }
+            if (typeof NB.createTokens === 'function') { NB.createTokens(root); }
+            if (typeof NB.createSave === 'function') { NB.createSave(root); }
         }
     }
 
