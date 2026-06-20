@@ -141,5 +141,10 @@
             </div>
         </footer>
     </div>
+
+    {{-- SectionEmbed data provider — exposes templates / card library /
+         tokens via window.SE_DATA so the inline editor inside the EditorJS
+         block can populate its dropdowns client-side. Renders no UI. --}}
+    @livewire('admin.section-embed.configurator')
 </body>
 </html>

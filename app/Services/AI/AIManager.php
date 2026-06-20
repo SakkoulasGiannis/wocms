@@ -20,6 +20,7 @@ class AIManager
         return match ($providerName) {
             'claude' => new ClaudeProvider,
             'chatgpt' => new ChatGPTProvider,
+            'gemini' => new GeminiProvider,
             'ollama' => new OllamaProvider,
             default => new ClaudeProvider,
         };

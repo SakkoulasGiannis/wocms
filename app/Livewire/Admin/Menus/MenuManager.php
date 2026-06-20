@@ -404,6 +404,87 @@ class MenuManager extends Component
         }
     }
 
+    // --- JSON Export / Import ---
+
+    /** Streams the currently-selected menu as a JSON download. */
+    public function exportJson(): ?\Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        if (! $this->selectedMenuId) {
+            session()->flash('error', 'Pick a menu first.');
+
+            return null;
+        }
+        $menu = Menu::with('items')->find($this->selectedMenuId);
+        if (! $menu) {
+            session()->flash('error', 'Menu not found.');
+
+            return null;
+        }
+
+        $spec = app(\App\Services\MenuPorter::class)->exportMenu($menu);
+        $json = json_encode($spec, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+        $filename = 'menu-'.$menu->slug.'-'.date('Ymd-His').'.json';
+
+        return response()->streamDownload(
+            fn () => print ($json),
+            $filename,
+            ['Content-Type' => 'application/json'],
+        );
+    }
+
+    // Import UI state
+    public bool $showImportModal = false;
+
+    public string $importJson = '';
+
+    public string $importMode = 'create';   // 'create' or 'replace'
+
+    public ?array $importResult = null;
+
+    public function openImportModal(): void
+    {
+        $this->importJson = '';
+        $this->importMode = 'create';
+        $this->importResult = null;
+        $this->showImportModal = true;
+    }
+
+    public function closeImportModal(): void
+    {
+        $this->showImportModal = false;
+    }
+
+    public function runImport(): void
+    {
+        $this->validate([
+            'importJson' => 'required|string',
+            'importMode' => 'in:create,replace',
+        ]);
+
+        $decoded = json_decode($this->importJson, true);
+        if (! is_array($decoded)) {
+            $this->importResult = ['ok' => false, 'error' => 'Not valid JSON.'];
+
+            return;
+        }
+
+        try {
+            $this->importResult = app(\App\Services\MenuPorter::class)->importMenu($decoded, $this->importMode);
+        } catch (\Throwable $e) {
+            $this->importResult = ['ok' => false, 'error' => $e->getMessage()];
+
+            return;
+        }
+
+        if (! empty($this->importResult['ok'])) {
+            $this->loadMenus();
+            if (! empty($this->importResult['menu_id'])) {
+                $this->selectMenu((int) $this->importResult['menu_id']);
+            }
+            session()->flash('success', 'Menu imported — '.$this->importResult['items_created'].' items created.');
+        }
+    }
+
     public function render()
     {
         return view('livewire.admin.menus.menu-manager')

@@ -84,7 +84,11 @@ class Property extends Model implements HasMedia
 
     public function getFormattedPriceAttribute(): string
     {
-        return $this->currency.' '.number_format($this->price, 2);
+        $symbols = ['EUR' => '€', 'USD' => '$', 'GBP' => '£', 'JPY' => '¥'];
+        $raw = trim((string) $this->currency);
+        $symbol = $raw === '' ? '€' : ($symbols[$raw] ?? $raw.' ');
+
+        return $symbol.number_format((float) $this->price, 2);
     }
 
     public function registerMediaCollections(): void

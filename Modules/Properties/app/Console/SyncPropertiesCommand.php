@@ -10,7 +10,7 @@ use Modules\RentalProperties\Models\RentalProperty;
 
 class SyncPropertiesCommand extends Command
 {
-    protected $signature = 'properties:sync {--type=all : Type to sync: rentals, sales, or all}';
+    protected $signature = 'properties:sync {--type=all : Type to sync: rentals, sales, or all} {--id= : Sync only the single listing with this CRM external id}';
 
     protected $description = 'Sync properties from CRM API (crm.kretaeiendom.com)';
 
@@ -57,11 +57,34 @@ class SyncPropertiesCommand extends Command
             return;
         }
 
-        $this->info('Found '.count($result['data']).' sale listings.');
+        $data = $this->filterById($result['data']);
 
-        foreach ($result['data'] as $item) {
+        $this->info('Found '.count($data).' sale listings.');
+
+        foreach ($data as $item) {
             $this->syncProperty($item, 'sale', $client);
         }
+    }
+
+    /**
+     * When --id is supplied, narrow the fetched listings to that single CRM
+     * external id. The CRM exposes no show endpoint, so we filter the list.
+     *
+     * @param  array<int, array<string, mixed>>  $items
+     * @return array<int, array<string, mixed>>
+     */
+    protected function filterById(array $items): array
+    {
+        $id = $this->option('id');
+
+        if ($id === null || $id === '') {
+            return $items;
+        }
+
+        return array_values(array_filter(
+            $items,
+            fn (array $item): bool => (string) ($item['id'] ?? '') === (string) $id
+        ));
     }
 
     protected function syncRentals(CrmApiClient $client): void
@@ -75,9 +98,11 @@ class SyncPropertiesCommand extends Command
             return;
         }
 
-        $this->info('Found '.count($result['data']).' rental listings.');
+        $data = $this->filterById($result['data']);
 
-        foreach ($result['data'] as $item) {
+        $this->info('Found '.count($data).' rental listings.');
+
+        foreach ($data as $item) {
             $this->syncRentalProperty($item, $client);
         }
     }
@@ -124,6 +149,9 @@ class SyncPropertiesCommand extends Command
 
         try {
             $data = $this->mapPropertyData($item, 'for_rent');
+            // The Hostaway listing id is rental-specific (sales share mapPropertyData
+            // but have no Hostaway link), so it's merged here rather than in the map.
+            $data['hostaway_id'] = isset($item['hostaway_id']) ? (string) $item['hostaway_id'] : null;
             $property = RentalProperty::updateOrCreate(
                 ['external_id' => $externalId],
                 $data

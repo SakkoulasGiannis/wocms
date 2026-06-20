@@ -180,7 +180,12 @@
                         onReady: () => {
                             const el = document.getElementById(self.uid);
                             if (el) el._editorjsInstance = self.editor;
-                            try { if (window.Undo) new window.Undo({ editor: self.editor }); } catch (e) { console.warn('[EditorJS] Undo init failed (non-fatal):', e); }
+                            try {
+                                if (window.Undo) {
+                                    self.undo = new window.Undo({ editor: self.editor });
+                                    self.editor.save().then((d) => { try { self.undo?.initialize?.(d); } catch (_) {} }).catch(() => {});
+                                }
+                            } catch (e) { console.warn('[EditorJS] Undo init failed (non-fatal):', e); }
                             try { if (window.DragDrop) new window.DragDrop(self.editor); } catch (e) { console.warn('[EditorJS] DragDrop init failed (non-fatal):', e); }
                         },
                     });

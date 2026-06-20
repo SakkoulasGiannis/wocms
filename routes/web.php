@@ -20,6 +20,16 @@ Route::get('/properties/{slug}', [FrontendController::class, 'propertyShow'])->n
 
 // Rental Properties routes
 Route::get('/rental-properties', [FrontendController::class, 'rentalProperties'])->name('rental-properties.index');
+Route::get('/rental-properties/{slug}/calendar', [FrontendController::class, 'rentalPropertyCalendar'])->name('rental-properties.calendar');
+Route::get('/rental-properties/{slug}/quote', [FrontendController::class, 'rentalPropertyQuote'])->name('rental-properties.quote');
+Route::post('/rental-properties/{slug}/book', [FrontendController::class, 'rentalPropertyBook'])->name('rental-properties.book');
+Route::post('/hostaway/webhook', \Modules\RentalProperties\Http\Controllers\HostawayWebhookController::class)->name('hostaway.webhook');
+
+// Booking checkout + payment (provider-agnostic; payment providers not yet implemented)
+Route::post('/rental-properties/{slug}/checkout', [\Modules\RentalProperties\Http\Controllers\BookingCheckoutController::class, 'start'])->name('booking.checkout.start');
+Route::get('/booking/{booking}', [\Modules\RentalProperties\Http\Controllers\BookingCheckoutController::class, 'show'])->name('booking.show');
+Route::get('/booking/{booking}/return', [\Modules\RentalProperties\Http\Controllers\BookingCheckoutController::class, 'paymentReturn'])->name('booking.return');
+Route::post('/payments/{provider}/webhook', [\Modules\RentalProperties\Http\Controllers\BookingCheckoutController::class, 'webhook'])->name('payments.webhook');
 Route::get('/rental-properties/{slug}', [FrontendController::class, 'rentalPropertyShow'])->name('rental-properties.show');
 
 // Contact page
@@ -74,6 +84,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     // Settings Route
     Route::get('/settings', \App\Livewire\Admin\Settings\SettingsPage::class)->name('settings');
 
+    // AI Page Builder (build / edit pages via AI)
+    Route::get('/ai-page-builder', \App\Livewire\Admin\AiPageBuilder\AiPageBuilderPage::class)->name('ai-page-builder');
+
     // Media Library Route
     Route::get('/media', \App\Livewire\Admin\Media\MediaLibrary::class)->name('media');
 
@@ -118,6 +131,18 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     Route::get('/blog/categories/create', \App\Livewire\Admin\Blog\CategoryForm::class)->name('blog.categories.create');
     Route::get('/blog/categories/{categoryId}/edit', \App\Livewire\Admin\Blog\CategoryForm::class)->name('blog.categories.edit');
     Route::get('/blog/tags', \App\Livewire\Admin\Blog\TagList::class)->name('blog.tags.index');
+
+    // PageCompiler + AI Page Builder API (JSON in/out — kept under /admin so it shares auth)
+    Route::prefix('api')->name('api.')->group(function () {
+        Route::get('/pages/{id}/export', [\App\Http\Controllers\Admin\PageCompilerController::class, 'export'])->name('pages.export');
+        Route::get('/templates/skeletons', [\App\Http\Controllers\Admin\PageCompilerController::class, 'allSkeletons'])->name('templates.skeletons');
+        Route::get('/templates/{slug}/skeleton', [\App\Http\Controllers\Admin\PageCompilerController::class, 'templateSkeleton'])->name('templates.skeleton');
+        Route::post('/pages/compile', [\App\Http\Controllers\Admin\PageCompilerController::class, 'compile'])->name('pages.compile');
+        Route::post('/pages/ai/create', [\App\Http\Controllers\Admin\PageCompilerController::class, 'aiCreate'])->name('pages.ai.create');
+        Route::post('/pages/ai/edit', [\App\Http\Controllers\Admin\PageCompilerController::class, 'aiEdit'])->name('pages.ai.edit');
+        Route::get('/pages/{pageId}/revisions', [\App\Http\Controllers\Admin\PageCompilerController::class, 'revisions'])->name('pages.revisions');
+        Route::post('/pages/revisions/{revisionId}/restore', [\App\Http\Controllers\Admin\PageCompilerController::class, 'restore'])->name('pages.revisions.restore');
+    });
 
     // Auto-load module admin routes (must be before the wildcard {templateSlug} catch-all)
     foreach (\Nwidart\Modules\Facades\Module::allEnabled() as $module) {

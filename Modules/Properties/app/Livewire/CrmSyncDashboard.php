@@ -6,12 +6,23 @@ use App\Models\Setting;
 use Illuminate\Support\Facades\Artisan;
 use Livewire\Component;
 use Modules\Properties\Services\CrmApiClient;
+use Modules\RentalProperties\Services\HostawayClient;
 
 class CrmSyncDashboard extends Component
 {
     public string $crmUrl = '';
 
     public string $crmToken = '';
+
+    public string $hostawayAccountId = '';
+
+    public string $hostawayApiKey = '';
+
+    public string $hostawayWebhookToken = '';
+
+    public bool $rentalBookingEnabled = false;
+
+    public ?array $hostawayStatus = null;
 
     public ?array $connectionStatus = null;
 
@@ -32,10 +43,43 @@ class CrmSyncDashboard extends Component
         $this->crmUrl = Setting::get('crm_api_url', '');
         $this->crmToken = Setting::get('crm_api_token', '');
         $this->lastSyncAt = Setting::get('crm_last_sync_at', null);
+        $this->hostawayAccountId = Setting::get('hostaway_account_id', '');
+        $this->hostawayApiKey = Setting::get('hostaway_api_key', '');
+        $this->hostawayWebhookToken = Setting::get('hostaway_webhook_token', '');
+        $this->rentalBookingEnabled = filter_var(Setting::get('rental_booking_enabled', false), FILTER_VALIDATE_BOOLEAN);
 
         if ($this->crmUrl && $this->crmToken) {
             $this->connectionStatus = $this->getClient()->testConnection();
         }
+    }
+
+    public function saveHostawaySettings(): void
+    {
+        $this->validate([
+            'hostawayAccountId' => 'required|string',
+            'hostawayApiKey' => 'required|string|min:10',
+        ]);
+
+        Setting::set('hostaway_account_id', $this->hostawayAccountId, 'integrations');
+        Setting::set('hostaway_api_key', $this->hostawayApiKey, 'integrations', true);
+        Setting::set('hostaway_webhook_token', $this->hostawayWebhookToken, 'integrations', true);
+        Setting::set('rental_booking_enabled', $this->rentalBookingEnabled ? '1' : '0', 'integrations');
+
+        // New credentials → drop any cached access token so the next call re-mints.
+        \Illuminate\Support\Facades\Cache::forget('hostaway_access_token');
+
+        $this->hostawayStatus = (new HostawayClient)->testConnection();
+
+        if ($this->hostawayStatus['success']) {
+            session()->flash('success', $this->hostawayStatus['message']);
+        } else {
+            session()->flash('error', $this->hostawayStatus['message']);
+        }
+    }
+
+    public function testHostaway(): void
+    {
+        $this->hostawayStatus = (new HostawayClient)->testConnection();
     }
 
     public function saveSettings(): void

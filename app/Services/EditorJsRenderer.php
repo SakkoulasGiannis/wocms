@@ -88,6 +88,7 @@ class EditorJsRenderer
             'columns' => $this->renderColumns($data),
             'container' => $this->renderContainer($data),
             'space' => $this->renderSpace($data),
+            'sectionEmbed' => $this->renderSectionEmbed($data),
             default => '',
         };
 
@@ -203,27 +204,58 @@ class EditorJsRenderer
     }
 
     /**
-     * Boost inline `style="color: …"` (and bg/font-weight) on spans to `!important`
-     * so theme stylesheets / Tailwind preflight can't override the user's choice.
+     * Boost inline `style="color: …"` (and bg/font-weight) on ANY tag to
+     * `!important` so theme stylesheets / Tailwind preflight can't override the
+     * user's choice. Also normalises the legacy `<font color="…">` form (which
+     * contentEditable in some browsers still emits via execCommand) into a
+     * `<span style="color:…">` so it gets the same treatment.
+     *
      * Idempotent — won't double-add !important if already present.
      */
     protected function boostInlineStyles(string $html): string
     {
-        if ($html === '' || stripos($html, '<span') === false) {
+        if ($html === '') {
             return $html;
         }
 
+        // 1) Normalise <font color="…"> → <span style="color:…"> (and </font>).
+        if (stripos($html, '<font') !== false) {
+            $html = preg_replace_callback(
+                '/<font\b([^>]*)>/i',
+                function ($m) {
+                    $attrs = $m[1];
+                    $color = null;
+                    if (preg_match('/\bcolor\s*=\s*"([^"]+)"/i', $attrs, $c)) {
+                        $color = $c[1];
+                    } elseif (preg_match("/\bcolor\s*=\s*'([^']+)'/i", $attrs, $c)) {
+                        $color = $c[1];
+                    } elseif (preg_match('/\bcolor\s*=\s*([^\s>]+)/i', $attrs, $c)) {
+                        $color = $c[1];
+                    }
+
+                    return $color !== null
+                        ? '<span style="color: '.htmlspecialchars($color, ENT_QUOTES).' !important;">'
+                        : '<span>';
+                },
+                $html
+            ) ?? $html;
+            $html = str_ireplace('</font>', '</span>', $html);
+        }
+
+        if (stripos($html, 'style=') === false) {
+            return $html;
+        }
+
+        // 2) For ANY tag with a style="…" attr, boost color/bg/font-weight to !important.
         return preg_replace_callback(
-            '/(<span\b[^>]*\bstyle\s*=\s*")([^"]*)(")/i',
+            '/(<[a-zA-Z][a-zA-Z0-9]*\b[^>]*\bstyle\s*=\s*")([^"]*)(")/i',
             function ($m) {
                 $styleStr = $m[2];
-                // For each "prop:value" pair, add !important if not already present
                 $newStyle = preg_replace_callback(
                     '/([a-zA-Z\-]+)\s*:\s*([^;]+?)(\s*!important)?\s*(;|$)/',
                     function ($p) {
                         $prop = trim($p[1]);
-                        $val  = trim($p[2]);
-                        // Only boost color / background-color / font-weight (the ones inline tools commonly set)
+                        $val = trim($p[2]);
                         $boostTargets = ['color', 'background-color', 'font-weight'];
                         if (in_array(strtolower($prop), $boostTargets, true) && empty($p[3])) {
                             return "{$prop}: {$val} !important;";
@@ -478,6 +510,177 @@ class EditorJsRenderer
         $imageHtml = $image ? "<img src=\"{$image}\" class=\"w-20 h-20 object-cover rounded flex-shrink-0\" alt=\"\">" : '';
 
         return "<a href=\"{$link}\" target=\"_blank\" class=\"flex items-start gap-4 bg-gray-50 border border-gray-200 rounded-lg p-4 my-4 hover:bg-gray-100 transition no-underline\">{$imageHtml}<div><p class=\"font-semibold text-gray-900\">{$title}</p><p class=\"text-sm text-gray-500 mt-1\">{$description}</p><p class=\"text-xs text-blue-500 mt-1\">{$link}</p></div></a>\n";
+    }
+
+    /**
+     * Render a SectionEmbed block — the generic "loop a template's entries
+     * through a custom card design" tool.
+     *
+     * Expected $data shape (matches what the JS SectionEmbedTool saves):
+     *   - source_template:    string slug          (which template's entries)
+     *   - limit:              int                  (max rows; 0 = no limit)
+     *   - order_by:           string column        (default created_at)
+     *   - order_dir:          'asc' | 'desc'       (default desc)
+     *   - columns:            int 1..6             (grid columns)
+     *   - gap:                'tight'|'normal'|'large'
+     *   - heading / subheading: optional title above the loop
+     *   - card_template_slug: optional library reference  (CardTemplate.slug)
+     *   - card_html:          inline card HTML if not using library
+     *   - section_class:      Tailwind wrapper classes
+     *
+     * Falls back to an empty placeholder when the source template is missing
+     * or the card has no HTML — never throws.
+     */
+    protected function renderSectionEmbed(array $data): string
+    {
+        $sourceSlug = trim((string) ($data['source_template'] ?? ''));
+        if ($sourceSlug === '') {
+            return '';
+        }
+
+        $cardHtml = $this->resolveCardHtml($data);
+        if ($cardHtml === '') {
+            return '';
+        }
+
+        $sourceTemplate = null;
+        try {
+            $sourceTemplate = \App\Models\Template::query()->where('slug', $sourceSlug)->first();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('sectionEmbed: template lookup failed', [
+                'slug' => $sourceSlug, 'error' => $e->getMessage(),
+            ]);
+        }
+        if (! $sourceTemplate || ! $sourceTemplate->model_class) {
+            return '';
+        }
+
+        $modelClass = str_contains($sourceTemplate->model_class, '\\')
+            ? $sourceTemplate->model_class
+            : 'App\\Models\\'.$sourceTemplate->model_class;
+        if (! class_exists($modelClass)) {
+            return '';
+        }
+
+        $limit = (int) ($data['limit'] ?? 12);
+        $orderBy = (string) ($data['order_by'] ?? 'created_at');
+        $orderDir = (($data['order_dir'] ?? 'desc') === 'asc') ? 'asc' : 'desc';
+        $columns = (int) ($data['columns'] ?? 3);
+        if (! in_array($columns, [1, 2, 3, 4, 5, 6], true)) {
+            $columns = 3;
+        }
+        $gapKey = (string) ($data['gap'] ?? 'normal');
+        $sectionClass = trim((string) ($data['section_class'] ?? ''));
+        $heading = trim((string) ($data['heading'] ?? ''));
+        $subheading = trim((string) ($data['subheading'] ?? ''));
+
+        $gapClass = match ($gapKey) {
+            'tight' => 'gap-4',
+            'large' => 'gap-10',
+            default => 'gap-6',
+        };
+        $gridClass = match ($columns) {
+            1 => 'grid-cols-1',
+            2 => 'grid-cols-1 sm:grid-cols-2',
+            3 => 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
+            4 => 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4',
+            5 => 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-5',
+            6 => 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-6',
+        };
+
+        try {
+            $query = $modelClass::query();
+            if (method_exists($modelClass, 'scopeActive')) {
+                try {
+                    $query->active();
+                    // Some scopeActive implementations reference columns that
+                    // don't exist on every consumer table (legacy schema drift).
+                    // Probe the scoped query — if it explodes at SQL-time, fall
+                    // back to an unscoped query so the renderer still shows
+                    // entries rather than silently outputting nothing.
+                    $query->toSql();
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('sectionEmbed: scopeActive failed, dropping scope', [
+                        'slug' => $sourceSlug, 'error' => $e->getMessage(),
+                    ]);
+                    $query = $modelClass::query();
+                }
+            }
+            $table = (new $modelClass)->getTable();
+            $isSortable = (bool) ($sourceTemplate->settings['sortable'] ?? false);
+            if ($isSortable && \Illuminate\Support\Facades\Schema::hasColumn($table, 'sort_order')) {
+                $query->orderBy('sort_order')->orderBy('id');
+            } else {
+                $orderColumn = \Illuminate\Support\Facades\Schema::hasColumn($table, $orderBy)
+                    ? $orderBy : 'created_at';
+                $query->orderBy($orderColumn, $orderDir);
+            }
+            if ($limit > 0) {
+                $query->limit($limit);
+            }
+            $entries = $query->get();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('sectionEmbed query failed', [
+                'slug' => $sourceSlug, 'error' => $e->getMessage(),
+            ]);
+
+            return '';
+        }
+
+        if ($entries->isEmpty()) {
+            return '';
+        }
+
+        $cards = '';
+        $renderer = app(\App\Services\CardRenderer::class);
+        foreach ($entries as $entry) {
+            $cards .= $renderer->render($cardHtml, $entry, $sourceTemplate);
+        }
+
+        $titleBlock = '';
+        if ($heading !== '' || $subheading !== '') {
+            $titleBlock = '<div class="mb-8 text-center">';
+            if ($subheading !== '') {
+                $titleBlock .= '<p class="text-sm font-semibold uppercase tracking-wider opacity-70">'.e($subheading).'</p>';
+            }
+            if ($heading !== '') {
+                $titleBlock .= '<h2 class="mt-2 text-3xl font-bold md:text-4xl">'.e($heading).'</h2>';
+            }
+            $titleBlock .= '</div>';
+        }
+
+        $wrapClass = $sectionClass !== '' ? $sectionClass : 'py-12';
+
+        return '<section class="'.e($wrapClass).'">'
+            .'<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">'
+            .$titleBlock
+            .'<div class="grid '.$gridClass.' '.$gapClass.'">'
+            .$cards
+            .'</div></div></section>'."\n";
+    }
+
+    /**
+     * Resolve the card HTML for a sectionEmbed block: prefer inline html,
+     * fall back to the library reference, then to an empty string.
+     */
+    protected function resolveCardHtml(array $data): string
+    {
+        $inline = trim((string) ($data['card_html'] ?? ''));
+        if ($inline !== '') {
+            return $inline;
+        }
+
+        $slug = trim((string) ($data['card_template_slug'] ?? ''));
+        if ($slug === '') {
+            return '';
+        }
+        try {
+            $card = \App\Models\CardTemplate::query()->where('slug', $slug)->first();
+
+            return $card?->html ?? '';
+        } catch (\Throwable $e) {
+            return '';
+        }
     }
 
     protected function renderPersonality(array $data): string

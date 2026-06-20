@@ -34,11 +34,15 @@ class SettingsPage extends Component
     public $availableThemes = [];
 
     // AI Settings
-    public $ai_provider = 'claude'; // claude, chatgpt, ollama
+    public $ai_provider = 'claude'; // claude, chatgpt, gemini, ollama
 
     public $ai_claude_api_key = '';
 
     public $ai_chatgpt_api_key = '';
+
+    public $ai_gemini_api_key = '';
+
+    public $ai_gemini_model = 'gemini-flash-latest';
 
     public $ai_ollama_url = '';
 
@@ -50,6 +54,16 @@ class SettingsPage extends Component
     public $prompt_content_generation = '';
 
     public $prompt_template_generation = '';
+
+    /* ── Page Compiler prompts (new in 2026-06) ─────────────────────────
+       page_compiler  → create-new-page workflow (AI gets template skeleton, fills it)
+       page_editor    → edit-existing-page workflow (AI gets exported JSON, applies edit)
+       section_writer → single-section content generation                                     */
+    public $prompt_page_compiler = '';
+
+    public $prompt_page_editor = '';
+
+    public $prompt_section_writer = '';
 
     // Integrations Settings
     public $google_analytics_id = '';
@@ -79,9 +93,6 @@ class SettingsPage extends Component
     public $social_youtube = '';
 
     public $social_tiktok = '';
-
-    // GrapeJS Settings
-    public $grapejs_include_css_in_blade = true;
 
     // Visual Editor Settings
     public bool $ve_tailwind_cdn = false;
@@ -124,6 +135,8 @@ class SettingsPage extends Component
         $this->ai_provider = Setting::get('ai_provider', 'claude');
         $this->ai_claude_api_key = Setting::get('ai_claude_api_key', '');
         $this->ai_chatgpt_api_key = Setting::get('ai_chatgpt_api_key', '');
+        $this->ai_gemini_api_key = Setting::get('ai_gemini_api_key', '');
+        $this->ai_gemini_model = Setting::get('ai_gemini_model', 'gemini-flash-latest');
         $this->ai_ollama_url = Setting::get('ai_ollama_url', 'http://localhost:11434');
         $this->ai_model = Setting::get('ai_model', $this->getDefaultModel());
 
@@ -131,9 +144,9 @@ class SettingsPage extends Component
         $this->prompt_structured_html = Setting::get('prompt_structured_html', config('ai-prompts.structured_html'));
         $this->prompt_content_generation = Setting::get('prompt_content_generation', config('ai-prompts.content_generation'));
         $this->prompt_template_generation = Setting::get('prompt_template_generation', config('ai-prompts.template_generation'));
-
-        // GrapeJS Settings
-        $this->grapejs_include_css_in_blade = Setting::get('grapejs_include_css_in_blade', true);
+        $this->prompt_page_compiler = Setting::get('prompt_page_compiler', config('ai-prompts.page_compiler', ''));
+        $this->prompt_page_editor = Setting::get('prompt_page_editor', config('ai-prompts.page_editor', ''));
+        $this->prompt_section_writer = Setting::get('prompt_section_writer', config('ai-prompts.section_writer', ''));
 
         // Visual Editor Settings
         $this->ve_tailwind_cdn = (bool) Setting::get('ve_tailwind_cdn', false);
@@ -160,6 +173,7 @@ class SettingsPage extends Component
         return match ($this->ai_provider) {
             'claude' => 'claude-3-5-sonnet-20241022',
             'chatgpt' => 'gpt-4-turbo-preview',
+            'gemini' => 'gemini-flash-latest',
             'ollama' => 'llama2',
             default => 'claude-3-5-sonnet-20241022'
         };
@@ -219,17 +233,25 @@ class SettingsPage extends Component
 
     public function saveAI()
     {
+        // Gemini uses `ai_gemini_model` exclusively; the generic `ai_model`
+        // field is hidden in the UI for that provider, so make it nullable.
+        $aiModelRule = $this->ai_provider === 'gemini' ? 'nullable|string' : 'required|string';
+
         $this->validate([
-            'ai_provider' => 'required|in:claude,chatgpt,ollama',
+            'ai_provider' => 'required|in:claude,chatgpt,gemini,ollama',
             'ai_claude_api_key' => 'nullable|string',
             'ai_chatgpt_api_key' => 'nullable|string',
+            'ai_gemini_api_key' => 'nullable|string',
+            'ai_gemini_model' => 'nullable|string',
             'ai_ollama_url' => 'nullable|url',
-            'ai_model' => 'required|string',
+            'ai_model' => $aiModelRule,
         ]);
 
         Setting::set('ai_provider', $this->ai_provider, 'ai');
         Setting::set('ai_claude_api_key', $this->ai_claude_api_key, 'ai', encrypt: true);
         Setting::set('ai_chatgpt_api_key', $this->ai_chatgpt_api_key, 'ai', encrypt: true);
+        Setting::set('ai_gemini_api_key', $this->ai_gemini_api_key, 'ai', encrypt: true);
+        Setting::set('ai_gemini_model', $this->ai_gemini_model, 'ai');
         Setting::set('ai_ollama_url', $this->ai_ollama_url, 'ai');
         Setting::set('ai_model', $this->ai_model, 'ai');
 
@@ -242,11 +264,17 @@ class SettingsPage extends Component
             'prompt_structured_html' => 'required|string|min:10',
             'prompt_content_generation' => 'required|string|min:10',
             'prompt_template_generation' => 'required|string|min:10',
+            'prompt_page_compiler' => 'nullable|string',
+            'prompt_page_editor' => 'nullable|string',
+            'prompt_section_writer' => 'nullable|string',
         ]);
 
         Setting::set('prompt_structured_html', $this->prompt_structured_html, 'ai_prompts');
         Setting::set('prompt_content_generation', $this->prompt_content_generation, 'ai_prompts');
         Setting::set('prompt_template_generation', $this->prompt_template_generation, 'ai_prompts');
+        Setting::set('prompt_page_compiler', $this->prompt_page_compiler, 'ai_prompts');
+        Setting::set('prompt_page_editor', $this->prompt_page_editor, 'ai_prompts');
+        Setting::set('prompt_section_writer', $this->prompt_section_writer, 'ai_prompts');
 
         session()->flash('success', 'AI prompts saved successfully!');
     }
@@ -269,17 +297,6 @@ class SettingsPage extends Component
         $this->prompt_template_generation = config('ai-prompts.template_generation');
 
         session()->flash('success', 'All prompts reset to defaults!');
-    }
-
-    public function saveGrapeJS()
-    {
-        $this->validate([
-            'grapejs_include_css_in_blade' => 'required|boolean',
-        ]);
-
-        Setting::set('grapejs_include_css_in_blade', $this->grapejs_include_css_in_blade, 'grapejs');
-
-        session()->flash('success', 'GrapeJS settings saved successfully!');
     }
 
     public function saveVisualEditor(): void

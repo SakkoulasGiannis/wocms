@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\RentalProperties\Livewire\BookingList;
 use Modules\RentalProperties\Livewire\RentalPropertyForm;
 use Modules\RentalProperties\Livewire\RentalPropertyList;
 
@@ -14,5 +15,6 @@ use Modules\RentalProperties\Livewire\RentalPropertyList;
 */
 
 Route::get('/rental-properties', RentalPropertyList::class)->name('rentals.index');
+Route::get('/bookings', BookingList::class)->name('bookings.index');
 Route::get('/rental-properties/create', RentalPropertyForm::class)->name('rentals.create');
 Route::get('/rental-properties/{propertyId}/edit', RentalPropertyForm::class)->name('rentals.edit');

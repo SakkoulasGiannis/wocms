@@ -4,10 +4,21 @@
             <h1 class="text-2xl font-bold text-gray-900">Rental Properties</h1>
             <p class="mt-1 text-sm text-gray-600">Manage rental property listings</p>
         </div>
-        <a href="{{ route('admin.rentals.create') }}" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow-sm transition"><i class="fa fa-plus mr-2"></i>Add Rental</a>
+        <div class="flex items-center gap-2">
+            <a href="{{ route('admin.bookings.index') }}" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg shadow-sm transition"><i class="fa fa-calendar-check mr-2"></i>Bookings</a>
+            <button type="button" wire:click="syncRentals" wire:loading.attr="disabled" wire:target="syncRentals"
+                    class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg shadow-sm transition disabled:opacity-60">
+                <span wire:loading.remove wire:target="syncRentals"><i class="fa fa-rotate mr-2"></i>Sync from Hostaway</span>
+                <span wire:loading wire:target="syncRentals"><i class="fa fa-spinner fa-spin mr-2"></i>Starting…</span>
+            </button>
+            <a href="{{ route('admin.rentals.create') }}" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow-sm transition"><i class="fa fa-plus mr-2"></i>Add Rental</a>
+        </div>
     </div>
     @if(session('success'))
     <div class="mb-6 bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg">{{ session('success') }}</div>
+    @endif
+    @if(session('error'))
+    <div class="mb-6 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">{{ session('error') }}</div>
     @endif
     <div class="bg-white rounded-lg shadow mb-6 p-4">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -31,6 +42,7 @@
                 @foreach($properties as $property)
                 <tr wire:key="rp-{{ $property->id }}" class="hover:bg-gray-50">
                     <td class="px-6 py-4"><div class="font-medium text-gray-900">{{ $property->title }}</div>
+                        @if($property->hostaway_id)<div class="text-xs text-gray-400 mt-0.5"><i class="fa fa-hashtag mr-1"></i>Hostaway: {{ $property->hostaway_id }}</div>@endif
                         @if($property->bedrooms || $property->area)<div class="text-xs text-gray-500 mt-1">@if($property->bedrooms)<span class="mr-2"><i class="fa fa-bed mr-1"></i>{{ $property->bedrooms }}</span>@endif @if($property->area)<span><i class="fa fa-ruler-combined mr-1"></i>{{ $property->area }}m²</span>@endif</div>@endif
                     </td>
                     <td class="px-6 py-4"><span class="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-800">{{ $propertyTypes[$property->property_type] ?? $property->property_type }}</span></td>
@@ -38,6 +50,12 @@
                     <td class="px-6 py-4 text-sm text-gray-500">{{ $property->city }}</td>
                     <td class="px-6 py-4"><button wire:click="toggleActive({{ $property->id }})" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $property->active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' }}">{{ $property->active ? 'Active' : 'Inactive' }}</button></td>
                     <td class="px-6 py-4 text-right text-sm">
+                        @if($property->external_id)
+                        <button wire:click="syncOne({{ $property->id }})" wire:loading.attr="disabled" wire:target="syncOne({{ $property->id }})" title="Sync from Hostaway" class="text-emerald-600 hover:text-emerald-900 mr-3 disabled:opacity-50">
+                            <i class="fa fa-rotate" wire:loading.remove wire:target="syncOne({{ $property->id }})"></i>
+                            <i class="fa fa-spinner fa-spin" wire:loading wire:target="syncOne({{ $property->id }})"></i>
+                        </button>
+                        @endif
                         <a href="{{ route('admin.rentals.edit', $property->id) }}" class="text-blue-600 hover:text-blue-900 mr-3"><i class="fa fa-edit"></i></a>
                         <button wire:click="delete({{ $property->id }})" wire:confirm="Delete?" class="text-red-600 hover:text-red-900"><i class="fa fa-trash"></i></button>
                     </td>

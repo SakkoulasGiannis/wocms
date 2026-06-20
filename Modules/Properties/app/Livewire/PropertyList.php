@@ -54,11 +54,18 @@ class PropertyList extends Component
 
     public function render()
     {
+        // The `order` column is listed in the Property fillable but never
+        // existed as a DB column on production — guard the orderBy with a
+        // Schema check so this works whether the column is added later or
+        // not. Falls back to most-recent-first.
+        $hasOrderCol = \Schema::hasColumn('properties', 'order');
+
         $properties = Property::query()
             ->when($this->search, fn ($q) => $q->where('title', 'like', "%{$this->search}%")->orWhere('city', 'like', "%{$this->search}%"))
             ->when($this->filterType, fn ($q) => $q->where('property_type', $this->filterType))
             ->when($this->filterStatus, fn ($q) => $q->where('status', $this->filterStatus))
-            ->orderBy('order')->orderBy('created_at', 'desc')
+            ->when($hasOrderCol, fn ($q) => $q->orderBy('order'))
+            ->orderBy('created_at', 'desc')
             ->paginate(20);
 
         return view('properties::livewire.property-list', [

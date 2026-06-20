@@ -2,41 +2,10 @@
 
 @section('title', $node->title ?? $title ?? 'Page')
 
-{{-- Pre-render sections BEFORE @section to protect Blade stack --}}
-@php
-    // Propagate the current entry / content to the isolated render-section view
-    // so TokenResolver in the partial can substitute {field} placeholders.
-    $__entry = $entry ?? $content ?? null;
-
-    $__sectionsHtml = '';
-    if (isset($sections) && $sections->count() > 0) {
-        foreach ($sections as $section) {
-            try {
-                $__sectionsHtml .= view('partials.render-section', [
-                    'section' => $section,
-                    'forceVe' => $forceVe ?? false,
-                    'entry'   => $__entry,
-                    'content' => $__entry,
-                ])->render();
-            } catch (\Throwable $e) {
-                if (config('app.debug')) {
-                    $__sectionsHtml .= '<div style="background:#fee;border:1px solid #c00;color:#c00;padding:12px;margin:8px;border-radius:4px;">'
-                        . '<strong>Section #' . e($section->id ?? '?') . ' (' . e($section->section_type ?? '?') . '):</strong> '
-                        . e($e->getMessage()) . '</div>';
-                }
-            }
-        }
-    }
-@endphp
-
+{{-- Bare placeholder token only. Wrapping it in @if/@foreach inside @section
+     causes Blade section capture to drop the content; a single literal token
+     survives. The controller's sectionsResponse() swaps this token for the
+     pre-rendered sections HTML after the view renders. --}}
 @section('content')
-    @if($__sectionsHtml)
-        {!! $__sectionsHtml !!}
-    @else
-        <div class="container mx-auto px-4 py-12">
-            <div class="text-center text-gray-500">
-                <p>This page has no sections yet. Add sections from the admin panel.</p>
-            </div>
-        </div>
-    @endif
-@endsection
+__VE_PRERENDERED_SECTIONS__
+@stop

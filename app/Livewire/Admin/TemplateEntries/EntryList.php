@@ -96,6 +96,106 @@ class EntryList extends Component
         session()->flash('success', $this->template->name.' entry deleted successfully!');
     }
 
+    /**
+     * Clone an entry into a new row + (if applicable) its full PageSection
+     * tree. Adjusts `title`/`name` to "<old> (Copy)" and slugs to a fresh
+     * unique value so the duplicate doesn't collide with the original.
+     *
+     * Sectionable cloning recurses through `parent_section_id` so a deeply
+     * nested page-builder layout copies intact.
+     */
+    public function duplicateEntry(int $id): void
+    {
+        $modelClass = $this->resolveModelClass();
+
+        try {
+            \DB::transaction(function () use ($modelClass, $id) {
+                /** @var \Illuminate\Database\Eloquent\Model $source */
+                $source = $modelClass::findOrFail($id);
+
+                // Eloquent replicate() copies fillable attributes but NOT
+                // the primary key or timestamps — exactly what we want.
+                $copy = $source->replicate();
+
+                $fillable = $source->getFillable();
+                $columns = \Schema::hasTable($source->getTable())
+                    ? \Schema::getColumnListing($source->getTable())
+                    : $fillable;
+
+                // Tweak title / name to make the copy visually distinct
+                foreach (['title', 'name', 'heading'] as $field) {
+                    if (in_array($field, $columns, true) && ! empty($source->{$field})) {
+                        $copy->{$field} = $source->{$field}.' (Copy)';
+                        break;
+                    }
+                }
+
+                // Generate a fresh, unique slug if the model uses one
+                if (in_array('slug', $columns, true) && ! empty($source->slug)) {
+                    $copy->slug = $this->uniqueSlug($modelClass, $source->slug);
+                }
+
+                // Don't carry a "default" flag across — only one entry can be default
+                foreach (['is_default', 'default'] as $defFlag) {
+                    if (in_array($defFlag, $columns, true)) {
+                        $copy->{$defFlag} = false;
+                    }
+                }
+
+                $copy->save();
+
+                // Clone associated PageSections (and their children, recursively)
+                // when the model is sectionable. Detected by presence of
+                // page_sections rows pointing at this entry.
+                if (class_exists(\Modules\PageBuilder\Models\PageSection::class)) {
+                    $this->cloneSectionsTree($modelClass, $source->id, $copy->id, null, null);
+                }
+            });
+
+            session()->flash('success', $this->template->name.' entry duplicated successfully!');
+        } catch (\Throwable $e) {
+            \Log::warning('EntryList duplicateEntry failed', ['id' => $id, 'error' => $e->getMessage()]);
+            session()->flash('error', 'Could not duplicate: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Find a slug derivative that isn't already used by another row of the
+     * same model. Tries `<slug>-copy`, then `<slug>-copy-2`, `-copy-3`…
+     */
+    protected function uniqueSlug(string $modelClass, string $base): string
+    {
+        $candidate = $base.'-copy';
+        $i = 1;
+        while ($modelClass::where('slug', $candidate)->exists()) {
+            $candidate = $base.'-copy-'.(++$i);
+        }
+
+        return $candidate;
+    }
+
+    /**
+     * Recursively clone every page_section row belonging to `$sourceEntryId`
+     * over onto `$copyEntryId`, preserving the parent/child hierarchy.
+     */
+    protected function cloneSectionsTree(string $modelClass, int $sourceEntryId, int $copyEntryId, ?int $sourceParentId, ?int $copyParentId): void
+    {
+        $sections = \Modules\PageBuilder\Models\PageSection::where('sectionable_type', $modelClass)
+            ->where('sectionable_id', $sourceEntryId)
+            ->where('parent_section_id', $sourceParentId)
+            ->orderBy('order')
+            ->get();
+
+        foreach ($sections as $section) {
+            $newSection = $section->replicate();
+            $newSection->sectionable_id = $copyEntryId;
+            $newSection->parent_section_id = $copyParentId;
+            $newSection->save();
+
+            $this->cloneSectionsTree($modelClass, $sourceEntryId, $copyEntryId, $section->id, $newSection->id);
+        }
+    }
+
     public function setDefaultEntry(int $contentNodeId): void
     {
         // Clear default flag from all nodes belonging to this template

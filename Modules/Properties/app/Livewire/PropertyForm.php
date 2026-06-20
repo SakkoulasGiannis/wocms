@@ -142,8 +142,19 @@ class PropertyForm extends Component
         $this->meta_description = $p->meta_description ?? '';
         $this->active = $p->active;
         $this->featured = $p->featured;
-        $this->currentFeaturedImage = $p->getFirstMediaUrl('featured_image', 'thumb') ?: $p->getFirstMediaUrl('featured_image');
-        $this->currentGallery = $p->getMedia('gallery')->map(fn ($m) => ['id' => $m->id, 'url' => $m->getUrl('thumb') ?: $m->getUrl()])->toArray();
+        // Use thumb conversion ONLY if it was actually generated on disk.
+        // CRM-synced media often never had its conversions generated (Spatie's
+        // ->nonQueued() can silently skip when the image library mis-fires
+        // during background sync), so getUrl('thumb') returns a URL pointing
+        // at a 404 file. hasGeneratedConversion guards against that.
+        $featured = $p->getFirstMedia('featured_image');
+        $this->currentFeaturedImage = $featured
+            ? ($featured->hasGeneratedConversion('thumb') ? $featured->getUrl('thumb') : $featured->getUrl())
+            : '';
+        $this->currentGallery = $p->getMedia('gallery')->map(fn ($m) => [
+            'id' => $m->id,
+            'url' => $m->hasGeneratedConversion('thumb') ? $m->getUrl('thumb') : $m->getUrl(),
+        ])->toArray();
     }
 
     public function updatedTitle(): void

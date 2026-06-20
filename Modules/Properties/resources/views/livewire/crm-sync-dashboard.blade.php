@@ -76,6 +76,59 @@
             @endif
         </div>
     </div>
+
+    <!-- Hostaway connection (availability calendar) -->
+    <div class="bg-white rounded-lg shadow p-6 mt-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-1"><i class="fa fa-calendar-alt mr-2 text-emerald-600"></i>Hostaway Connection</h2>
+        <p class="text-sm text-gray-500 mb-4">Used to fetch the live availability calendar shown on each rental property page.</p>
+
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Hostaway Account ID *</label>
+                <input type="text" wire:model="hostawayAccountId" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500" placeholder="e.g. 12345">
+                @error('hostawayAccountId') <span class="text-red-600 text-sm">{{ $message }}</span> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Hostaway API Key *</label>
+                <input type="password" wire:model="hostawayApiKey" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500" placeholder="Client secret from the Hostaway dashboard">
+                <p class="text-xs text-gray-500 mt-1">From Hostaway → Settings → Hostaway API. Stored encrypted.</p>
+                @error('hostawayApiKey') <span class="text-red-600 text-sm">{{ $message }}</span> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Webhook Token <span class="text-gray-400 font-normal">(optional)</span></label>
+                <input type="password" wire:model="hostawayWebhookToken" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500" placeholder="Shared secret for incoming webhooks">
+                <p class="text-xs text-gray-500 mt-1">Used to verify Hostaway webhooks. Point Hostaway to:
+                    <code class="bg-gray-100 px-1.5 py-0.5 rounded text-xs">{{ url('/hostaway/webhook') }}?token=YOUR_TOKEN</code>
+                </p>
+                @error('hostawayWebhookToken') <span class="text-red-600 text-sm">{{ $message }}</span> @enderror
+            </div>
+
+            <label class="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 cursor-pointer">
+                <input type="checkbox" wire:model="rentalBookingEnabled" class="mt-0.5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500">
+                <span>
+                    <span class="block text-sm font-medium text-gray-700">Allow online booking requests</span>
+                    <span class="block text-xs text-gray-500">When off, the calendar &amp; prices still show but guests can't submit a request (they're asked to contact you instead).</span>
+                </span>
+            </label>
+
+            <div class="flex items-center gap-3 pt-2">
+                <button wire:click="saveHostawaySettings" wire:loading.attr="disabled" wire:target="saveHostawaySettings" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition disabled:opacity-50">
+                    <span wire:loading.remove wire:target="saveHostawaySettings"><i class="fa fa-save mr-1"></i> Save & Test</span>
+                    <span wire:loading wire:target="saveHostawaySettings"><i class="fa fa-spinner fa-spin mr-1"></i> Testing...</span>
+                </button>
+
+                @if($hostawayStatus)
+                    @if($hostawayStatus['success'])
+                        <span class="inline-flex items-center px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm"><i class="fa fa-check-circle mr-1"></i> {{ $hostawayStatus['message'] }}</span>
+                    @else
+                        <span class="inline-flex items-center px-3 py-1 bg-red-50 text-red-700 rounded-full text-sm"><i class="fa fa-times-circle mr-1"></i> {{ $hostawayStatus['message'] }}</span>
+                    @endif
+                @endif
+            </div>
+        </div>
+    </div>
     @endif
 
     <!-- Sync Tab -->

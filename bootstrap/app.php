@@ -14,6 +14,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             \App\Http\Middleware\CheckUnderConstruction::class,
         ]);
+
+        // Inbound server-to-server webhooks carry no CSRF token.
+        $middleware->validateCsrfTokens(except: [
+            'hostaway/webhook',
+            'payments/*/webhook',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

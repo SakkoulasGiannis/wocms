@@ -38,12 +38,12 @@
                     AI Prompts
                 </button>
 
-                <button wire:click="$set('activeTab', 'grapejs')"
-                        class="px-6 py-4 text-sm font-medium border-b-2 transition {{ $activeTab === 'grapejs' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
+                <button wire:click="$set('activeTab', 'visual-editor')"
+                        class="px-6 py-4 text-sm font-medium border-b-2 transition {{ $activeTab === 'visual-editor' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
                     <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
                     </svg>
-                    GrapeJS
+                    Visual Editor
                 </button>
 
                 <button wire:click="$set('activeTab', 'image-sizes')"
@@ -236,6 +236,7 @@
                                 class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2">
                             <option value="claude">Claude (Anthropic)</option>
                             <option value="chatgpt">ChatGPT (OpenAI)</option>
+                            <option value="gemini">Gemini (Google)</option>
                             <option value="ollama">Ollama (Local)</option>
                         </select>
                         @error('ai_provider')
@@ -279,6 +280,36 @@
                         </div>
                     @endif
 
+                    @if($ai_provider === 'gemini')
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Gemini API Key <span class="text-red-500">*</span>
+                            </label>
+                            <input type="password"
+                                   wire:model="ai_gemini_api_key"
+                                   class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 font-mono text-sm"
+                                   placeholder="AIza...">
+                            @error('ai_gemini_api_key')
+                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                            <p class="mt-1 text-xs text-gray-500">
+                                Get your API key from <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-blue-600 hover:underline">Google AI Studio</a>
+                            </p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Gemini Model
+                            </label>
+                            <input type="text"
+                                   wire:model="ai_gemini_model"
+                                   class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 font-mono text-sm"
+                                   placeholder="gemini-flash-latest">
+                            <p class="mt-1 text-xs text-gray-500">
+                                Recommended: <code>gemini-flash-latest</code> (auto-updates), <code>gemini-2.5-flash</code> (stable fast), <code>gemini-2.5-pro</code> (advanced)
+                            </p>
+                        </div>
+                    @endif
+
                     @if($ai_provider === 'ollama')
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -297,27 +328,30 @@
                         </div>
                     @endif
 
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            Model <span class="text-red-500">*</span>
-                        </label>
-                        <input type="text"
-                               wire:model="ai_model"
-                               class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
-                               placeholder="{{ $ai_provider === 'claude' ? 'claude-3-5-sonnet-20241022' : ($ai_provider === 'chatgpt' ? 'gpt-4-turbo-preview' : 'llama2') }}">
-                        @error('ai_model')
-                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                        @enderror
-                        <p class="mt-1 text-xs text-gray-500">
-                            @if($ai_provider === 'claude')
-                                Recommended: claude-3-5-sonnet-20241022, claude-3-opus-20240229
-                            @elseif($ai_provider === 'chatgpt')
-                                Recommended: gpt-4-turbo-preview, gpt-4, gpt-3.5-turbo
-                            @else
-                                Available models: llama2, codellama, mistral, etc.
-                            @endif
-                        </p>
-                    </div>
+                    {{-- Generic "Model" field only for providers that don't have a dedicated model input above. --}}
+                    @if(! in_array($ai_provider, ['gemini']))
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Model <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text"
+                                   wire:model="ai_model"
+                                   class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
+                                   placeholder="{{ $ai_provider === 'claude' ? 'claude-3-5-sonnet-20241022' : ($ai_provider === 'chatgpt' ? 'gpt-4-turbo-preview' : 'llama2') }}">
+                            @error('ai_model')
+                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                            <p class="mt-1 text-xs text-gray-500">
+                                @if($ai_provider === 'claude')
+                                    Recommended: claude-3-5-sonnet-20241022, claude-3-opus-20240229
+                                @elseif($ai_provider === 'chatgpt')
+                                    Recommended: gpt-4-turbo-preview, gpt-4, gpt-3.5-turbo
+                                @else
+                                    Available models: llama2, codellama, mistral, etc.
+                                @endif
+                            </p>
+                        </div>
+                    @endif
 
                     <div class="flex justify-end">
                         <button type="submit"
@@ -413,6 +447,46 @@
                         @error('prompt_template_generation')
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
+                    </div>
+
+                    {{-- ─── Page Compiler prompts (new) ─────────────────────────────── --}}
+                    <div class="border-t border-gray-200 pt-6">
+                        <h3 class="text-md font-semibold text-gray-900 mb-1">🔧 Page Compiler — Create New Page</h3>
+                        <p class="text-xs text-gray-600 mb-3">System prompt για το workflow "φτιάξε νέα σελίδα": το AI παίρνει template skeletons και βγάζει JSON spec που compileάρεται σε page + sections.</p>
+                        <div class="flex justify-end mb-1">
+                            <button type="button" wire:click="resetPrompt('page_compiler')" class="text-xs text-blue-600 hover:text-blue-800">Reset to Default</button>
+                        </div>
+                        <textarea wire:model="prompt_page_compiler"
+                                  rows="10"
+                                  class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-3 font-mono text-xs"
+                                  placeholder="System prompt for new page generation..."></textarea>
+                        @error('prompt_page_compiler')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                    </div>
+
+                    <div>
+                        <h3 class="text-md font-semibold text-gray-900 mb-1">✏️ Page Editor — Modify Existing Page</h3>
+                        <p class="text-xs text-gray-600 mb-3">System prompt για το workflow "διόρθωσε στη σελίδα Χ το Α σε Β": το AI παίρνει exported JSON και εφαρμόζει την αλλαγή διατηρώντας block IDs.</p>
+                        <div class="flex justify-end mb-1">
+                            <button type="button" wire:click="resetPrompt('page_editor')" class="text-xs text-blue-600 hover:text-blue-800">Reset to Default</button>
+                        </div>
+                        <textarea wire:model="prompt_page_editor"
+                                  rows="10"
+                                  class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-3 font-mono text-xs"
+                                  placeholder="System prompt for page edit..."></textarea>
+                        @error('prompt_page_editor')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                    </div>
+
+                    <div>
+                        <h3 class="text-md font-semibold text-gray-900 mb-1">📝 Section Writer — Single Section Content</h3>
+                        <p class="text-xs text-gray-600 mb-3">System prompt για παραγωγή περιεχομένου ενός section (π.χ. WYSIWYG block ή Hero settings).</p>
+                        <div class="flex justify-end mb-1">
+                            <button type="button" wire:click="resetPrompt('section_writer')" class="text-xs text-blue-600 hover:text-blue-800">Reset to Default</button>
+                        </div>
+                        <textarea wire:model="prompt_section_writer"
+                                  rows="8"
+                                  class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-3 font-mono text-xs"
+                                  placeholder="System prompt for section writer..."></textarea>
+                        @error('prompt_section_writer')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                     </div>
 
                     <!-- Save Button -->
@@ -621,9 +695,8 @@
         </div>
     @endif
 
-    <!-- GrapeJS Tab -->
-    @if($activeTab === 'grapejs')
-        <!-- Visual Editor Settings -->
+    <!-- Visual Editor Tab -->
+    @if($activeTab === 'visual-editor')
         <div class="bg-white rounded-lg shadow p-6 mb-6">
             <h2 class="text-lg font-semibold text-gray-900 mb-1">Visual Page Editor</h2>
             <p class="text-sm text-gray-600 mb-6">Configure the drag-and-drop visual editor.</p>
@@ -655,53 +728,6 @@
                     <button type="submit"
                             class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
                         Save Visual Editor Settings
-                    </button>
-                </div>
-            </form>
-        </div>
-
-        <div class="bg-white rounded-lg shadow p-6">
-            <h2 class="text-lg font-semibold text-gray-900 mb-4">GrapeJS Settings</h2>
-            <p class="text-sm text-gray-600 mb-6">Configure how GrapeJS editor behaves when generating Blade templates.</p>
-
-            <form wire:submit.prevent="saveGrapeJS">
-                <div class="space-y-6">
-                    <!-- Include CSS in Blade Template -->
-                    <div class="flex items-start">
-                        <div class="flex items-center h-5">
-                            <input type="checkbox"
-                                   wire:model="grapejs_include_css_in_blade"
-                                   id="grapejs_include_css_in_blade"
-                                   class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                        </div>
-                        <div class="ml-3">
-                            <label for="grapejs_include_css_in_blade" class="font-medium text-gray-700">
-                                Include CSS in Blade Templates
-                            </label>
-                            <p class="text-sm text-gray-500 mt-1">
-                                When enabled, GrapeJS CSS styles will be included in generated Blade templates using <code class="bg-gray-100 px-2 py-0.5 rounded text-xs">{{ '@' }}push('styles')</code>.
-                                Disable this if you want to manage styles separately or use only Tailwind CSS classes.
-                            </p>
-
-                            <!-- Example -->
-                            <div class="mt-3 p-3 bg-gray-50 rounded-lg">
-                                <p class="text-xs text-gray-600 font-medium mb-2">When enabled, generated Blade will include:</p>
-                                <pre class="text-xs text-gray-700 font-mono">{{ '@' }}push('styles')
-&lt;style&gt;
-* { box-sizing: border-box; }
-.container { max-width: 1200px; }
-...
-&lt;/style&gt;
-{{ '@' }}endpush</pre>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="mt-6 flex justify-end">
-                    <button type="submit"
-                            class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
-                        Save GrapeJS Settings
                     </button>
                 </div>
             </form>
