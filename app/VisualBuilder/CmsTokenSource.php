@@ -57,4 +57,9 @@ class CmsTokenSource implements TokenSource
 
         return $tokens;
     }
+
+    public function renderLoop(string $source, array $query, string $itemHtml): array
+    {
+        return app(LoopRenderer::class)->renderItems($source, $query, $itemHtml);
+    }
 }

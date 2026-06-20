@@ -77,6 +77,45 @@
             return html;
         }
 
+        /** Build <option>s for the source select from the (server-rendered) token sources. */
+        function sourceOptions(selected) {
+            var src = state.rootEl.querySelector('[data-tokens-source]');
+            var html = '<option value="">— pick a collection —</option>';
+            if (src) {
+                Array.prototype.forEach.call(src.options, function (o) {
+                    if (!o.value) { return; }
+                    html += '<option value="' + NB.escapeHtml(o.value) + '"' +
+                        (o.value === selected ? ' selected' : '') + '>' + NB.escapeHtml(o.textContent.trim()) + '</option>';
+                });
+            }
+            return html;
+        }
+
+        /** Query Builder panel for a repeater node. */
+        function loopPanel(cfg) {
+            var orderVal = (cfg.order_by || 'created_at') + '|' + (cfg.order_dir || 'desc');
+            function orderOpt(v, label) {
+                return '<option value="' + v + '"' + (v === orderVal ? ' selected' : '') + '>' + label + '</option>';
+            }
+            return '<div class="nb-field"><label>Source (collection)</label>' +
+                '<select data-loopq="source">' + sourceOptions(cfg.source || '') + '</select></div>' +
+                '<div class="nb-field"><label>Number of items</label>' +
+                '<input type="number" min="1" data-loopq="limit" value="' + (parseInt(cfg.limit, 10) || 6) + '"></div>' +
+                '<div class="nb-field"><label>Order</label><select data-loopq="order">' +
+                orderOpt('created_at|desc', 'Newest first') + orderOpt('created_at|asc', 'Oldest first') +
+                orderOpt('title|asc', 'Title A → Z') + orderOpt('title|desc', 'Title Z → A') +
+                '</select></div>' +
+                '<div class="nb-field"><label>Offset (skip)</label>' +
+                '<input type="number" min="0" data-loopq="offset" value="' + (parseInt(cfg.offset, 10) || 0) + '"></div>' +
+                '<div class="nb-field"><label>Filter (optional)</label>' +
+                '<div class="nb-loop-filter">' +
+                '<input data-loopq="filter_field" placeholder="field e.g. category_slug" value="' + NB.escapeHtml(cfg.filter_field || '') + '">' +
+                '<input data-loopq="filter_value" placeholder="value" value="' + NB.escapeHtml(cfg.filter_value || '') + '">' +
+                '</div></div>' +
+                '<p class="nb-hint">The repeater renders its <strong>first child</strong> once per item. Select inner elements and bind text/images to <code>{tokens}</code> from the Tokens panel.</p>' +
+                '<button type="button" data-act="unmake-loop" class="nb-unmake-loop">✕ Remove repeater (keep element)</button>';
+        }
+
         function render() {
             var located = state.selectedId ? state.findNode(state.selectedId) : null;
             var inspector = state.els.inspector;
@@ -85,11 +124,16 @@
                 return;
             }
             var n = located.node;
-            var tab = state.inspectorTab || 'props';
             var isImg = (n.type || '').toLowerCase() === 'img';
             var imgSrc = (n.attributes && n.attributes.src) || '';
+            var loopRaw = n.attributes && n.attributes['data-vb-loop'];
+            var isLoop = loopRaw != null;
+            var loopCfg = {};
+            if (isLoop) { try { loopCfg = JSON.parse(loopRaw) || {}; } catch (e) { loopCfg = {}; } }
+            var tabs = isLoop ? ['loop', 'props', 'css'] : ['props', 'css'];
+            var tab = (state.inspectorTab && tabs.indexOf(state.inspectorTab) !== -1) ? state.inspectorTab : tabs[0];
             var attrRows = Object.entries(n.attributes || {})
-                .filter(function (pair) { return pair[0] !== 'style' && !(isImg && pair[0] === 'src'); })
+                .filter(function (pair) { return pair[0] !== 'style' && pair[0] !== 'data-vb-loop' && !(isImg && pair[0] === 'src'); })
                 .map(function (pair) {
                     return '<div class="nb-attr-row">' +
                         '<input class="nb-attr-key" value="' + NB.escapeHtml(pair[0]) + '" placeholder="name">' +
@@ -101,10 +145,12 @@
 
             inspector.innerHTML =
                 '<div class="nb-insp-tabs">' +
+                (isLoop ? '<button type="button" class="nb-insp-tab' + (tab === 'loop' ? ' nb-insp-tab-active' : '') + '" data-insp-tab="loop">Loop</button>' : '') +
                 '<button type="button" class="nb-insp-tab' + (tab === 'props' ? ' nb-insp-tab-active' : '') + '" data-insp-tab="props">Properties</button>' +
                 '<button type="button" class="nb-insp-tab' + (tab === 'css' ? ' nb-insp-tab-active' : '') + '" data-insp-tab="css">Inline CSS</button>' +
                 '</div>' +
                 '<div class="nb-insp-body" data-insp-active="' + tab + '">' +
+                (isLoop ? '<div class="nb-panel nb-panel-loop">' + loopPanel(loopCfg) + '</div>' : '') +
                 '<div class="nb-panel nb-panel-props">' +
                     '<div class="nb-field"><label>Name (label)</label>' +
                     '<input data-field="name" value="' + NB.escapeHtml(n._name || '') + '" placeholder="Custom name (optional)"></div>' +
@@ -112,6 +158,7 @@
                     '<input data-field="type" value="' + NB.escapeHtml(n.type || '') + '"></div>' +
                     '<div class="nb-field"><label>Classes</label>' +
                     '<input data-field="classes" value="' + NB.escapeHtml(n.classes || '') + '"></div>' +
+                    (isLoop ? '' : '<button type="button" data-act="make-loop" class="nb-make-loop">↻ Make this a Repeater (loop)</button>') +
                     '<div class="nb-field"><label>Class picker</label>' +
                     '<div data-chips class="nb-chip-picker">' + chipMarkup(n) + '</div></div>' +
                     (isImg
@@ -181,6 +228,23 @@
                 var src = imgSrcEl.value.trim();
                 if (src) { attrs.src = src; }
             }
+            var loopSrcEl = ins.querySelector('[data-loopq="source"]');
+            if (loopSrcEl) {
+                var order = (ins.querySelector('[data-loopq="order"]').value || 'created_at|desc').split('|');
+                var cfg = {
+                    source: loopSrcEl.value,
+                    limit: parseInt(ins.querySelector('[data-loopq="limit"]').value, 10) || 6,
+                    order_by: order[0] || 'created_at',
+                    order_dir: order[1] || 'desc',
+                    offset: parseInt(ins.querySelector('[data-loopq="offset"]').value, 10) || 0,
+                };
+                var ff = ins.querySelector('[data-loopq="filter_field"]').value.trim();
+                if (ff) {
+                    cfg.filter_field = ff;
+                    cfg.filter_value = ins.querySelector('[data-loopq="filter_value"]').value;
+                }
+                attrs['data-vb-loop'] = JSON.stringify(cfg);
+            }
             n.attributes = attrs;
             return true;
         }
@@ -223,6 +287,29 @@
                 var picker = state.rootEl && state.rootEl.__nbMedia;
                 if (picker && typeof picker.open === 'function') {
                     picker.open(setImageSrc);
+                }
+                return;
+            }
+            if (e.target.closest('[data-act="make-loop"]')) {
+                e.preventDefault();
+                var locM = state.selectedId ? state.findNode(state.selectedId) : null;
+                if (locM) {
+                    locM.node.attributes = locM.node.attributes || {};
+                    locM.node.attributes['data-vb-loop'] = '{"source":"","limit":6,"order_by":"created_at","order_dir":"desc"}';
+                    state.inspectorTab = 'loop';
+                    controller.applyInspector();
+                    render();
+                }
+                return;
+            }
+            if (e.target.closest('[data-act="unmake-loop"]')) {
+                e.preventDefault();
+                var locU = state.selectedId ? state.findNode(state.selectedId) : null;
+                if (locU && locU.node.attributes) {
+                    delete locU.node.attributes['data-vb-loop'];
+                    state.inspectorTab = 'props';
+                    controller.applyInspector();
+                    render();
                 }
                 return;
             }

@@ -2,13 +2,17 @@
 
 @php
     $vbAs = config('visual-builder.as', 'visual-builder.');
-    $vbModules = ['builder-core', 'utils', 'state', 'history', 'tree', 'inspector', 'preview', 'dnd', 'hover-sync', 'palette', 'media', 'tokens', 'save', 'main'];
+    $vbModules = ['builder-core', 'utils', 'state', 'history', 'tree', 'inspector', 'preview', 'dnd', 'hover-sync', 'palette', 'elements', 'media', 'icons', 'codemodal', 'tokens', 'save', 'main'];
 @endphp
 
 @section('title', config('visual-builder.title'))
 @section('page-title', config('visual-builder.title'))
 
 @push('styles')
+{{-- Tabler Icons webfont — used ONLY to browse icons in the picker (admin). --}}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css">
+{{-- CodeMirror — line-numbered editor for the per-node HTML modal. --}}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.css">
 <style>
     #new-builder-app { --nb-border: #e5e7eb; --nb-muted: #6b7280; }
     #new-builder-app .nb-pane { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
@@ -58,8 +62,13 @@
     #new-builder-app .nb-insp-tab { padding: .4rem .7rem; font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: #6b7280; border: none; border-bottom: 2px solid transparent; background: transparent; cursor: pointer; }
     #new-builder-app .nb-insp-tab:hover { color: #374151; }
     #new-builder-app .nb-insp-tab.nb-insp-tab-active { color: #2563eb; border-bottom-color: #2563eb; }
-    #new-builder-app .nb-insp-body[data-insp-active="props"] .nb-panel-css { display: none; }
-    #new-builder-app .nb-insp-body[data-insp-active="css"] .nb-panel-props { display: none; }
+    #new-builder-app .nb-insp-body .nb-panel { display: none; }
+    #new-builder-app .nb-insp-body[data-insp-active="props"] .nb-panel-props,
+    #new-builder-app .nb-insp-body[data-insp-active="css"] .nb-panel-css,
+    #new-builder-app .nb-insp-body[data-insp-active="loop"] .nb-panel-loop { display: block; }
+    #new-builder-app .nb-loop-filter { display: flex; gap: .35rem; }
+    #new-builder-app .nb-loop-filter input { flex: 1; }
+    #new-builder-app .nb-panel-loop select, #new-builder-app .nb-panel-loop input { width: 100%; font-size: .8125rem; }
     #new-builder-app .nb-css-area { font-family: ui-monospace, Menlo, monospace; font-size: .78rem; line-height: 1.5; }
     #new-builder-app .nb-css-area + .nb-hint code { background: #f3f4f6; padding: 0 .2rem; border-radius: .2rem; }
 
@@ -127,6 +136,38 @@
     #new-builder-app .nb-media-status { padding: 0 1rem 1rem; font-size: .8125rem; color: #6b7280; }
     #new-builder-app .nb-media-status:empty { display: none; }
 
+    /* ---- media upload ---- */
+    #new-builder-app .nb-media-upload { font-size: .8125rem; font-weight: 600; padding: .35rem .75rem; border: 1px solid #4f46e5; border-radius: .4rem; background: #eef2ff; color: #4338ca; cursor: pointer; white-space: nowrap; }
+    #new-builder-app .nb-media-upload:hover { background: #4f46e5; color: #fff; }
+
+    /* ---- element picker (＋child / ＋sib) ---- */
+    #new-builder-app .nb-el-modal { background: #fff; border-radius: .75rem; width: min(620px, 100%); max-height: 80vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,.3); }
+    #new-builder-app .nb-el-mode { font-size: .72rem; color: #9ca3af; margin-right: auto; }
+    #new-builder-app .nb-el-list { padding: 1rem; overflow: auto; display: flex; flex-direction: column; gap: .75rem; }
+
+    /* ---- make/remove repeater buttons ---- */
+    #new-builder-app .nb-make-loop { display: block; width: 100%; margin-bottom: .85rem; font-size: .75rem; font-weight: 600; padding: .4rem; border: 1px dashed #7c3aed; border-radius: .4rem; background: #faf5ff; color: #6d28d9; cursor: pointer; }
+    #new-builder-app .nb-make-loop:hover { background: #7c3aed; color: #fff; border-style: solid; }
+    #new-builder-app .nb-unmake-loop { margin-top: .75rem; font-size: .72rem; font-weight: 600; padding: .3rem .6rem; border: 1px solid #fecaca; border-radius: .35rem; background: #fff; color: #b91c1c; cursor: pointer; }
+    #new-builder-app .nb-unmake-loop:hover { background: #fef2f2; }
+
+    /* ---- code modal (CodeMirror) ---- */
+    #new-builder-app .nb-code-modal { background: #fff; border-radius: .75rem; width: min(960px, 100%); height: min(78vh, 680px); display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,.3); }
+    #new-builder-app .nb-code-host { flex: 1; min-height: 0; overflow: hidden; position: relative; }
+    #new-builder-app .nb-code-host .CodeMirror { height: 100%; font-size: .8rem; font-family: ui-monospace, Menlo, monospace; }
+    #new-builder-app .nb-code-textarea { width: 100%; height: 100%; border: 0; resize: none; padding: .75rem; font-family: ui-monospace, Menlo, monospace; font-size: .8rem; }
+    #new-builder-app .nb-code-foot { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .65rem 1rem; border-top: 1px solid var(--nb-border); }
+    #new-builder-app .nb-code-actions { display: flex; gap: .5rem; }
+    #new-builder-app .nb-code-btn { font-size: .8rem; font-weight: 600; padding: .35rem .9rem; border: 1px solid #d1d5db; border-radius: .4rem; background: #fff; color: #374151; cursor: pointer; }
+    #new-builder-app .nb-code-apply { background: #2563eb; border-color: #2563eb; color: #fff; }
+    #new-builder-app .nb-code-apply:hover { background: #1d4ed8; }
+
+    /* ---- icon picker ---- */
+    #new-builder-app .nb-icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(54px, 1fr)); gap: .35rem; padding: 1rem; overflow: auto; }
+    #new-builder-app .nb-icon-item { display: flex; align-items: center; justify-content: center; aspect-ratio: 1; border: 1px solid var(--nb-border); border-radius: .5rem; background: #fff; color: #374151; cursor: pointer; font-size: 1.4rem; }
+    #new-builder-app .nb-icon-item:hover { border-color: #0d9488; color: #0d9488; background: #f0fdfa; }
+    #new-builder-app .nb-icon-item .ti { line-height: 1; }
+
     /* ---- save result ---- */
     #new-builder-app .nb-save-result:empty { display: none; }
     #new-builder-app .nb-save-result.nb-save-ok { color: #065f46; }
@@ -159,6 +200,10 @@
             <button data-tokens-open type="button"
                     class="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-white bg-fuchsia-600 rounded hover:bg-fuchsia-700">
                 {&nbsp;} Tokens
+            </button>
+            <button data-icons-open type="button"
+                    class="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-white bg-teal-600 rounded hover:bg-teal-700">
+                &#9733; Icon
             </button>
             <button data-tool="add-root" type="button"
                     class="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 rounded hover:bg-blue-700">
@@ -212,9 +257,13 @@
     <div data-save-config class="hidden"
          data-save-url="{{ route($vbAs.'save') }}"
          data-sections-url="{{ route($vbAs.'sections') }}"
+         data-sample-url="{{ route($vbAs.'sample') }}"
          data-csrf="{{ csrf_token() }}"></div>
     @if (config('visual-builder.media_url'))
-        <div data-media-config class="hidden" data-media-url="{{ config('visual-builder.media_url') }}"></div>
+        <div data-media-config class="hidden"
+             data-media-url="{{ config('visual-builder.media_url') }}"
+             data-upload-url="{{ config('visual-builder.upload_url') }}"
+             data-csrf="{{ csrf_token() }}"></div>
     @endif
     <div data-save-panel class="hidden mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
         <div class="flex flex-wrap items-end gap-3">
@@ -371,6 +420,12 @@
 @endsection
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/xml/xml.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/javascript/javascript.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/css/css.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/edit/closetag.min.js"></script>
 <script src="{{ route($vbAs.'asset', ['file' => 'Sortable.min.js']) }}?v={{ $vbAssetVersion }}"></script>
 @foreach ($vbModules as $vbModule)
     <script src="{{ route($vbAs.'asset', ['file' => "new-builder/{$vbModule}.js"]) }}?v={{ $vbAssetVersion }}"></script>

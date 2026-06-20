@@ -22,4 +22,14 @@ interface TokenSource
      * @return array<int, array{token:string, label:string}>
      */
     public function tokens(string $source): array;
+
+    /**
+     * Render a repeater's item template once per entity of the query, with
+     * {tokens} resolved against each entity. Powers the live preview and the
+     * frontend expansion of data-vb-loop regions.
+     *
+     * @param  array{limit?:int, order_by?:string, order_dir?:string, offset?:int, filter_field?:string, filter_value?:string}  $query
+     * @return array<int, string> resolved HTML per entity
+     */
+    public function renderLoop(string $source, array $query, string $itemHtml): array;
 }

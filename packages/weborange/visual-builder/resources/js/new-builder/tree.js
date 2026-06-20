@@ -87,6 +87,7 @@
                 '<button data-act="add-child" title="Add child">＋child</button>' +
                 '<button data-act="add-sibling" title="Add sibling">＋sib</button>' +
                 '<button data-act="duplicate" title="Duplicate">⧉ dup</button>' +
+                '<button data-act="edit-html" title="Edit HTML of this element + children">&lt;/&gt;</button>' +
                 '<button data-act="delete" title="Delete" class="nb-del">✕</button>';
             row.appendChild(actions);
 

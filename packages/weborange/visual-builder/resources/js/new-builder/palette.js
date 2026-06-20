@@ -65,6 +65,34 @@
             ],
         },
         {
+            label: 'Dynamic',
+            items: [
+                {
+                    label: 'Repeater (loop)', make: function () {
+                        return {
+                            type: 'div',
+                            classes: 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6',
+                            attributes: { 'data-vb-loop': '{"source":"","limit":6,"order_by":"created_at","order_dir":"desc"}' },
+                            children: [
+                                {
+                                    type: 'a', classes: 'block rounded-xl border border-gray-200 overflow-hidden bg-white hover:shadow-md transition',
+                                    attributes: { href: '/blog/{slug}' }, children: [
+                                        { type: 'img', classes: 'w-full h-44 object-cover', attributes: { src: '{featured_image|https://placehold.co/600x400}', alt: '{title}' } },
+                                        {
+                                            type: 'div', classes: 'p-5', children: [
+                                                { type: 'h3', classes: 'text-lg font-bold text-gray-900', content: '{title}' },
+                                                { type: 'p', classes: 'mt-2 text-sm text-gray-500', content: '{excerpt|Read more}' },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        };
+                    },
+                },
+            ],
+        },
+        {
             label: 'Components',
             items: [
                 {

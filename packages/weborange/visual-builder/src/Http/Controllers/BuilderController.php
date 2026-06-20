@@ -91,4 +91,33 @@ class BuilderController extends Controller
 
         return response()->json(['tokens' => $this->tokens->tokens($data['source'])]);
     }
+
+    /**
+     * Render a repeater's item template against real entities, for the live
+     * preview (returns resolved HTML per entity).
+     */
+    public function sample(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'source' => 'required|string',
+            'item_html' => 'required|string',
+            'limit' => 'nullable|integer',
+            'order_by' => 'nullable|string|max:60',
+            'order_dir' => 'nullable|string|in:asc,desc',
+            'offset' => 'nullable|integer',
+            'filter_field' => 'nullable|string|max:60',
+            'filter_value' => 'nullable|string|max:160',
+        ]);
+
+        $items = $this->tokens->renderLoop($data['source'], [
+            'limit' => (int) ($data['limit'] ?? 6),
+            'order_by' => $data['order_by'] ?? 'created_at',
+            'order_dir' => $data['order_dir'] ?? 'desc',
+            'offset' => (int) ($data['offset'] ?? 0),
+            'filter_field' => $data['filter_field'] ?? null,
+            'filter_value' => $data['filter_value'] ?? null,
+        ], $data['item_html']);
+
+        return response()->json(['items' => $items]);
+    }
 }

@@ -28,6 +28,7 @@ class VisualBuilderHostServiceProvider extends ServiceProvider
             'visual-builder.content_section' => 'content',
             'visual-builder.title' => 'New Builder',
             'visual-builder.media_url' => url('admin/editorjs/media'),
+            'visual-builder.upload_url' => url('admin/editorjs/upload-image'),
         ]);
 
         $this->app->bind(BuilderPersistence::class, CmsBuilderPersistence::class);

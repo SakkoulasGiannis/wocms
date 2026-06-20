@@ -102,6 +102,25 @@
         }
 
         /**
+         * Insert a block (contract JSON) as a child of, or sibling after, a
+         * specific node (by id). Used by the element picker on ＋child / ＋sib.
+         */
+        function addAt(mode, id, json) {
+            var located = state.findNode(id);
+            if (!located) { return; }
+            var node = NB.decorate([json])[0];
+            if (mode === 'child') {
+                located.node.children = located.node.children || [];
+                located.node.children.push(node);
+                located.node._collapsed = false;
+            } else {
+                located.siblings.splice(located.index + 1, 0, node);
+            }
+            state.selectedId = node._id;
+            renderAll();
+        }
+
+        /**
          * Append a dynamic {token} to the selected node — into its content, or
          * into an <img> src. Returns false if nothing is selected.
          */
@@ -142,14 +161,19 @@
             var located = state.findNode(id);
             if (!located) { return; }
             if (act === 'add-child') {
+                if (rootEl.__nbElements) { rootEl.__nbElements.open('child', id); return; }
                 located.node.children.push(NB.decorate([{ type: 'div', children: [] }])[0]);
                 located.node._collapsed = false;
             } else if (act === 'add-sibling') {
+                if (rootEl.__nbElements) { rootEl.__nbElements.open('sibling', id); return; }
                 located.siblings.splice(located.index + 1, 0, NB.decorate([{ type: 'div', children: [] }])[0]);
             } else if (act === 'duplicate') {
                 var copy = NB.decorate([NB.clean(located.node)])[0];
                 located.siblings.splice(located.index + 1, 0, copy);
                 state.selectedId = copy._id;
+            } else if (act === 'edit-html') {
+                editNodeHtml(located);
+                return;
             } else if (act === 'delete') {
                 located.siblings.splice(located.index, 1);
                 if (state.selectedId === id) {
@@ -157,6 +181,32 @@
                 }
             }
             renderAll();
+        }
+
+        /**
+         * Open the code modal with this node's HTML (itself + children). On
+         * apply, parse the edited HTML and replace the node in-place (multiple
+         * top-level elements replace it with all of them; empty deletes it).
+         */
+        function editNodeHtml(located) {
+            var modal = rootEl.__nbCodeModal;
+            if (!modal || typeof modal.open !== 'function') { return; }
+            var html = Core.jsonToHtml(NB.cleanRoots([located.node]));
+            modal.open({
+                title: 'Edit HTML — <' + (located.node.type || 'div') + '>',
+                value: html,
+                onApply: function (newHtml) {
+                    try {
+                        var roots = NB.decorate(Core.htmlToJsonRoots(newHtml).map(NB.clean));
+                        var args = [located.index, 1].concat(roots);
+                        Array.prototype.splice.apply(located.siblings, args);
+                        state.selectedId = roots.length ? roots[0]._id : null;
+                        renderAll();
+                    } catch (e) {
+                        state.showError('HTML parse error: ' + e.message);
+                    }
+                },
+            });
         }
 
         /** Inspector edited a field: update tree + panes + preview, keep inspector focus. */
@@ -310,7 +360,7 @@
         history.reset();
         history.updateButtons();
 
-        var api = { state: state, insertBlock: insertBlock, loadRoots: loadRoots, insertToken: insertToken };
+        var api = { state: state, insertBlock: insertBlock, loadRoots: loadRoots, insertToken: insertToken, addAt: addAt };
         rootEl.__nb = api;
         return api;
     }
@@ -323,7 +373,10 @@
             root.dataset.nbBooted = '1';
             NewBuilder(root);
             if (typeof NB.createPalette === 'function') { NB.createPalette(root); }
+            if (typeof NB.createElementPicker === 'function') { NB.createElementPicker(root); }
             if (typeof NB.createMediaPicker === 'function') { NB.createMediaPicker(root); }
+            if (typeof NB.createIconPicker === 'function') { NB.createIconPicker(root); }
+            if (typeof NB.createCodeModal === 'function') { NB.createCodeModal(root); }
             if (typeof NB.createTokens === 'function') { NB.createTokens(root); }
             if (typeof NB.createSave === 'function') { NB.createSave(root); }
         }

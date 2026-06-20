@@ -19,6 +19,69 @@
 
     NB.createPreview = function createPreview(state, controller) {
         var loadCallbacks = [];
+        var loopCache = {};
+
+        function sampleConfig() {
+            var cfg = state.rootEl.querySelector('[data-save-config]');
+            return cfg
+                ? { url: cfg.getAttribute('data-sample-url'), csrf: cfg.getAttribute('data-csrf') }
+                : { url: null, csrf: null };
+        }
+
+        function collectLoopNodes(nodes, out) {
+            nodes = nodes || state.roots;
+            out = out || [];
+            for (var i = 0; i < nodes.length; i++) {
+                var n = nodes[i];
+                if (n.attributes && n.attributes['data-vb-loop'] != null) { out.push(n); }
+                if (n.children && n.children.length) { collectLoopNodes(n.children, out); }
+            }
+            return out;
+        }
+
+        /**
+         * Replace each repeater's item template with real rendered items from
+         * the host (sample endpoint), so the preview shows actual data. Runs on
+         * every iframe load; results are cached per source+query+template.
+         */
+        function hydrateLoops() {
+            var cfg = sampleConfig();
+            if (!cfg.url) { return; }
+            var iframe = state.els.preview;
+            var doc = iframe && iframe.contentDocument;
+            if (!doc) { return; }
+
+            collectLoopNodes().forEach(function (node) {
+                var query;
+                try { query = JSON.parse(node.attributes['data-vb-loop']); } catch (e) { return; }
+                if (!query || !query.source) { return; }
+                var itemHtml = Core.jsonToHtml(NB.cleanRoots(node.children || []));
+                if (!itemHtml.trim()) { return; }
+                var key = node._id + '|' + node.attributes['data-vb-loop'] + '|' + itemHtml;
+                var el = doc.querySelector('[data-nb-id="' + node._id + '"]');
+                if (!el) { return; }
+                if (loopCache[key] != null) { el.innerHTML = loopCache[key]; return; }
+
+                fetch(cfg.url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': cfg.csrf, Accept: 'application/json' },
+                    body: JSON.stringify({
+                        source: query.source, item_html: itemHtml,
+                        limit: query.limit, order_by: query.order_by, order_dir: query.order_dir,
+                        offset: query.offset, filter_field: query.filter_field, filter_value: query.filter_value,
+                    }),
+                }).then(function (r) { return r.json(); }).then(function (j) {
+                    var items = (j && j.items) || [];
+                    var out = items.length
+                        ? items.join('\n')
+                        : '<div style="padding:1rem;color:#9ca3af;font-size:.85rem">No items match this query (check the source is published/active).</div>';
+                    loopCache[key] = out;
+                    var doc2 = iframe.contentDocument;
+                    var el2 = doc2 && doc2.querySelector('[data-nb-id="' + node._id + '"]');
+                    if (el2) { el2.innerHTML = out; }
+                }).catch(function () { /* leave template as-is on failure */ });
+            });
+        }
 
         function frameworkHead(fw) {
             switch (fw) {
@@ -54,6 +117,13 @@
 
                 if (Core.VOID_ELEMENTS.has(type)) {
                     return indent + '<' + type + attrs + '>';
+                }
+                // Repeater: leave the wrapper empty here — hydrateLoops fills it
+                // with real items so we never flash the literal-token template.
+                if (node.attributes && node.attributes['data-vb-loop'] != null) {
+                    return indent + '<' + type + attrs + '>' +
+                        '<div style="padding:1rem;color:#9ca3af;font-size:.85rem">Loading items…</div>' +
+                        '</' + type + '>';
                 }
                 var hasContent = content !== '';
                 var hasChildren = children.length > 0;
@@ -167,6 +237,9 @@
         function onLoad(cb) {
             loadCallbacks.push(cb);
         }
+
+        // Hydrate repeaters with real data after every (re)render.
+        loadCallbacks.push(hydrateLoops);
 
         return {
             render: render,
