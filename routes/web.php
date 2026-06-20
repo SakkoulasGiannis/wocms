@@ -105,6 +105,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     // Code Editor Route
     Route::get('/code-editor', \App\Livewire\Admin\CodeEditor\FileEditor::class)->name('code-editor');
 
+    // New Builder (hidden / experimental visual HTML <-> JSON builder; not in nav)
+    Route::get('/new-builder', [\App\Http\Controllers\Admin\NewBuilderController::class, 'index'])->name('new-builder');
+
     // Menu Manager Route
     Route::get('/menus', \App\Livewire\Admin\Menus\MenuManager::class)->name('menus.index');
 
