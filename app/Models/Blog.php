@@ -69,7 +69,7 @@ class Blog extends Model implements HasMedia
         return $query->whereNotNull('published_at')
                      ->where('published_at', '<=', now())
                      ->where(function ($q) {
-                         $q->where('status', 'published')
+                         $q->whereIn('status', ['published', 'active'])
                            ->orWhereNull('status');
                      });
     }
