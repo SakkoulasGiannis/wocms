@@ -29,6 +29,10 @@
     </div>
 
     {{ $slot }}
+
+    {{-- SectionEmbed data provider — see layouts/admin.blade.php. --}}
+    @livewire('admin.section-embed.configurator')
+
     @stack('scripts')
 </body>
 </html>

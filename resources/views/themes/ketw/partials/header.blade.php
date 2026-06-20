@@ -198,7 +198,7 @@
         x-transition:leave-start="translate-x-0"
         x-transition:leave-end="-translate-x-full"
         class="fixed inset-y-0 left-0 z-50 w-80 max-w-[85vw] bg-white shadow-xl lg:hidden"
-        style="display:none"
+        style="display:none; background-color:#ffffff;"
     >
         <div class="flex h-20 items-center justify-between border-b border-outline px-5">
             <a href="{{ url('/') }}">

@@ -4,6 +4,7 @@ namespace Modules\PageBuilder\Livewire\Admin\PageSections;
 
 use App\Models\ContentNode;
 use App\Models\Setting;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -31,7 +32,35 @@ class VisualPageEditor extends Component
 
     public string $previewUrl = '';
 
+    /**
+     * The in-memory DRAFT representation of the page's sections. Every mutating
+     * action (add / edit / move / reorder / delete / duplicate / toggle) mutates
+     * THIS array only — nothing is persisted until saveDraft() reconciles it to
+     * the database in a single transaction.
+     *
+     * Each entry is a flat array shape:
+     * id, parent_section_id, section_template_id, section_type, scope, name,
+     * order, is_active, is_visible, content (array), settings (array).
+     *
+     * Brand-new sections that have no DB row yet carry a NEGATIVE temp id so
+     * children/order survive (in data-id, selectSection(int), drag payloads…)
+     * until saveDraft() assigns the real auto-increment id.
+     *
+     * @var array<int, array<string, mixed>>
+     */
     public array $sections = [];
+
+    /**
+     * True whenever the draft has unsaved mutations. Drives the "unsaved changes"
+     * indicator and gates the Save / Discard buttons.
+     */
+    public bool $isDirty = false;
+
+    /**
+     * Next temp id to hand to a not-yet-saved section. Counts DOWN from -1 so
+     * temp ids never collide with real (positive) auto-increment ids.
+     */
+    public int $nextTempId = -1;
 
     public ?int $selectedSectionId = null;
 
@@ -176,6 +205,11 @@ class VisualPageEditor extends Component
         return isset($model->slug) ? '/'.$model->slug : '/';
     }
 
+    /**
+     * (Re)build the in-memory draft from the database. This is also the
+     * "Discard / Revert" path — it throws away any unsaved mutations and
+     * resets the dirty flag + temp-id counter.
+     */
     public function loadSections(): void
     {
         $query = PageSection::where('sectionable_type', $this->sectionableType)
@@ -187,9 +221,260 @@ class VisualPageEditor extends Component
             $query->where('scope', $this->scope);
         }
 
-        // Secondary sort by id so ties on `order` (transient state during a
-        // drag-reorder save) stay deterministic and don't visually flicker.
-        $this->sections = $query->orderBy('order')->orderBy('id')->get()->toArray();
+        // Secondary sort by id so ties on `order` stay deterministic.
+        $this->sections = $query->orderBy('order')->orderBy('id')->get()
+            ->map(fn (PageSection $s) => $this->toDraftEntry($s))
+            ->all();
+
+        $this->isDirty = false;
+        $this->nextTempId = -1;
+    }
+
+    /**
+     * Normalize a PageSection row into the flat draft shape used by the UI.
+     *
+     * @return array<string, mixed>
+     */
+    protected function toDraftEntry(PageSection $section): array
+    {
+        return [
+            'id' => $section->id,
+            'parent_section_id' => $section->parent_section_id,
+            'section_template_id' => $section->section_template_id,
+            'section_type' => $section->section_type,
+            'scope' => $section->scope,
+            'name' => $section->name,
+            'order' => (int) $section->order,
+            'is_active' => (bool) $section->is_active,
+            'is_visible' => $section->is_visible ?? true,
+            'content' => $section->content ?? [],
+            'settings' => $section->settings ?? [],
+        ];
+    }
+
+    // ─── Draft helpers ───────────────────────────────────────────────────────
+
+    /**
+     * Locate the array index of a draft section by its (possibly temp) id.
+     */
+    protected function draftIndex(int $sectionId): ?int
+    {
+        foreach ($this->sections as $i => $s) {
+            if ((int) $s['id'] === $sectionId) {
+                return $i;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The next `order` value (1-based) for a given parent group in the draft.
+     */
+    protected function nextOrderForParent(?int $parentId): int
+    {
+        $max = 0;
+        foreach ($this->sections as $s) {
+            if (($s['parent_section_id'] ?? null) === $parentId && (int) $s['order'] > $max) {
+                $max = (int) $s['order'];
+            }
+        }
+
+        return $max + 1;
+    }
+
+    /**
+     * Re-number sibling `order` values 1..N for a parent group in the draft,
+     * keeping $movedId at slot $movedOrder (1-based). With $movedId = null the
+     * existing order is simply re-densified.
+     */
+    protected function reflowDraftSiblings(?int $parentId, ?int $movedId, ?int $movedOrder): void
+    {
+        $siblingIdx = [];
+        foreach ($this->sections as $i => $s) {
+            if (($s['parent_section_id'] ?? null) === $parentId) {
+                $siblingIdx[] = $i;
+            }
+        }
+
+        usort($siblingIdx, function ($a, $b) {
+            $cmp = (int) $this->sections[$a]['order'] <=> (int) $this->sections[$b]['order'];
+
+            return $cmp !== 0 ? $cmp : ((int) $this->sections[$a]['id'] <=> (int) $this->sections[$b]['id']);
+        });
+
+        if ($movedId !== null && $movedOrder !== null) {
+            $movedPos = null;
+            foreach ($siblingIdx as $k => $i) {
+                if ((int) $this->sections[$i]['id'] === $movedId) {
+                    $movedPos = $k;
+                    break;
+                }
+            }
+
+            if ($movedPos !== null) {
+                $moved = array_splice($siblingIdx, $movedPos, 1)[0];
+                $target = max(0, min(count($siblingIdx), $movedOrder - 1));
+                array_splice($siblingIdx, $target, 0, [$moved]);
+            }
+        }
+
+        $position = 1;
+        foreach ($siblingIdx as $i) {
+            $this->sections[$i]['order'] = $position++;
+        }
+    }
+
+    /**
+     * Collect a section id plus every descendant id from the draft (recursive).
+     *
+     * @return array<int, int>
+     */
+    protected function draftDescendantIds(int $sectionId): array
+    {
+        $ids = [$sectionId];
+        foreach ($this->sections as $s) {
+            if ((int) ($s['parent_section_id'] ?? 0) === $sectionId) {
+                $ids = array_merge($ids, $this->draftDescendantIds((int) $s['id']));
+            }
+        }
+
+        return $ids;
+    }
+
+    protected function markDirty(): void
+    {
+        $this->isDirty = true;
+    }
+
+    // ─── Whole-draft Save / Discard ──────────────────────────────────────────
+
+    /**
+     * Reconcile the in-memory draft to the database in a SINGLE transaction:
+     *   1. Delete DB rows for this sectionable + scope that are no longer in the
+     *      draft (a section that was removed).
+     *   2. Insert rows for brand-new (negative temp id) sections, root-first, so
+     *      a parent's real id exists before its children reference it. This
+     *      builds a tempId → realId map.
+     *   3. Update existing (positive id) rows in place.
+     *   4. Persist order + parent_section_id for the entire tree from the draft.
+     *
+     * After saving, the draft is reloaded from the DB (so temp ids become real)
+     * and the preview iframe is refreshed.
+     */
+    public function saveDraft(array $contentPatch = []): void
+    {
+        // Fold any live editor content for the section currently open into the
+        // draft first, so a Save never drops in-flight wysiwyg edits.
+        if (! empty($contentPatch) && $this->editingSectionId !== null) {
+            foreach ($contentPatch as $fieldName => $json) {
+                $this->sectionContent[$fieldName] = $json;
+            }
+            $this->syncOpenSectionIntoDraft();
+        }
+
+        DB::transaction(function () {
+            $draftIds = collect($this->sections)
+                ->pluck('id')
+                ->filter(fn ($id) => (int) $id > 0)
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            // 1. Delete removed sections (scope-aware so the other scope survives).
+            $orphanQuery = PageSection::where('sectionable_type', $this->sectionableType)
+                ->where('sectionable_id', $this->sectionableId)
+                ->whereNotIn('id', $draftIds);
+            if ($this->scope !== null) {
+                $orphanQuery->where('scope', $this->scope);
+            }
+            $orphanQuery->delete();
+
+            // 2. + 3. Insert new sections root-first / update existing ones.
+            $idMap = [];
+            $this->persistDraftTree(null, null, $idMap);
+        });
+
+        // Reload so temp ids become real and ordering is canonical.
+        $this->loadSections();
+
+        // Keep the edit panel pointing at the same section if it still exists.
+        if ($this->editingSectionId !== null && $this->editingSectionId < 0) {
+            // The open section was brand-new; its temp id is gone after save.
+            $this->selectedSectionId = null;
+            $this->editingSectionId = null;
+            $this->resetForm();
+        }
+
+        $this->pushHistory();
+        $this->dispatch('preview-reload');
+        $this->dispatch('notify', type: 'success', message: 'Page saved.');
+    }
+
+    /**
+     * Recursively persist the draft tree for one parent group. $realParentId is
+     * the already-resolved DB id of the parent (null at the root). $idMap carries
+     * tempId → realId so descendants can resolve their parent reference.
+     *
+     * @param  array<int, int>  $idMap
+     */
+    protected function persistDraftTree(?int $draftParentId, ?int $realParentId, array &$idMap): void
+    {
+        $children = collect($this->sections)
+            ->filter(fn ($s) => ($s['parent_section_id'] ?? null) === $draftParentId)
+            ->sortBy('order')
+            ->values();
+
+        $order = 1;
+        foreach ($children as $s) {
+            $draftId = (int) $s['id'];
+
+            $attributes = [
+                'name' => $s['name'],
+                'content' => $s['content'] ?? [],
+                'settings' => $s['settings'] ?? [],
+                'order' => $order,
+                'parent_section_id' => $realParentId,
+                'is_active' => (bool) ($s['is_active'] ?? true),
+                'is_visible' => $s['is_visible'] ?? true,
+            ];
+
+            if ($draftId < 0) {
+                $section = PageSection::create(array_merge($attributes, [
+                    'sectionable_type' => $this->sectionableType,
+                    'sectionable_id' => $this->sectionableId,
+                    'scope' => $this->scope,
+                    'section_template_id' => $s['section_template_id'] ?? null,
+                    'section_type' => $s['section_type'] ?? null,
+                ]));
+                $idMap[$draftId] = $section->id;
+                $realId = $section->id;
+            } else {
+                $section = PageSection::find($draftId);
+                if ($section) {
+                    $section->update($attributes);
+                }
+                $realId = $draftId;
+            }
+
+            $order++;
+
+            // Recurse into this section's children with the resolved real id.
+            $this->persistDraftTree($draftId, $realId, $idMap);
+        }
+    }
+
+    /**
+     * Discard every unsaved mutation and reload the draft from the database.
+     */
+    public function discardDraft(): void
+    {
+        $this->loadSections();
+        $this->selectedSectionId = null;
+        $this->showAddPanel = false;
+        $this->resetForm();
+        $this->pushHistory();
+        $this->dispatch('preview-reload');
+        $this->dispatch('notify', type: 'success', message: 'Unsaved changes discarded.');
     }
 
     /**
@@ -210,9 +495,8 @@ class VisualPageEditor extends Component
     }
 
     /**
-     * One-click "Use default design" — persists the starter preset's sections.
-     * Only available when current scope is empty. Idempotent: refuses to run if
-     * sections already exist (avoids accidental duplication).
+     * One-click "Use default design" — loads the starter preset's sections into
+     * the DRAFT (not the DB). Only available when the current scope is empty.
      */
     public function applyStarterPreset(): void
     {
@@ -220,7 +504,6 @@ class VisualPageEditor extends Component
             return;
         }
         if (! empty($this->sections)) {
-            // Don't overwrite existing work
             session()->flash('error', 'Sections already exist — clear them first if you want to start from defaults.');
 
             return;
@@ -236,38 +519,42 @@ class VisualPageEditor extends Component
             return;
         }
 
-        \DB::transaction(function () use ($preset) {
-            $this->createPresetTree($preset, null);
-        });
-
-        $this->loadSections();
         $this->pushHistory();
-        session()->flash('success', 'Starter sections loaded — edit / reorder / delete as needed.');
+        $this->addPresetToDraft($preset, null);
+        $this->markDirty();
+        $this->pushHistory();
+        session()->flash('success', 'Starter sections loaded — edit / reorder / delete, then Save.');
     }
 
     /**
-     * Recursively persist a tree of starter sections. Each $cfg may carry a
-     * 'children' array of nested configs which will be created with their
-     * parent_section_id set to the freshly inserted parent's id. Keeps the
-     * visual editor's nested-children rendering happy.
+     * Recursively append a tree of starter preset configs to the draft, using
+     * temp ids so the structure survives until the page is saved.
+     *
+     * @param  array<int, array<string, mixed>>  $configs
      */
-    protected function createPresetTree(array $configs, ?int $parentId): void
+    protected function addPresetToDraft(array $configs, ?int $parentId): void
     {
         foreach ($configs as $cfg) {
             $children = $cfg['children'] ?? [];
             unset($cfg['children']);
 
-            $section = PageSection::create(array_merge($cfg, [
-                'sectionable_type' => $this->sectionableType,
-                'sectionable_id' => $this->sectionableId,
-                'scope' => $this->scope,
+            $tempId = $this->nextTempId--;
+            $this->sections[] = [
+                'id' => $tempId,
                 'parent_section_id' => $parentId,
+                'section_template_id' => $cfg['section_template_id'] ?? null,
+                'section_type' => $cfg['section_type'] ?? null,
+                'scope' => $this->scope,
+                'name' => $cfg['name'] ?? 'Section',
+                'order' => $this->nextOrderForParent($parentId),
                 'is_active' => true,
                 'is_visible' => true,
-            ]));
+                'content' => $cfg['content'] ?? [],
+                'settings' => $cfg['settings'] ?? [],
+            ];
 
             if (! empty($children)) {
-                $this->createPresetTree($children, $section->id);
+                $this->addPresetToDraft($children, $tempId);
             }
         }
     }
@@ -325,64 +612,20 @@ class VisualPageEditor extends Component
         $this->restoreFromHistory($this->historyStack[$this->historyIndex]);
     }
 
+    /**
+     * Restore the draft from a history snapshot. Operates on the in-memory draft
+     * only — undo/redo never touch the database (a subsequent Save persists it).
+     */
     protected function restoreFromHistory(string $json): void
     {
         $snapshot = json_decode($json, true);
-        $snapshotIds = array_column($snapshot, 'id');
+        $this->sections = is_array($snapshot) ? $snapshot : [];
+        $this->markDirty();
 
-        // Remove sections not in the snapshot
-        // Scope-aware orphan delete: only sections belonging to the SCOPE we're currently
-        // editing should be removed. Without this, saving "listing" design would wipe
-        // every "entry" section (and vice-versa).
-        $orphanQuery = PageSection::where('sectionable_type', $this->sectionableType)
-            ->where('sectionable_id', $this->sectionableId)
-            ->whereNotIn('id', $snapshotIds);
-        if ($this->scope !== null) {
-            $orphanQuery->where('scope', $this->scope);
-        }
-        $orphanQuery->delete();
-
-        foreach ($snapshot as $s) {
-            /** @var PageSection|null $section */
-            $section = PageSection::withTrashed()->find($s['id']);
-
-            if ($section) {
-                if ($section->trashed()) {
-                    $section->restore();
-                }
-
-                $section->update([
-                    'name' => $s['name'],
-                    'content' => $s['content'],
-                    'settings' => $s['settings'],
-                    'order' => $s['order'],
-                    'parent_section_id' => $s['parent_section_id'],
-                    'is_active' => $s['is_active'],
-                    'is_visible' => $s['is_visible'] ?? true,
-                ]);
-            } else {
-                PageSection::create([
-                    'id' => $s['id'],
-                    'sectionable_type' => $this->sectionableType,
-                    'sectionable_id' => $this->sectionableId,
-                    'scope' => $this->scope,
-                    'section_template_id' => $s['section_template_id'],
-                    'section_type' => $s['section_type'],
-                    'name' => $s['name'],
-                    'content' => $s['content'],
-                    'settings' => $s['settings'],
-                    'order' => $s['order'],
-                    'parent_section_id' => $s['parent_section_id'],
-                    'is_active' => $s['is_active'],
-                    'is_visible' => $s['is_visible'] ?? true,
-                ]);
-            }
-        }
-
-        $this->loadSections();
+        $snapshotIds = array_map(fn ($s) => (int) $s['id'], $this->sections);
 
         // Reset panel if the edited section was removed by undo
-        if ($this->selectedSectionId && ! in_array($this->selectedSectionId, $snapshotIds)) {
+        if ($this->selectedSectionId && ! in_array($this->selectedSectionId, $snapshotIds, true)) {
             $this->selectedSectionId = null;
             $this->resetForm();
         }
@@ -391,89 +634,89 @@ class VisualPageEditor extends Component
     }
 
     /**
-     * Remove redundant empty wrapper sections: primitive_div / primitive_section
-     * that have NO class and NO id. Their children are reparented to the
-     * wrapper's parent, taking the wrapper's slot (sibling order preserved).
-     * Runs repeatedly until the tree is stable so chains of empty wrappers
-     * collapse fully. Reusable across templates via the toolbar button.
+     * Remove redundant empty wrapper sections (primitive_div / primitive_section
+     * with NO class and NO id) from the DRAFT, lifting their children into the
+     * wrapper's slot. Repeats until the tree is stable so chains collapse fully.
      */
     public function cleanupEmptyWrappers(): void
     {
         $this->pushHistory();
 
-        $base = function () {
-            $q = PageSection::where('sectionable_type', $this->sectionableType)
-                ->where('sectionable_id', $this->sectionableId);
-            if ($this->scope !== null) {
-                $q->where('scope', $this->scope);
-            }
-
-            return $q;
-        };
-
         $removed = 0;
         $guard = 0;
 
-        \DB::transaction(function () use ($base, &$removed, &$guard) {
-            do {
-                $changed = false;
-                $sections = $base()->orderBy('order')->orderBy('id')->get();
+        do {
+            $changed = false;
 
-                foreach ($sections as $wrapper) {
-                    if (! in_array($wrapper->section_type, ['primitive_div', 'primitive_section'], true)) {
-                        continue;
-                    }
-
-                    $content = is_array($wrapper->content) ? $wrapper->content : [];
-                    $cls = trim((string) ($content['class'] ?? ''));
-                    $pid = trim((string) ($content['id'] ?? ''));
-
-                    if ($cls !== '' || $pid !== '') {
-                        continue; // has styling/identity — keep it
-                    }
-
-                    // Build the new sibling order for the wrapper's parent group:
-                    // walk existing siblings; at the wrapper's slot, splice in its
-                    // children (in their own order); drop the wrapper itself.
-                    $parentId = $wrapper->parent_section_id;
-                    $children = $sections
-                        ->where('parent_section_id', $wrapper->id)
-                        ->sortBy('order')
-                        ->values();
-
-                    $siblings = $sections
-                        ->where('parent_section_id', $parentId)
-                        ->sortBy('order')
-                        ->values();
-
-                    $ordered = [];
-                    foreach ($siblings as $sib) {
-                        if ((int) $sib->id === (int) $wrapper->id) {
-                            foreach ($children as $ch) {
-                                $ordered[] = $ch;
-                            }
-
-                            continue;
-                        }
-                        $ordered[] = $sib;
-                    }
-
-                    $pos = 1;
-                    foreach ($ordered as $node) {
-                        $node->parent_section_id = $parentId;
-                        $node->order = $pos++;
-                        $node->save();
-                    }
-
-                    $wrapper->delete();
-                    $removed++;
-                    $changed = true;
-                    break; // restart with fresh data
+            foreach ($this->sections as $wrapper) {
+                if (! in_array($wrapper['section_type'] ?? null, ['primitive_div', 'primitive_section'], true)) {
+                    continue;
                 }
-            } while ($changed && ++$guard < 200);
-        });
 
-        $this->loadSections();
+                $content = is_array($wrapper['content'] ?? null) ? $wrapper['content'] : [];
+                $cls = trim((string) ($content['class'] ?? ''));
+                $pid = trim((string) ($content['id'] ?? ''));
+
+                if ($cls !== '' || $pid !== '') {
+                    continue; // has styling / identity — keep it
+                }
+
+                $wrapperId = (int) $wrapper['id'];
+                $parentId = $wrapper['parent_section_id'] ?? null;
+                $wrapperOrder = (int) $wrapper['order'];
+
+                // Reparent the wrapper's children to the wrapper's parent, taking
+                // its slot. Shift later siblings down to make room.
+                $childCount = 0;
+                foreach ($this->sections as $i => $s) {
+                    if ((int) ($s['parent_section_id'] ?? 0) === $wrapperId) {
+                        $childCount++;
+                    }
+                }
+
+                // Make room: bump siblings after the wrapper by (childCount - 1).
+                if ($childCount !== 1) {
+                    foreach ($this->sections as $i => $s) {
+                        if (($s['parent_section_id'] ?? null) === $parentId
+                            && (int) $s['id'] !== $wrapperId
+                            && (int) $s['order'] > $wrapperOrder) {
+                            $this->sections[$i]['order'] += ($childCount - 1);
+                        }
+                    }
+                }
+
+                // Splice children into the wrapper's slot, in their own order.
+                $childIdx = [];
+                foreach ($this->sections as $i => $s) {
+                    if ((int) ($s['parent_section_id'] ?? 0) === $wrapperId) {
+                        $childIdx[] = $i;
+                    }
+                }
+                usort($childIdx, fn ($a, $b) => (int) $this->sections[$a]['order'] <=> (int) $this->sections[$b]['order']);
+
+                $slot = $wrapperOrder;
+                foreach ($childIdx as $i) {
+                    $this->sections[$i]['parent_section_id'] = $parentId;
+                    $this->sections[$i]['order'] = $slot++;
+                }
+
+                // Drop the wrapper itself.
+                $wi = $this->draftIndex($wrapperId);
+                if ($wi !== null) {
+                    array_splice($this->sections, $wi, 1);
+                }
+
+                $removed++;
+                $changed = true;
+                break; // restart with fresh data
+            }
+        } while ($changed && ++$guard < 200);
+
+        if ($removed > 0) {
+            $this->markDirty();
+        }
+
+        $this->pushHistory();
         $this->dispatch('preview-reload');
         $this->dispatch('notify',
             message: $removed > 0 ? "Removed {$removed} empty wrapper section(s)" : 'No empty wrappers found',
@@ -481,96 +724,39 @@ class VisualPageEditor extends Component
         );
     }
 
-    // ─── Section CRUD ────────────────────────────────────────────────────────
+    // ─── Section CRUD (draft only) ───────────────────────────────────────────
 
     public function moveSection(int $sectionId, ?int $parentSectionId, int $order): void
     {
-        $section = PageSection::find($sectionId);
-
-        if (! $section) {
+        $idx = $this->draftIndex($sectionId);
+        if ($idx === null) {
             return;
         }
 
-        if ($parentSectionId && $parentSectionId === $sectionId) {
+        if ($parentSectionId !== null && $parentSectionId === $sectionId) {
+            return;
+        }
+
+        // Guard against dropping a container into one of its own descendants.
+        if ($parentSectionId !== null
+            && in_array($parentSectionId, $this->draftDescendantIds($sectionId), true)) {
             return;
         }
 
         $this->pushHistory();
 
-        // Remember the old parent so we reflow its remaining children too
-        // (relevant when moving between containers).
-        $oldParentId = $section->parent_section_id;
+        $oldParentId = $this->sections[$idx]['parent_section_id'] ?? null;
 
-        $section->update([
-            'parent_section_id' => $parentSectionId,
-            'order' => $order,
-        ]);
+        $this->sections[$idx]['parent_section_id'] = $parentSectionId;
+        $this->sections[$idx]['order'] = $order;
 
-        // Reflow sibling order for the NEW parent group. Without this, two
-        // sections can end up with the same `order` value — and since
-        // loadSections() orders only by `order`, the secondary tie-break (id)
-        // can drop the moved section back into its original slot.
-        $this->reflowSiblings($parentSectionId, $sectionId, $order);
+        $this->reflowDraftSiblings($parentSectionId, $sectionId, $order);
 
-        // Also tidy the OLD parent if the section changed containers.
         if ($oldParentId !== $parentSectionId) {
-            $this->reflowSiblings($oldParentId, null, null);
+            $this->reflowDraftSiblings($oldParentId, null, null);
         }
 
-        $this->loadSections();
-        $this->dispatch('preview-reload');
-    }
-
-    /**
-     * Re-number sibling `order` values 1..N for a given parent group, keeping
-     * the moved section at its desired slot. When called with $movedId = null,
-     * simply re-densifies the existing order with no slot enforcement.
-     */
-    protected function reflowSiblings(?int $parentSectionId, ?int $movedId, ?int $movedOrder): void
-    {
-        $query = PageSection::where('sectionable_type', $this->sectionableType)
-            ->where('sectionable_id', $this->sectionableId);
-
-        if ($this->scope !== null) {
-            $query->where('scope', $this->scope);
-        }
-
-        $query->where(function ($q) use ($parentSectionId) {
-            if ($parentSectionId === null) {
-                $q->whereNull('parent_section_id');
-            } else {
-                $q->where('parent_section_id', $parentSectionId);
-            }
-        });
-
-        $siblings = $query->orderBy('order')->orderBy('id')->get();
-
-        if ($movedId !== null && $movedOrder !== null) {
-            // Build an explicit slot list with the moved item placed at $movedOrder.
-            $others = $siblings->reject(fn ($s) => (int) $s->id === $movedId)->values();
-            $moved = $siblings->firstWhere('id', $movedId);
-
-            // Convert from 1-based requested slot to 0-based array index, clamp.
-            $targetIdx = max(0, min($others->count(), $movedOrder - 1));
-            $rebuilt = $others->splice(0, $targetIdx)
-                ->push($moved)
-                ->merge($others)
-                ->values();
-        } else {
-            $rebuilt = $siblings;
-        }
-
-        $position = 1;
-        foreach ($rebuilt as $s) {
-            if (! $s) {
-                continue;
-            }
-            // Only write when changed to avoid noisy UPDATEs.
-            if ((int) $s->order !== $position) {
-                $s->update(['order' => $position]);
-            }
-            $position++;
-        }
+        $this->markDirty();
     }
 
     public function selectSection(int $sectionId): void
@@ -582,21 +768,21 @@ class VisualPageEditor extends Component
             return;
         }
 
-        $section = PageSection::find($sectionId);
-
-        if (! $section) {
+        $idx = $this->draftIndex($sectionId);
+        if ($idx === null) {
             return;
         }
 
         // Capture state before editing so Ctrl+Z can revert changes
         $this->pushHistory();
 
+        $section = $this->sections[$idx];
         $this->selectedSectionId = $sectionId;
         $this->editingSectionId = $sectionId;
-        $this->selectedTemplateId = $section->section_template_id;
-        $this->sectionName = $section->name;
-        $this->sectionContent = $section->content ?? [];
-        $this->sectionSettings = $section->settings ?? [];
+        $this->selectedTemplateId = $section['section_template_id'] ?? null;
+        $this->sectionName = $section['name'] ?? '';
+        $this->sectionContent = $section['content'] ?? [];
+        $this->sectionSettings = $section['settings'] ?? [];
         $this->showAddPanel = false;
     }
 
@@ -634,10 +820,20 @@ class VisualPageEditor extends Component
         }
     }
 
-    public function saveSection(): void
+    /**
+     * Add a brand-new section to the DRAFT (no DB write). Children/order survive
+     * via a negative temp id until saveDraft() assigns the real id.
+     */
+    public function saveSection(array $contentPatch = []): void
     {
         if (! $this->selectedTemplateId) {
             return;
+        }
+
+        // Merge the live editor content so the new section is created WITH what
+        // the user typed, not the empty template default.
+        foreach ($contentPatch as $fieldName => $json) {
+            $this->sectionContent[$fieldName] = $json;
         }
 
         $template = SectionTemplate::find($this->selectedTemplateId);
@@ -649,44 +845,29 @@ class VisualPageEditor extends Component
         $this->pushHistory();
 
         $parentId = $this->addingChildOfSectionId;
+        $tempId = $this->nextTempId--;
 
-        $maxOrderQ = PageSection::where('sectionable_type', $this->sectionableType)
-            ->where('sectionable_id', $this->sectionableId)
-            ->where('parent_section_id', $parentId);
-        if ($this->scope !== null) {
-            $maxOrderQ->where('scope', $this->scope);
-        }
-        $maxOrder = $maxOrderQ->max('order') ?? 0;
-
-        $section = PageSection::create([
-            'sectionable_type' => $this->sectionableType,
-            'sectionable_id' => $this->sectionableId,
-            'scope' => $this->scope,
+        $this->sections[] = [
+            'id' => $tempId,
+            'parent_section_id' => $parentId,
             'section_template_id' => $this->selectedTemplateId,
             'section_type' => str_replace('-', '_', $template->slug),
+            'scope' => $this->scope,
             'name' => $this->sectionName ?: $template->name,
-            'order' => $maxOrder + 1,
-            'parent_section_id' => $parentId,
+            'order' => $this->nextOrderForParent($parentId),
             'is_active' => true,
             'is_visible' => true,
             'content' => $this->sectionContent,
             'settings' => $this->sectionSettings,
-        ]);
+        ];
 
+        $this->markDirty();
         $this->showAddPanel = false;
-        $this->loadSections();
         $this->pushHistory();
 
-        // Open the edit panel for the just-created section with its fields
-        // already populated. Previously we called resetForm() before setting
-        // $selectedSectionId, which blanked $selectedTemplateId / $sectionContent
-        // / $sectionSettings — so the panel rendered empty until the user closed
-        // it and re-clicked the item.
-        $this->selectedSectionId = $section->id;
-        $this->editingSectionId = $section->id;
-        // sectionName / sectionContent / sectionSettings are still set from the
-        // add-section form; carry them through so the edit panel reflects what
-        // was just saved. addingChildOfSectionId is no longer relevant.
+        // Open the edit panel for the just-added (draft) section.
+        $this->selectedSectionId = $tempId;
+        $this->editingSectionId = $tempId;
         $this->addingChildOfSectionId = null;
 
         $this->dispatch('preview-reload');
@@ -694,120 +875,183 @@ class VisualPageEditor extends Component
 
     public function duplicateSection(int $sectionId): void
     {
-        $section = PageSection::find($sectionId);
-
-        if (! $section) {
+        $idx = $this->draftIndex($sectionId);
+        if ($idx === null) {
             return;
         }
 
         $this->pushHistory();
 
-        // Shift subsequent sibling orders up
-        PageSection::where('sectionable_type', $this->sectionableType)
-            ->where('sectionable_id', $this->sectionableId)
-            ->where('parent_section_id', $section->parent_section_id)
-            ->where('order', '>', $section->order)
-            ->increment('order');
+        $original = $this->sections[$idx];
+        $parentId = $original['parent_section_id'] ?? null;
+        $insertOrder = (int) $original['order'] + 1;
 
-        $copy = $section->replicate();
-        $copy->name = $section->name.' (copy)';
-        $copy->order = $section->order + 1;
-        $copy->save();
+        // Shift subsequent siblings down to make room for the copy.
+        foreach ($this->sections as $i => $s) {
+            if (($s['parent_section_id'] ?? null) === $parentId && (int) $s['order'] >= $insertOrder) {
+                $this->sections[$i]['order'] = (int) $s['order'] + 1;
+            }
+        }
 
-        $this->loadSections();
+        // Deep-copy the section + its whole subtree, assigning fresh temp ids.
+        $this->duplicateDraftSubtree($sectionId, $parentId, $insertOrder, true);
+
+        $this->markDirty();
         $this->pushHistory();
         $this->dispatch('preview-reload');
+    }
+
+    /**
+     * Recursively clone a draft subtree under $newParentId, giving every node a
+     * fresh temp id. The root copy gets " (copy)" appended to its name.
+     */
+    protected function duplicateDraftSubtree(int $sourceId, ?int $newParentId, int $order, bool $isRoot): void
+    {
+        $idx = $this->draftIndex($sourceId);
+        if ($idx === null) {
+            return;
+        }
+
+        $source = $this->sections[$idx];
+        $tempId = $this->nextTempId--;
+
+        $this->sections[] = [
+            'id' => $tempId,
+            'parent_section_id' => $newParentId,
+            'section_template_id' => $source['section_template_id'] ?? null,
+            'section_type' => $source['section_type'] ?? null,
+            'scope' => $this->scope,
+            'name' => $isRoot ? ($source['name'].' (copy)') : $source['name'],
+            'order' => $order,
+            'is_active' => (bool) ($source['is_active'] ?? true),
+            'is_visible' => $source['is_visible'] ?? true,
+            'content' => $source['content'] ?? [],
+            'settings' => $source['settings'] ?? [],
+        ];
+
+        $children = collect($this->sections)
+            ->filter(fn ($s) => (int) ($s['parent_section_id'] ?? 0) === $sourceId)
+            ->sortBy('order')
+            ->values();
+
+        $childOrder = 1;
+        foreach ($children as $child) {
+            $this->duplicateDraftSubtree((int) $child['id'], $tempId, $childOrder++, false);
+        }
+    }
+
+    /**
+     * Fold the currently-open edit form ($sectionName / $sectionContent /
+     * $sectionSettings) back into the draft entry for $editingSectionId.
+     */
+    protected function syncOpenSectionIntoDraft(): void
+    {
+        if ($this->editingSectionId === null) {
+            return;
+        }
+
+        $idx = $this->draftIndex($this->editingSectionId);
+        if ($idx === null) {
+            return;
+        }
+
+        $this->sections[$idx]['name'] = $this->sectionName;
+        $this->sections[$idx]['content'] = $this->sectionContent;
+        $this->sections[$idx]['settings'] = $this->sectionSettings;
+        $this->markDirty();
     }
 
     public function updatedSectionContent(): void
     {
         if ($this->editingSectionId) {
-            $this->updateSection();
+            $this->syncOpenSectionIntoDraft();
         }
     }
 
     public function updatedSectionName(): void
     {
         if ($this->editingSectionId) {
-            $this->updateSection();
+            $this->syncOpenSectionIntoDraft();
         }
     }
 
-    public function updateSection(): void
+    /**
+     * Persist the editor content for the section currently being edited INTO THE
+     * DRAFT (no DB write). The JS save buttons collect every EditorJS field into
+     * $contentPatch and call this so the typed content lands in the draft; the
+     * page-level Save then persists everything.
+     *
+     * @param  array<string, string>  $contentPatch  field name => EditorJS JSON
+     */
+    public function saveContent(array $contentPatch = []): void
     {
+        foreach ($contentPatch as $fieldName => $json) {
+            $this->sectionContent[$fieldName] = $json;
+        }
+
+        // ADD MODE: no section in the draft yet → create it from the form.
         if (! $this->editingSectionId) {
+            if ($this->selectedTemplateId) {
+                $this->saveSection();
+            }
+
             return;
         }
 
-        $section = PageSection::find($this->editingSectionId);
-
-        if (! $section) {
-            return;
-        }
-
-        $section->update([
-            'name' => $this->sectionName,
-            'content' => $this->sectionContent,
-            'settings' => $this->sectionSettings,
-        ]);
-
-        $this->loadSections();
-        $this->dispatch('preview-reload');
-    }
-
-    protected function renderSectionHtml(int $sectionId): string
-    {
-        $section = PageSection::with([
-            'sectionTemplate.fields',
-            'childrenRecursive.sectionTemplate',
-        ])->find($sectionId);
-
-        if (! $section) {
-            return '';
-        }
-
-        return view('partials.render-section', [
-            'section' => $section,
-            'forceVe' => true,
-        ])->render();
+        $this->syncOpenSectionIntoDraft();
     }
 
     public function deleteSection(int $sectionId): void
     {
+        $idx = $this->draftIndex($sectionId);
+        if ($idx === null) {
+            return;
+        }
+
         $this->pushHistory();
 
-        PageSection::destroy($sectionId);
+        // Remove the section AND its whole subtree from the draft.
+        $removeIds = $this->draftDescendantIds($sectionId);
+        $this->sections = array_values(array_filter(
+            $this->sections,
+            fn ($s) => ! in_array((int) $s['id'], $removeIds, true)
+        ));
 
-        if ($this->selectedSectionId === $sectionId) {
+        $this->markDirty();
+
+        if (in_array($this->selectedSectionId, $removeIds, true)) {
             $this->selectedSectionId = null;
             $this->resetForm();
         }
 
-        $this->loadSections();
         $this->dispatch('preview-reload');
     }
 
     public function toggleActive(int $sectionId): void
     {
-        $section = PageSection::find($sectionId);
-
-        if ($section) {
-            $section->update(['is_active' => ! $section->is_active]);
-            $this->loadSections();
-            $this->dispatch('preview-reload');
+        $idx = $this->draftIndex($sectionId);
+        if ($idx === null) {
+            return;
         }
+
+        $this->pushHistory();
+        $this->sections[$idx]['is_active'] = ! ($this->sections[$idx]['is_active'] ?? true);
+        $this->markDirty();
+        $this->dispatch('preview-reload');
     }
 
     public function toggleVisibility(int $sectionId): void
     {
-        $section = PageSection::find($sectionId);
-
-        if ($section) {
-            $newVisibility = ! ($section->is_visible ?? true);
-            $section->update(['is_visible' => $newVisibility]);
-            $this->loadSections();
-            $this->dispatch('preview-visibility', sectionId: $sectionId, visible: $newVisibility);
+        $idx = $this->draftIndex($sectionId);
+        if ($idx === null) {
+            return;
         }
+
+        $this->pushHistory();
+        $newVisibility = ! ($this->sections[$idx]['is_visible'] ?? true);
+        $this->sections[$idx]['is_visible'] = $newVisibility;
+        $this->markDirty();
+        $this->dispatch('preview-visibility', sectionId: $sectionId, visible: $newVisibility);
     }
 
     public function reorderSections(array $order): void
@@ -815,10 +1059,13 @@ class VisualPageEditor extends Component
         $this->pushHistory();
 
         foreach ($order as $index => $sectionId) {
-            PageSection::where('id', $sectionId)->update(['order' => $index + 1]);
+            $idx = $this->draftIndex((int) $sectionId);
+            if ($idx !== null) {
+                $this->sections[$idx]['order'] = $index + 1;
+            }
         }
 
-        $this->loadSections();
+        $this->markDirty();
         $this->dispatch('preview-reload');
     }
 
@@ -844,8 +1091,7 @@ class VisualPageEditor extends Component
         }
 
         // Repeater items may be stored as a JSON-encoded string in sectionContent
-        // (legacy / fresh-section state). Decode before appending so `$items[] = …`
-        // doesn't blow up with "[] operator not supported for strings".
+        // (legacy / fresh-section state). Decode before appending.
         $raw = $this->sectionContent[$fieldName] ?? [];
         if (is_string($raw)) {
             $decoded = json_decode($raw, true);
@@ -856,6 +1102,8 @@ class VisualPageEditor extends Component
         }
         $raw[] = $newItem;
         $this->sectionContent[$fieldName] = array_values($raw);
+
+        $this->syncOpenSectionIntoDraft();
     }
 
     public function removeRepeaterItem(string $fieldName, int $index): void
@@ -870,6 +1118,8 @@ class VisualPageEditor extends Component
         }
         unset($raw[$index]);
         $this->sectionContent[$fieldName] = array_values($raw);
+
+        $this->syncOpenSectionIntoDraft();
     }
 
     public function updatedSectionImageUploads($value, string $key): void
@@ -889,6 +1139,7 @@ class VisualPageEditor extends Component
         }
 
         $this->sectionImageUploads[$key] = null;
+        $this->syncOpenSectionIntoDraft();
     }
 
     // ─── Media Library ───────────────────────────────────────────────────────
@@ -921,7 +1172,7 @@ class VisualPageEditor extends Component
         $this->mediaTargetField = '';
 
         if ($this->editingSectionId) {
-            $this->updateSection();
+            $this->syncOpenSectionIntoDraft();
         }
     }
 
@@ -984,6 +1235,11 @@ class VisualPageEditor extends Component
         }, $filename, ['Content-Type' => 'application/json']);
     }
 
+    /**
+     * Bulk JSON import. This is an explicit, immediate bulk operation that writes
+     * to the database via PageImporter (it replaces the whole layout) and then
+     * reloads the draft from the freshly-imported rows.
+     */
     public function importJson(string $json): void
     {
         $node = ContentNode::where('content_type', $this->sectionableType)
@@ -1002,8 +1258,6 @@ class VisualPageEditor extends Component
             return;
         }
 
-        $this->pushHistory();
-
         app(PageImporter::class)->import($node, $layout);
         $this->loadSections();
         $this->pushHistory();
@@ -1015,10 +1269,28 @@ class VisualPageEditor extends Component
 
     public function buildAssets(): void
     {
+        // PHP-FPM runs with a minimal environment — its PATH usually lacks the
+        // directory holding node/npm, so a bare `npm run build` fails with
+        // "vite: not found" (vite's `#!/usr/bin/env node` shebang can't locate
+        // node). Resolve an absolute npm binary and pass an explicit PATH (incl.
+        // node_modules/.bin where the vite binary lives) so it works like an
+        // interactive shell. escapeshellarg + explicit cwd avoids shell concat.
+        $npm = collect(['/usr/local/bin/npm', '/usr/bin/npm', '/opt/homebrew/bin/npm'])
+            ->first(fn ($p) => is_executable($p)) ?: 'npm';
+        $nodeBinDir = $npm !== 'npm' ? dirname($npm) : '/usr/bin';
+
+        $env = [
+            'PATH' => $nodeBinDir.':'.base_path().'/node_modules/.bin:/usr/local/bin:/usr/bin:/bin',
+            'HOME' => base_path(), // npm needs a writable HOME for its cache
+            'NODE_ENV' => 'production',
+        ];
+
         $process = proc_open(
-            'cd '.base_path().' && npm run build 2>&1',
+            escapeshellarg($npm).' run build 2>&1',
             [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
-            $pipes
+            $pipes,
+            base_path(),
+            $env
         );
 
         if (! is_resource($process)) {
@@ -1058,6 +1330,26 @@ class VisualPageEditor extends Component
         $this->selectedSectionId = null;
         $this->showAddPanel = false;
         $this->resetForm();
+    }
+
+    /**
+     * Fold the open editor's content into the draft + close the panel in a SINGLE
+     * call (no DB write). The client passes the final editor JSON for each wysiwyg
+     * field as `$contentPatch = ['fieldName' => '{"blocks":...}', ...]`.
+     */
+    public function saveAndClose(array $contentPatch = []): void
+    {
+        if ($this->editingSectionId && ! empty($contentPatch)) {
+            foreach ($contentPatch as $fieldName => $json) {
+                $this->sectionContent[$fieldName] = $json;
+            }
+            $this->syncOpenSectionIntoDraft();
+        }
+
+        $this->selectedSectionId = null;
+        $this->showAddPanel = false;
+        $this->resetForm();
+        $this->dispatch('preview-reload');
     }
 
     protected function resetForm(): void

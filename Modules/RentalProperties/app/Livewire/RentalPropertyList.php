@@ -4,6 +4,8 @@ namespace Modules\RentalProperties\Livewire;
 
 use Livewire\Component;
 use Livewire\WithPagination;
+use Modules\Properties\Jobs\SyncPropertiesJob;
+use Modules\Properties\Jobs\SyncSingleRentalJob;
 use Modules\RentalProperties\Models\RentalProperty;
 
 class RentalPropertyList extends Component
@@ -15,6 +17,35 @@ class RentalPropertyList extends Component
     public string $filterType = '';
 
     public string $filterStatus = '';
+
+    /**
+     * Queue a background sync of rentals from the CRM/Hostaway. Runs on the
+     * dedicated "sync" queue (processed by cron) so the request never blocks,
+     * and is unique so double-clicks don't start two syncs.
+     */
+    public function syncRentals(): void
+    {
+        SyncPropertiesJob::dispatch('rentals')->onQueue('sync');
+        session()->flash('success', 'Rental sync started in the background. Refresh in a moment to see the new/updated properties.');
+    }
+
+    /**
+     * Queue a background sync of a single rental from the CRM/Hostaway. Only
+     * properties linked to the CRM (with an external_id) can be re-synced.
+     */
+    public function syncOne(int $id): void
+    {
+        $p = RentalProperty::findOrFail($id);
+
+        if (empty($p->external_id)) {
+            session()->flash('error', "'{$p->title}' is not linked to Hostaway (no external id) — it can't be synced.");
+
+            return;
+        }
+
+        SyncSingleRentalJob::dispatch((string) $p->external_id)->onQueue('sync');
+        session()->flash('success', "Sync of '{$p->title}' started in the background. Refresh in a moment.");
+    }
 
     public function updatedSearch(): void
     {

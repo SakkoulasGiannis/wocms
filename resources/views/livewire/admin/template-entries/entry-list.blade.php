@@ -51,6 +51,15 @@
                 @endif
 
                 @if($template->allow_new_pages)
+                    {{-- AI: create new entity with AI — works for any model with a Template --}}
+                    @if($template->model_class)
+                        <livewire:admin.ai-page-builder.ai-action-button
+                            mode="create"
+                            :model-class="$template->model_class"
+                            :template-slug="$template->slug"
+                            :key="'ai-create-'.$template->slug" />
+                    @endif
+
                     <a href="{{ route('admin.template-entries.create', $template->slug) }}"
                        class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -294,6 +303,15 @@
 
                                 <a href="{{ route('admin.template-entries.edit', [$template->slug, $entry->id]) }}"
                                    class="text-blue-600 hover:text-blue-900 mr-3">Edit</a>
+                                <button wire:click="duplicateEntry({{ $entry->id }})"
+                                        wire:confirm="Duplicate this {{ Str::lower(Str::singular($template->name)) }}?"
+                                        class="text-purple-600 hover:text-purple-900 mr-3"
+                                        title="Make a copy">
+                                    <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                              d="M8 16H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2m-6 12h8a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2z"/>
+                                    </svg>
+                                </button>
                                 <button wire:click="deleteEntry({{ $entry->id }})"
                                         wire:confirm="Are you sure you want to delete this {{ Str::lower(Str::singular($template->name)) }}?"
                                         class="text-red-600 hover:text-red-900">Delete</button>

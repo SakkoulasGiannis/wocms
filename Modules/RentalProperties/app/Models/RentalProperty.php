@@ -18,6 +18,7 @@ class RentalProperty extends Model implements HasMedia
 
     protected $fillable = [
         'external_id',
+        'hostaway_id',
         'title', 'slug', 'description', 'property_type', 'status', 'price', 'currency',
         'area', 'land_size', 'bedrooms', 'bathrooms', 'rooms', 'garages', 'floor', 'year_built',
         'address', 'city', 'state', 'country', 'postal_code', 'latitude', 'longitude',
@@ -70,7 +71,16 @@ class RentalProperty extends Model implements HasMedia
 
     public function getFormattedPriceAttribute(): string
     {
-        return $this->currency.' '.number_format($this->price, 2).'/mo';
+        // Show the currency symbol when we know one (€ / $ / £ / ¥) — falls
+        // back to the raw ISO code for unknown currencies. Empty / NULL
+        // currency defaults to € since this CMS targets a Greek real-estate
+        // market (Crete). `/day` is intentional: every RentalProperty
+        // entry is priced per night, never per month.
+        $symbols = ['EUR' => '€', 'USD' => '$', 'GBP' => '£', 'JPY' => '¥'];
+        $raw = trim((string) $this->currency);
+        $symbol = $raw === '' ? '€' : ($symbols[$raw] ?? $raw.' ');
+
+        return $symbol.number_format((float) $this->price, 2).'/day';
     }
 
     public function registerMediaCollections(): void

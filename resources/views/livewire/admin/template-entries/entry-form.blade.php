@@ -331,6 +331,19 @@
                         await new Promise(resolve => setTimeout(resolve, 100));
                     }
 
+                    // Sync EditorJS wysiwyg fields BEFORE saving via the shared
+                    // collector (window.veCollectEditors). Their content lives in
+                    // the Alpine component; clicking Update calls save() directly,
+                    // so we push each editor's live JSON as a DEFERRED set and the
+                    // values ride along with @this.call('save').
+                    try {
+                        const eds = (typeof window.veCollectEditors === 'function')
+                            ? await window.veCollectEditors() : [];
+                        for (const e of eds) {
+                            @this.set(e.wireModel, e.json, false);
+                        }
+                    } catch (e) { console.warn('EditorJS pre-save sync failed (non-fatal):', e); }
+
                     console.log('Getting uploadedFiles from Livewire...');
                     const uploadedFiles = @this.get('uploadedFiles');
                     console.log('Uploaded files:', uploadedFiles);

@@ -50,7 +50,7 @@
                     <div class="box-price">
                         <h3 class="fw-8">{{ $property->formatted_price }}</h3>
                         @if($property->status === 'for_rent')
-                            <span class="body-2 text-variant-1">/month</span>
+                            <span class="body-2 text-variant-1">/day</span>
                         @endif
                     </div>
                 </div>
