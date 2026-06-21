@@ -6,6 +6,10 @@ dynamic-token picker / media picker / dynamic-loop) as plain browser JS served s
 from the package — no npm, no Vite. The host app decides **where output is saved** and
 **which dynamic sources/tokens exist** by implementing two small contracts.
 
+> **Full integration guide for a new Laravel project:** see [`INSTALL.md`](INSTALL.md)
+> (contracts, routes, frontend rendering, media picker, preview CSS, JSON contract,
+> and how to modify the editor without a build step).
+
 ## Install
 
 ```bash
