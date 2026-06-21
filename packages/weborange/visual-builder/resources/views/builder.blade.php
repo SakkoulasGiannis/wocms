@@ -86,6 +86,47 @@
     #new-builder-app .nb-chip:hover { border-color: #93c5fd; color: #2563eb; }
     #new-builder-app .nb-chip-on { background: #2563eb; border-color: #2563eb; color: #fff; }
 
+    /* Applied-classes removable chips */
+    #new-builder-app .nb-cls-chips { display: flex; flex-wrap: wrap; gap: .3rem; margin-bottom: .4rem; }
+    #new-builder-app .nb-cls-chip {
+        display: inline-flex; align-items: center; gap: .25rem;
+        font-family: ui-monospace, Menlo, monospace; font-size: .68rem;
+        padding: .12rem .3rem .12rem .45rem; border-radius: 9999px;
+        background: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe;
+    }
+    #new-builder-app .nb-cls-x { border: 0; background: none; color: #6366f1; cursor: pointer; font-size: .9rem; line-height: 1; padding: 0 .1rem; }
+    #new-builder-app .nb-cls-x:hover { color: #dc2626; }
+
+    /* Smart segmented style controls */
+    #new-builder-app .nb-controls { border: 1px solid var(--nb-border); border-radius: .5rem; padding: .5rem; background: #fafafa; display: flex; flex-direction: column; gap: .4rem; max-height: 320px; overflow: auto; }
+    #new-builder-app .nb-ctl-row { display: flex; align-items: center; gap: .5rem; }
+    #new-builder-app .nb-ctl-label { flex: 0 0 5.2rem; font-size: .62rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #9ca3af; }
+    #new-builder-app .nb-ctl-opts { display: inline-flex; flex-wrap: wrap; gap: 0; border: 1px solid #d1d5db; border-radius: .4rem; overflow: hidden; }
+    #new-builder-app .nb-ctl-btn {
+        font-size: .68rem; font-weight: 600; padding: .2rem .5rem; min-width: 2rem;
+        background: #fff; color: #4b5563; cursor: pointer; border: 0; border-right: 1px solid #e5e7eb; transition: all .1s;
+    }
+    #new-builder-app .nb-ctl-opts .nb-ctl-btn:last-child { border-right: 0; }
+    #new-builder-app .nb-ctl-btn:hover { background: #eff6ff; color: #2563eb; }
+    #new-builder-app .nb-ctl-on { background: #2563eb; color: #fff; }
+    #new-builder-app .nb-ctl-on:hover { background: #1d4ed8; color: #fff; }
+
+    /* Content mini-WYSIWYG */
+    #new-builder-app .nb-rich-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: .25rem; padding: .3rem; border: 1px solid var(--nb-border); border-bottom: 0; border-radius: .4rem .4rem 0 0; background: #f9fafb; }
+    #new-builder-app .nb-rich-btn { width: 1.6rem; height: 1.6rem; display: inline-flex; align-items: center; justify-content: center; font-size: .78rem; border: 1px solid #d1d5db; border-radius: .3rem; background: #fff; color: #374151; cursor: pointer; }
+    #new-builder-app .nb-rich-btn:hover { background: #eff6ff; border-color: #93c5fd; color: #2563eb; }
+    #new-builder-app .nb-rich-clear:hover { background: #fef2f2; border-color: #fca5a5; color: #dc2626; }
+    #new-builder-app .nb-rich-sep { width: 1px; height: 1.1rem; background: #e5e7eb; margin: 0 .15rem; }
+    #new-builder-app .nb-rich-color { width: 1.1rem; height: 1.1rem; border-radius: 9999px; border: 1px solid rgba(0,0,0,.15); cursor: pointer; padding: 0; }
+    #new-builder-app .nb-rich-color:hover { transform: scale(1.15); }
+    #new-builder-app .nb-rich {
+        min-height: 3rem; max-height: 12rem; overflow: auto; padding: .5rem .6rem;
+        border: 1px solid var(--nb-border); border-radius: 0 0 .4rem .4rem; background: #fff;
+        font-size: .85rem; line-height: 1.5; color: #111827; outline: none;
+    }
+    #new-builder-app .nb-rich:focus { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,.12); }
+    #new-builder-app .nb-rich:empty::before { content: 'Type text… select to format'; color: #9ca3af; }
+
     /* ---- preview frame ---- */
     #new-builder-app .nb-preview-stage { background: #f3f4f6; display: flex; justify-content: center; }
     #new-builder-app iframe[data-pane="preview"] { box-shadow: 0 1px 4px rgba(0,0,0,.08); background: #fff; transition: width .15s; max-width: 100%; }
@@ -217,6 +258,10 @@
                     class="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-red-700 bg-white border border-red-200 rounded hover:bg-red-50">
                 Clear
             </button>
+            <a data-view-page href="#" target="_blank" rel="noopener"
+               class="hidden items-center px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50">
+                &#8599; View page
+            </a>
             <button data-save-open type="button"
                     class="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 rounded hover:bg-emerald-700">
                 &#128190; Save
@@ -227,6 +272,7 @@
     <div data-error class="hidden mb-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"></div>
 
     {{-- Component palette --}}
+    <script type="application/json" data-vb-forms>@json($vbForms ?? [])</script>
     <div data-palette-panel class="hidden mb-3 rounded-lg border border-indigo-200 bg-indigo-50/60 px-4 py-3">
         <div class="flex items-center justify-between mb-2">
             <span class="text-xs font-semibold uppercase tracking-wide text-indigo-800">Insert block</span>
@@ -254,10 +300,12 @@
     </div>
 
     {{-- Save panel --}}
+    <script type="application/json" data-preview-css>@json(config('visual-builder.preview_css', []))</script>
     <div data-save-config class="hidden"
          data-save-url="{{ route($vbAs.'save') }}"
          data-sections-url="{{ route($vbAs.'sections') }}"
          data-sample-url="{{ route($vbAs.'sample') }}"
+         data-preselect-target="{{ $vbPreselectTarget ?? '' }}"
          data-csrf="{{ csrf_token() }}"></div>
     @if (config('visual-builder.media_url'))
         <div data-media-config class="hidden"
@@ -271,7 +319,7 @@
                 <label class="block text-xs font-semibold uppercase tracking-wide text-emerald-800 mb-1">Target</label>
                 <select data-save-page class="w-full text-sm rounded border-gray-300 focus:border-emerald-500 focus:ring-emerald-500">
                     @forelse ($vbTargets as $t)
-                        <option value="{{ $t['id'] }}" data-mode="{{ $t['mode'] ?? '' }}">{{ $t['label'] }}</option>
+                        <option value="{{ $t['id'] }}" data-mode="{{ $t['mode'] ?? '' }}" data-url="{{ $t['url'] ?? '' }}">{{ $t['label'] }}</option>
                     @empty
                         <option value="">No targets available</option>
                     @endforelse
@@ -293,10 +341,15 @@
                 <input data-save-name type="text" value="Builder section"
                        class="w-full text-sm rounded border-gray-300 focus:border-emerald-500 focus:ring-emerald-500">
             </div>
-            <div class="flex items-center gap-2 pb-2">
+            <div class="flex flex-col gap-1.5 pb-1">
                 <label class="inline-flex items-center gap-1.5 text-xs text-emerald-800">
                     <input data-save-convert type="checkbox" class="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500">
                     Switch to sections mode if needed
+                </label>
+                <label class="inline-flex items-center gap-1.5 text-xs text-red-700"
+                       title="Soft-deletes this page's existing sections (recoverable) and saves the builder output as its content. Use to finish a migration.">
+                    <input data-save-replace type="checkbox" class="rounded border-gray-300 text-red-600 focus:ring-red-500">
+                    Replace page content (finish migration)
                 </label>
             </div>
             <div class="flex items-center gap-2 pb-1">
@@ -407,8 +460,11 @@
         </div>
     </div>
 
-    {{-- Seed HTML matching the JSON contract example so the page loads non-empty. --}}
-    <textarea data-seed-html class="hidden">&lt;div data-somthing='abc' class='someclass' id='something'&gt;
+    {{-- Seed HTML: a migrated target's content when ?target is set, else the example. --}}
+    @if (!empty($vbSeedHtml ?? null))
+        <textarea data-seed-html class="hidden">{{ $vbSeedHtml }}</textarea>
+    @else
+        <textarea data-seed-html class="hidden">&lt;div data-somthing='abc' class='someclass' id='something'&gt;
     &lt;h1 class='sometailwindclass'&gt;something&lt;/h1&gt;
     &lt;div&gt;
         &lt;h2&gt;something&lt;/h2&gt;
@@ -416,6 +472,7 @@
         &lt;div class='someclass' id='something'&gt;ec&lt;/div&gt;
     &lt;/div&gt;
 &lt;/div&gt;</textarea>
+    @endif
 </div>
 @endsection
 

@@ -88,7 +88,9 @@ class LoopRenderer
      */
     public function expandHtml(string $html): string
     {
-        if (stripos($html, 'data-vb-loop') === false) {
+        $hasLoop = stripos($html, 'data-vb-loop') !== false;
+        $hasForm = stripos($html, 'data-vb-form') !== false;
+        if (! $hasLoop && ! $hasForm) {
             return $html;
         }
 
@@ -101,12 +103,12 @@ class LoopRenderer
         libxml_clear_errors();
 
         $xpath = new \DOMXPath($doc);
-        $loops = $xpath->query('//*[@data-vb-loop]');
-        if ($loops === false) {
-            return $html;
-        }
 
-        foreach (iterator_to_array($loops) as $node) {
+        $formMap = $hasForm ? $this->stubForms($doc, $xpath) : [];
+
+        $loops = $hasLoop ? $xpath->query('//*[@data-vb-loop]') : false;
+
+        foreach ($loops ? iterator_to_array($loops) : [] as $node) {
             /** @var \DOMElement $node */
             $query = json_decode((string) $node->getAttribute('data-vb-loop'), true);
             if (! is_array($query) || empty($query['source'])) {
@@ -148,6 +150,63 @@ class LoopRenderer
             }
         }
 
-        return $out !== '' ? $out : $html;
+        if ($out === '') {
+            return $html;
+        }
+
+        // Swap each form placeholder for the live <x-form> component HTML. Done on
+        // the serialized string so DOMDocument never mangles the Livewire snapshot.
+        foreach ($formMap as $token => $slug) {
+            $out = str_replace($token, $this->renderForm($slug), $out);
+        }
+
+        return $out;
+    }
+
+    /**
+     * Replace each [data-vb-form] element's content with a unique text
+     * placeholder and return a map of placeholder => form slug.
+     *
+     * @return array<string, string>
+     */
+    protected function stubForms(\DOMDocument $doc, \DOMXPath $xpath): array
+    {
+        $forms = $xpath->query('//*[@data-vb-form]');
+        if ($forms === false) {
+            return [];
+        }
+
+        $map = [];
+        $i = 0;
+        foreach (iterator_to_array($forms) as $node) {
+            /** @var \DOMElement $node */
+            $slug = trim((string) $node->getAttribute('data-vb-form'));
+            $node->removeAttribute('data-vb-form');
+            while ($node->firstChild) {
+                $node->removeChild($node->firstChild);
+            }
+            if ($slug === '') {
+                continue;
+            }
+            $token = 'VBFORMPLACEHOLDER'.($i++).'ENDVBFORM';
+            $map[$token] = $slug;
+            $node->appendChild($doc->createTextNode($token));
+        }
+
+        return $map;
+    }
+
+    /**
+     * Render a form by slug to its live (Livewire) HTML.
+     */
+    protected function renderForm(string $slug): string
+    {
+        try {
+            return \Illuminate\Support\Facades\Blade::render('<x-form :slug="$slug" />', ['slug' => $slug]);
+        } catch (\Throwable $e) {
+            \Log::warning('LoopRenderer form render failed for '.$slug.': '.$e->getMessage());
+
+            return '';
+        }
     }
 }

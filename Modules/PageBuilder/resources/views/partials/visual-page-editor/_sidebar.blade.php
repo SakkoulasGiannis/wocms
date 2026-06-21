@@ -74,6 +74,16 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M21 7v6h-6M21 13a9 9 0 1 1-3-7.7L21 8"/>
                     </svg>
                 </button>
+                @if ($sectionableType === \App\Models\Page::class)
+                    <a href="{{ route('admin.visual-builder.index', ['target' => $sectionableId]) }}"
+                       class="inline-flex items-center gap-1 px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition"
+                       title="Edit this page's content in the New Builder">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+                        </svg>
+                        New Builder
+                    </a>
+                @endif
                 <a href="{{ $previewUrl }}" target="_blank" class="p-1.5 rounded text-gray-400 hover:text-white hover:bg-white/10 transition" title="Open page">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
@@ -233,6 +243,43 @@
                 Add Section
             </button>
         </div>
+
+        {{-- Trashed sections — soft-deleted sections that can be restored. --}}
+        @if ($this->trashedSections->isNotEmpty())
+            <div x-data="{ open: false }" class="border-t border-gray-200 flex-shrink-0">
+                <button type="button" @click="open = !open"
+                        class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-500 hover:bg-gray-50 transition">
+                    <span class="flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                        Trashed sections ({{ $this->trashedSections->count() }})
+                    </span>
+                    <svg class="w-3.5 h-3.5 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+                <div x-show="open" x-collapse class="px-3 pb-3 space-y-1.5 max-h-48 overflow-y-auto">
+                    @foreach ($this->trashedSections as $ts)
+                        <div wire:key="trashed-{{ $ts->id }}"
+                             class="flex items-center justify-between gap-2 rounded border border-gray-200 bg-gray-50 px-2 py-1.5">
+                            <div class="min-w-0">
+                                <div class="text-xs font-medium text-gray-700 truncate">{{ $ts->name ?: 'Untitled' }}</div>
+                                <div class="text-[10px] text-gray-400">{{ $ts->section_type }} &middot; {{ optional($ts->deleted_at)->diffForHumans() }}</div>
+                            </div>
+                            <button wire:click="restoreSection({{ $ts->id }})"
+                                    wire:confirm="Restore this section? If a current version exists, the page may show both until you remove one."
+                                    class="flex-shrink-0 inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-emerald-700 bg-white border border-emerald-300 rounded hover:bg-emerald-50 transition">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                </svg>
+                                Restore
+                            </button>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endif
 
         {{-- Drag handle — sits on the right edge, drag horizontally to resize.
              Width is persisted in localStorage so it sticks across reloads. --}}

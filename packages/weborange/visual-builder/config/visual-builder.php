@@ -35,4 +35,12 @@ return [
      */
     'title' => 'Visual Builder',
 
+    /*
+     | Extra stylesheet URLs injected into the PREVIEW iframe (in addition to the
+     | chosen framework) so the canvas matches the live theme — e.g. the host's
+     | compiled frontend CSS with its typography reset. Array of absolute/relative
+     | URLs. Set from the host (e.g. Vite::asset('resources/css/frontend.css')).
+     */
+    'preview_css' => [],
+
 ];

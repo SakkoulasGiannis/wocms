@@ -34,4 +34,17 @@ class VisualBuilderHostServiceProvider extends ServiceProvider
         $this->app->bind(BuilderPersistence::class, CmsBuilderPersistence::class);
         $this->app->bind(TokenSource::class, CmsTokenSource::class);
     }
+
+    public function boot(): void
+    {
+        // Load the theme's compiled frontend CSS into the builder preview so the
+        // canvas matches the live site (typography reset, fonts, theme rules).
+        // Resolved at request time so the Vite manifest is available.
+        try {
+            config(['visual-builder.preview_css' => [\Illuminate\Support\Facades\Vite::asset('resources/css/frontend.css')]]);
+        } catch (\Throwable $e) {
+            // Vite manifest missing (e.g. assets not built) — preview falls back
+            // to the framework CDN only.
+        }
+    }
 }

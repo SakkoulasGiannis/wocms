@@ -231,6 +231,67 @@ class VisualPageEditor extends Component
     }
 
     /**
+     * Soft-deleted sections for this sectionable that can be restored.
+     *
+     * @return \Illuminate\Support\Collection<int, PageSection>
+     */
+    public function getTrashedSectionsProperty(): \Illuminate\Support\Collection
+    {
+        $query = PageSection::onlyTrashed()
+            ->where('sectionable_type', $this->sectionableType)
+            ->where('sectionable_id', $this->sectionableId);
+
+        if ($this->scope !== null) {
+            $query->where('scope', $this->scope);
+        }
+
+        return $query->orderByDesc('deleted_at')->get();
+    }
+
+    /**
+     * Restore a previously soft-deleted section back into the page.
+     */
+    public function restoreSection(int $sectionId): void
+    {
+        $section = PageSection::onlyTrashed()
+            ->where('sectionable_type', $this->sectionableType)
+            ->where('sectionable_id', $this->sectionableId)
+            ->whereKey($sectionId)
+            ->first();
+
+        if (! $section) {
+            $this->dispatch('notify', type: 'error', message: 'Section not found or already restored.');
+
+            return;
+        }
+
+        $section->restore();
+        $this->clearSectionableCache();
+        $this->loadSections();
+        $this->dispatch('preview-reload');
+        $this->dispatch('notify', type: 'success', message: "Restored section “{$section->name}”.");
+    }
+
+    /**
+     * Bust the cached frontend render for this sectionable (Page only).
+     */
+    protected function clearSectionableCache(): void
+    {
+        if ($this->sectionableType !== \App\Models\Page::class) {
+            return;
+        }
+
+        $node = \App\Models\ContentNode::query()
+            ->where('content_type', \App\Models\Page::class)
+            ->where('content_id', $this->sectionableId)
+            ->first();
+
+        if ($node) {
+            \App\Services\CacheInvalidator::clearContentNode($node->id);
+        }
+    }
+
+    /**
      * Normalize a PageSection row into the flat draft shape used by the UI.
      *
      * @return array<string, mixed>

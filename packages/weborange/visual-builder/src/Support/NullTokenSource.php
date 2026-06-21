@@ -20,6 +20,11 @@ class NullTokenSource implements TokenSource
         return [];
     }
 
+    public function forms(): array
+    {
+        return [];
+    }
+
     public function renderLoop(string $source, array $query, string $itemHtml): array
     {
         return [];

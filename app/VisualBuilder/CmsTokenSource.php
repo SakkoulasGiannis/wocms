@@ -58,6 +58,17 @@ class CmsTokenSource implements TokenSource
         return $tokens;
     }
 
+    public function forms(): array
+    {
+        return \App\Models\Form::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['slug', 'name'])
+            ->map(fn (\App\Models\Form $f): array => ['slug' => $f->slug, 'name' => $f->name])
+            ->values()
+            ->all();
+    }
+
     public function renderLoop(string $source, array $query, string $itemHtml): array
     {
         return app(LoopRenderer::class)->renderItems($source, $query, $itemHtml);

@@ -13,31 +13,68 @@
 
     var NB = window.NB;
 
-    var CHIP_GROUPS = [
+    /**
+     * Smart style controls. Each row is a "family" of mutually-exclusive Tailwind
+     * utilities: picking one option removes every other class in `family` and
+     * applies the chosen one (clicking the active option again clears the family).
+     * `family` lists ALL classes that belong to the group (for clean removal);
+     * `options` are the buttons shown ([class, short label]).
+     */
+    var CONTROL_GROUPS = [
         {
-            label: 'Display / Flex',
-            classes: ['block', 'inline-block', 'flex', 'inline-flex', 'grid', 'hidden',
-                'flex-row', 'flex-col', 'items-center', 'justify-center', 'justify-between',
-                'flex-wrap', 'gap-2', 'gap-4'],
+            label: 'Text align',
+            family: ['text-left', 'text-center', 'text-right', 'text-justify'],
+            options: [['text-left', 'Left'], ['text-center', 'Center'], ['text-right', 'Right'], ['text-justify', 'Justify']],
         },
         {
-            label: 'Spacing',
-            classes: ['p-2', 'p-4', 'p-6', 'px-4', 'py-2', 'm-2', 'm-4', 'mx-auto', 'mt-4', 'mb-4'],
+            label: 'Font weight',
+            family: ['font-thin', 'font-light', 'font-normal', 'font-medium', 'font-semibold', 'font-bold', 'font-extrabold'],
+            options: [['font-normal', 'Normal'], ['font-medium', 'Medium'], ['font-semibold', 'Semibold'], ['font-bold', 'Bold']],
         },
         {
-            label: 'Text',
-            classes: ['text-sm', 'text-base', 'text-lg', 'text-xl', 'text-2xl', 'font-medium',
-                'font-semibold', 'font-bold', 'text-center', 'uppercase', 'leading-tight'],
+            label: 'Font size',
+            family: ['text-xs', 'text-sm', 'text-base', 'text-lg', 'text-xl', 'text-2xl', 'text-3xl', 'text-4xl', 'text-5xl'],
+            options: [['text-sm', 'SM'], ['text-base', 'Base'], ['text-lg', 'LG'], ['text-xl', 'XL'], ['text-2xl', '2XL'], ['text-3xl', '3XL']],
         },
         {
-            label: 'Colors',
-            classes: ['text-white', 'text-gray-700', 'text-blue-600', 'bg-white', 'bg-gray-100',
-                'bg-blue-600', 'bg-blue-50', 'bg-gray-900'],
+            label: 'Transform',
+            family: ['uppercase', 'lowercase', 'capitalize', 'normal-case'],
+            options: [['uppercase', 'AB'], ['lowercase', 'ab'], ['capitalize', 'Ab'], ['normal-case', '—']],
         },
         {
-            label: 'Border / Radius',
-            classes: ['border', 'border-gray-300', 'rounded', 'rounded-lg', 'rounded-full',
-                'shadow', 'shadow-md', 'ring-1'],
+            label: 'Display',
+            family: ['block', 'inline-block', 'inline', 'flex', 'inline-flex', 'grid', 'hidden'],
+            options: [['block', 'Block'], ['flex', 'Flex'], ['grid', 'Grid'], ['inline-block', 'Inline'], ['hidden', 'Hide']],
+        },
+        {
+            label: 'Flex dir',
+            family: ['flex-row', 'flex-col', 'flex-row-reverse', 'flex-col-reverse'],
+            options: [['flex-row', 'Row'], ['flex-col', 'Column']],
+        },
+        {
+            label: 'Justify',
+            family: ['justify-start', 'justify-center', 'justify-end', 'justify-between', 'justify-around', 'justify-evenly'],
+            options: [['justify-start', 'Start'], ['justify-center', 'Center'], ['justify-end', 'End'], ['justify-between', 'Between']],
+        },
+        {
+            label: 'Align items',
+            family: ['items-start', 'items-center', 'items-end', 'items-stretch', 'items-baseline'],
+            options: [['items-start', 'Start'], ['items-center', 'Center'], ['items-end', 'End'], ['items-stretch', 'Stretch']],
+        },
+        {
+            label: 'Gap',
+            family: ['gap-0', 'gap-1', 'gap-2', 'gap-3', 'gap-4', 'gap-6', 'gap-8'],
+            options: [['gap-2', 'S'], ['gap-4', 'M'], ['gap-6', 'L'], ['gap-8', 'XL']],
+        },
+        {
+            label: 'Radius',
+            family: ['rounded-none', 'rounded-sm', 'rounded', 'rounded-md', 'rounded-lg', 'rounded-xl', 'rounded-2xl', 'rounded-full'],
+            options: [['rounded', 'SM'], ['rounded-lg', 'LG'], ['rounded-xl', 'XL'], ['rounded-full', 'Full']],
+        },
+        {
+            label: 'Shadow',
+            family: ['shadow-none', 'shadow-sm', 'shadow', 'shadow-md', 'shadow-lg', 'shadow-xl', 'shadow-2xl'],
+            options: [['shadow', 'SM'], ['shadow-md', 'MD'], ['shadow-lg', 'LG'], ['shadow-xl', 'XL']],
         },
     ];
 
@@ -59,22 +96,70 @@
                 .filter(Boolean).join('; ');
         }
 
-        function chipMarkup(node) {
+        /** Applied classes shown as removable chips. */
+        function classChipsMarkup(node) {
+            var list = currentClasses(node);
+            if (!list.length) {
+                return '<p class="nb-hint" style="margin:.2rem 0 0">No classes yet — use the quick styles below, or type in the box.</p>';
+            }
+            return '<div class="nb-cls-chips">' + list.map(function (c) {
+                return '<span class="nb-cls-chip">' + NB.escapeHtml(c) +
+                    '<button type="button" class="nb-cls-x" data-cls-remove="' + NB.escapeHtml(c) + '" title="Remove">&times;</button></span>';
+            }).join('') + '</div>';
+        }
+
+        /** Smart segmented controls (one exclusive family per row). */
+        function controlsMarkup(node) {
             var active = currentClasses(node);
             var html = '';
-            for (var g = 0; g < CHIP_GROUPS.length; g++) {
-                var group = CHIP_GROUPS[g];
-                html += '<div class="nb-chip-group"><div class="nb-chip-group-label">' +
-                    NB.escapeHtml(group.label) + '</div><div class="nb-chips">';
-                for (var c = 0; c < group.classes.length; c++) {
-                    var cls = group.classes[c];
+            for (var g = 0; g < CONTROL_GROUPS.length; g++) {
+                var grp = CONTROL_GROUPS[g];
+                var fam = grp.family.join(' ');
+                html += '<div class="nb-ctl-row"><span class="nb-ctl-label">' + NB.escapeHtml(grp.label) + '</span><div class="nb-ctl-opts">';
+                for (var o = 0; o < grp.options.length; o++) {
+                    var cls = grp.options[o][0], lbl = grp.options[o][1];
                     var on = active.indexOf(cls) !== -1;
-                    html += '<button type="button" class="nb-chip' + (on ? ' nb-chip-on' : '') +
-                        '" data-chip="' + NB.escapeHtml(cls) + '">' + NB.escapeHtml(cls) + '</button>';
+                    html += '<button type="button" class="nb-ctl-btn' + (on ? ' nb-ctl-on' : '') +
+                        '" data-ctl="' + NB.escapeHtml(cls) + '" data-family="' + NB.escapeHtml(fam) +
+                        '" title="' + NB.escapeHtml(cls) + '">' + NB.escapeHtml(lbl) + '</button>';
                 }
                 html += '</div></div>';
             }
             return html;
+        }
+
+        var RICH_COLORS = ['#111827', '#dc2626', '#ea580c', '#d97706', '#16a34a', '#2563eb', '#7c3aed', '#db2777', '#6b7280', '#ffffff'];
+
+        /** Mini WYSIWYG toolbar for the content box (bold / italic / underline / colour). */
+        function richToolbar() {
+            var swatches = RICH_COLORS.map(function (c) {
+                return '<button type="button" class="nb-rich-color" data-rich-color="' + c + '" style="background:' + c + '" title="' + c + '"></button>';
+            }).join('');
+            return '<div class="nb-rich-toolbar">' +
+                '<button type="button" class="nb-rich-btn" data-rich="bold" title="Bold"><b>B</b></button>' +
+                '<button type="button" class="nb-rich-btn" data-rich="italic" title="Italic"><i>I</i></button>' +
+                '<button type="button" class="nb-rich-btn" data-rich="underline" title="Underline"><u>U</u></button>' +
+                '<button type="button" class="nb-rich-btn" data-rich-link title="Insert / edit link">&#128279;</button>' +
+                '<span class="nb-rich-sep"></span>' + swatches +
+                '<button type="button" class="nb-rich-btn nb-rich-clear" data-rich="removeFormat" title="Clear formatting">&times;</button>' +
+                '</div>';
+        }
+
+        /** Read the content WYSIWYG box into the selected node (html if formatted, else plain). */
+        function syncRich() {
+            var box = state.els.inspector.querySelector('[data-field="rich"]');
+            if (!box) { return; }
+            var located = state.selectedId ? state.findNode(state.selectedId) : null;
+            if (!located) { return; }
+            var n = located.node;
+            if (box.children.length > 0) {
+                n.html = box.innerHTML;
+                n.content = box.textContent;
+            } else {
+                delete n.html;
+                var t = box.textContent;
+                if (t && t.trim() !== '') { n.content = t; } else { delete n.content; }
+            }
         }
 
         /** Build <option>s for the source select from the (server-rendered) token sources. */
@@ -157,10 +242,11 @@
                     '<div class="nb-field"><label>Tag (type)</label>' +
                     '<input data-field="type" value="' + NB.escapeHtml(n.type || '') + '"></div>' +
                     '<div class="nb-field"><label>Classes</label>' +
-                    '<input data-field="classes" value="' + NB.escapeHtml(n.classes || '') + '"></div>' +
+                    '<div data-cls-chips>' + classChipsMarkup(n) + '</div>' +
+                    '<input data-field="classes" value="' + NB.escapeHtml(n.classes || '') + '" placeholder="add classes, space-separated"></div>' +
                     (isLoop ? '' : '<button type="button" data-act="make-loop" class="nb-make-loop">↻ Make this a Repeater (loop)</button>') +
-                    '<div class="nb-field"><label>Class picker</label>' +
-                    '<div data-chips class="nb-chip-picker">' + chipMarkup(n) + '</div></div>' +
+                    '<div class="nb-field"><label>Quick styles</label>' +
+                    '<div data-controls class="nb-controls">' + controlsMarkup(n) + '</div></div>' +
                     (isImg
                         ? '<div class="nb-field"><label>Image source</label>' +
                           '<div class="nb-img-src-row">' +
@@ -168,8 +254,11 @@
                           '<button type="button" data-act="pick-image" class="nb-pick-btn">&#128247; Pick</button>' +
                           '</div></div>'
                         : '') +
-                    '<div class="nb-field"><label>Content (direct text)</label>' +
-                    '<textarea data-field="content" rows="2">' + NB.escapeHtml(n.content || '') + '</textarea></div>' +
+                    '<div class="nb-field"><label>Content</label>' +
+                    richToolbar() +
+                    '<div class="nb-rich" data-field="rich" contenteditable="true" spellcheck="false">' +
+                    (n.html != null && String(n.html).trim() !== '' ? n.html : NB.escapeHtml(n.content || '')) +
+                    '</div></div>' +
                     '<div class="nb-field"><label>Attributes</label>' +
                     '<div data-attrs>' + attrRows + '</div>' +
                     '<button data-act="add-attr" class="nb-add-attr">+ Add attribute</button></div>' +
@@ -206,7 +295,7 @@
             var nameEl = ins.querySelector('[data-field="name"]');
             var typeEl = ins.querySelector('[data-field="type"]');
             var classesEl = ins.querySelector('[data-field="classes"]');
-            var contentEl = ins.querySelector('[data-field="content"]');
+            var richEl = ins.querySelector('[data-field="rich"]');
             if (nameEl) {
                 var nm = nameEl.value.trim();
                 if (nm) { n._name = nm; } else { delete n._name; }
@@ -216,7 +305,16 @@
                 n.classes = classesEl.value.trim();
                 if (n.classes === '') { delete n.classes; }
             }
-            if (contentEl) { n.content = contentEl.value; }
+            if (richEl) {
+                if (richEl.children.length > 0) {
+                    n.html = richEl.innerHTML;
+                    n.content = richEl.textContent;
+                } else {
+                    delete n.html;
+                    var rt = richEl.textContent;
+                    if (rt && rt.trim() !== '') { n.content = rt; } else { delete n.content; }
+                }
+            }
             var attrs = collectAttrs();
             var styleEl = ins.querySelector('[data-field="style"]');
             if (styleEl) {
@@ -259,13 +357,28 @@
             render();
         }
 
-        function toggleChip(cls) {
+        /**
+         * Apply an exclusive control: drop every class in the family, then add the
+         * chosen one — unless it was already active, in which case clear the family.
+         */
+        function applyControl(cls, familyStr) {
             var located = state.selectedId ? state.findNode(state.selectedId) : null;
             if (!located) { return; }
             var n = located.node;
+            var family = familyStr.split(/\s+/).filter(Boolean);
             var list = currentClasses(n);
-            var idx = list.indexOf(cls);
-            if (idx === -1) { list.push(cls); } else { list.splice(idx, 1); }
+            var wasOn = list.indexOf(cls) !== -1;
+            list = list.filter(function (c) { return family.indexOf(c) === -1; });
+            if (!wasOn) { list.push(cls); }
+            if (list.length) { n.classes = list.join(' '); } else { delete n.classes; }
+            controller.afterChipToggle();
+        }
+
+        function removeClass(cls) {
+            var located = state.selectedId ? state.findNode(state.selectedId) : null;
+            if (!located) { return; }
+            var n = located.node;
+            var list = currentClasses(n).filter(function (c) { return c !== cls; });
             if (list.length) { n.classes = list.join(' '); } else { delete n.classes; }
             controller.afterChipToggle();
         }
@@ -280,6 +393,45 @@
                 });
                 var body = state.els.inspector.querySelector('.nb-insp-body');
                 if (body) { body.setAttribute('data-insp-active', state.inspectorTab); }
+                return;
+            }
+            var richBtn = e.target.closest('[data-rich]');
+            if (richBtn) {
+                e.preventDefault();
+                try { document.execCommand(richBtn.dataset.rich, false, null); } catch (err) { /* noop */ }
+                syncRich();
+                controller.applyInspector();
+                return;
+            }
+            var richLink = e.target.closest('[data-rich-link]');
+            if (richLink) {
+                e.preventDefault();
+                var sel = window.getSelection();
+                var savedRange = (sel && sel.rangeCount) ? sel.getRangeAt(0).cloneRange() : null;
+                var url = window.prompt('Link URL (leave empty to remove the link):', 'https://');
+                if (url !== null) {
+                    if (savedRange) { sel.removeAllRanges(); sel.addRange(savedRange); }
+                    try {
+                        if (url.trim() === '') {
+                            document.execCommand('unlink', false, null);
+                        } else {
+                            document.execCommand('createLink', false, url.trim());
+                        }
+                    } catch (err) { /* noop */ }
+                    syncRich();
+                    controller.applyInspector();
+                }
+                return;
+            }
+            var richColor = e.target.closest('[data-rich-color]');
+            if (richColor) {
+                e.preventDefault();
+                try {
+                    document.execCommand('styleWithCSS', false, true);
+                    document.execCommand('foreColor', false, richColor.dataset.richColor);
+                } catch (err) { /* noop */ }
+                syncRich();
+                controller.applyInspector();
                 return;
             }
             if (e.target.closest('[data-act="pick-image"]')) {
@@ -313,10 +465,16 @@
                 }
                 return;
             }
-            var chip = e.target.closest('[data-chip]');
-            if (chip) {
+            var ctl = e.target.closest('[data-ctl]');
+            if (ctl) {
                 e.preventDefault();
-                toggleChip(chip.dataset.chip);
+                applyControl(ctl.dataset.ctl, ctl.dataset.family || '');
+                return;
+            }
+            var clsX = e.target.closest('[data-cls-remove]');
+            if (clsX) {
+                e.preventDefault();
+                removeClass(clsX.dataset.clsRemove);
                 return;
             }
             if (e.target.closest('.nb-attr-del')) {
@@ -344,6 +502,14 @@
             applyToNode();
             controller.applyInspector();
         }
+
+        // Keep the text selection inside the content box when a toolbar button is
+        // pressed (otherwise the click would blur it and execCommand would no-op).
+        state.els.inspector.addEventListener('mousedown', function (e) {
+            if (e.target.closest('[data-rich], [data-rich-color], [data-rich-link]')) {
+                e.preventDefault();
+            }
+        });
 
         state.els.inspector.addEventListener('click', onClick);
         state.els.inspector.addEventListener('input', onInput);

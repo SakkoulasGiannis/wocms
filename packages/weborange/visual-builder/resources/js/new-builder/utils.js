@@ -49,7 +49,9 @@
         if (node.attributes && Object.keys(node.attributes).length > 0) {
             out.attributes = Object.assign({}, node.attributes);
         }
-        if (node.content !== undefined && node.content !== null && String(node.content).trim() !== '') {
+        if (node.html !== undefined && node.html !== null && String(node.html).trim() !== '') {
+            out.html = String(node.html);
+        } else if (node.content !== undefined && node.content !== null && String(node.content).trim() !== '') {
             out.content = String(node.content).trim();
         }
         out.children = (node.children || []).map(NB.clean);
@@ -73,6 +75,9 @@
             }
             if (node.content !== undefined && node.content !== null && String(node.content) !== '') {
                 out.content = node.content;
+            }
+            if (node.html !== undefined && node.html !== null && String(node.html) !== '') {
+                out.html = node.html;
             }
             if (node._id) { out._id = node._id; }
             if (node._name) { out._name = node._name; }

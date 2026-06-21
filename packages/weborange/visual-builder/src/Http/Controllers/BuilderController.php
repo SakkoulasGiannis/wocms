@@ -19,12 +19,18 @@ class BuilderController extends Controller
         private readonly TokenSource $tokens,
     ) {}
 
-    public function index()
+    public function index(Request $request)
     {
+        $targetId = $request->query('target');
+        $seed = ($targetId !== null && $targetId !== '') ? $this->persistence->seedFor($targetId) : null;
+
         return view('visual-builder::builder', [
             'vbTargets' => $this->persistence->targets(),
             'vbSources' => $this->tokens->sources(),
+            'vbForms' => $this->tokens->forms(),
             'vbAssetVersion' => $this->assetVersion(),
+            'vbSeedHtml' => $seed,
+            'vbPreselectTarget' => $targetId,
         ]);
     }
 
@@ -47,6 +53,7 @@ class BuilderController extends Controller
             'section_id' => 'nullable',
             'name' => 'nullable|string|max:160',
             'convert' => 'sometimes|boolean',
+            'replace' => 'sometimes|boolean',
             'loop_source' => 'nullable|string',
             'loop_columns' => 'nullable|integer',
             'loop_limit' => 'nullable|integer',
@@ -70,6 +77,7 @@ class BuilderController extends Controller
             'html' => $data['html'],
             'name' => (string) ($data['name'] ?? ''),
             'convert' => (bool) ($data['convert'] ?? false),
+            'replace' => (bool) ($data['replace'] ?? false),
             'loop' => $loop,
         ]);
 

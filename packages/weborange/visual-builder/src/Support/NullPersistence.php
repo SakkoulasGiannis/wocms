@@ -21,6 +21,11 @@ class NullPersistence implements BuilderPersistence
         return [];
     }
 
+    public function seedFor(int|string $targetId): ?string
+    {
+        return null;
+    }
+
     public function save(array $payload): array
     {
         return [

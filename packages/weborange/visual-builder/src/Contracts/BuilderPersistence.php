@@ -24,6 +24,13 @@ interface BuilderPersistence
     public function sections(int|string $targetId): array;
 
     /**
+     * The current content of a target, as HTML, to seed the builder with for
+     * editing (migrating an existing page into the builder). Return null/'' to
+     * start blank.
+     */
+    public function seedFor(int|string $targetId): ?string;
+
+    /**
      * Persist the builder output.
      *
      * @param  array{

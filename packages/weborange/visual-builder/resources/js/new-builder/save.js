@@ -23,6 +23,7 @@
         var panel = rootEl.querySelector('[data-save-panel]');
         var result = rootEl.querySelector('[data-save-result]');
         var sectionHtml = {}; // section id -> stored html (for load-back)
+        var migrateMode = false; // opened with ?target= → save directly, panel stays closed
 
         function currentHtml() {
             var ta = rootEl.querySelector('[data-pane="html"]');
@@ -44,6 +45,29 @@
             result.innerHTML = html;
         }
 
+        /** Lightweight self-contained toast (no external dependency). */
+        function toast(message, ok) {
+            var host = document.querySelector('[data-nb-toasts]');
+            if (!host) {
+                host = document.createElement('div');
+                host.setAttribute('data-nb-toasts', '');
+                host.style.cssText = 'position:fixed;top:16px;right:16px;z-index:99999;display:flex;flex-direction:column;gap:8px;pointer-events:none';
+                document.body.appendChild(host);
+            }
+            var el = document.createElement('div');
+            el.style.cssText = 'min-width:200px;max-width:360px;padding:10px 14px;border-radius:8px;font:600 13px/1.4 ui-sans-serif,system-ui,sans-serif;' +
+                'color:#fff;box-shadow:0 8px 24px rgba(0,0,0,.18);opacity:0;transform:translateY(-8px);transition:opacity .2s,transform .2s;' +
+                'background:' + (ok ? '#059669' : '#dc2626');
+            el.textContent = (ok ? '✓ ' : '✕ ') + message;
+            host.appendChild(el);
+            requestAnimationFrame(function () { el.style.opacity = '1'; el.style.transform = 'translateY(0)'; });
+            setTimeout(function () {
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(-8px)';
+                setTimeout(function () { el.remove(); }, 220);
+            }, 2600);
+        }
+
         function escapeHtml(s) {
             return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         }
@@ -63,8 +87,45 @@
             if (loadBtn) { loadBtn.disabled = !sectionValue(); }
         }
 
+        /** Point the toolbar "View page" button at the selected target's live URL. */
+        function syncViewPage() {
+            var btn = rootEl.querySelector('[data-view-page]');
+            var sel = rootEl.querySelector('[data-save-page]');
+            if (!btn || !sel) { return; }
+            var opt = sel.options[sel.selectedIndex];
+            var url = opt ? (opt.getAttribute('data-url') || '') : '';
+            if (url) {
+                btn.href = url;
+                btn.classList.remove('hidden');
+                btn.classList.add('inline-flex');
+            } else {
+                btn.href = '#';
+                btn.classList.add('hidden');
+                btn.classList.remove('inline-flex');
+            }
+        }
+
+        /**
+         * Hide the migration-only options (Replace page content) when editing an
+         * existing section in place — they only make sense for a fresh save.
+         */
+        function updateReplaceVisibility() {
+            var replaceRow = rootEl.querySelector('[data-save-replace]');
+            replaceRow = replaceRow ? replaceRow.closest('label') : null;
+            if (!replaceRow) { return; }
+            var editingExisting = !!sectionValue();
+            replaceRow.style.display = editingExisting ? 'none' : '';
+            if (editingExisting) {
+                var box = rootEl.querySelector('[data-save-replace]');
+                if (box) { box.checked = false; }
+            }
+            // Update the submit button label to reflect update vs create.
+            var btn = rootEl.querySelector('[data-save-submit]');
+            if (btn) { btn.textContent = editingExisting ? 'Save changes' : 'Save section'; }
+        }
+
         /** Fetch the page's existing html-sections into the Section dropdown. */
-        function refreshSections(selectId) {
+        function refreshSections(selectId, autoSingle) {
             var sel = rootEl.querySelector('[data-save-section]');
             var pageId = pageValue();
             if (!sel || !sectionsUrl || !pageId) { return; }
@@ -79,8 +140,18 @@
                         html += '<option value="' + s.id + '">' + escapeHtml(s.name) + '</option>';
                     });
                     sel.innerHTML = html;
-                    if (selectId) { sel.value = String(selectId); }
+                    if (selectId) {
+                        sel.value = String(selectId);
+                    } else if (autoSingle && list.length === 1) {
+                        // Editing a page with a single section → select it so Save
+                        // updates it in place instead of appending a duplicate.
+                        sel.value = String(list[0].id);
+                        var nameEl = rootEl.querySelector('[data-save-name]');
+                        if (nameEl) { nameEl.value = list[0].name; }
+                        setResult('Editing section “' + escapeHtml(list[0].name) + '” — Save updates it in place.', true);
+                    }
                     syncLoadBtn();
+                    updateReplaceVisibility();
                 })
                 .catch(function () { /* leave the dropdown as-is on failure */ });
         }
@@ -112,12 +183,14 @@
             var html = currentHtml();
             if (!html) { setResult('Nothing to save — the builder is empty.', false); return; }
 
+            var replaceEl = rootEl.querySelector('[data-save-replace]');
             var body = {
                 target_id: pageId,
                 section_id: sectionValue() || null,
                 html: html,
                 name: nameEl ? nameEl.value : '',
                 convert: convertEl && convertEl.checked ? 1 : 0,
+                replace: replaceEl && replaceEl.checked ? 1 : 0,
             };
 
             var loopOn = rootEl.querySelector('[data-save-loop]');
@@ -152,6 +225,7 @@
                     var live = j.url ? ' &middot; <a href="' + j.url + '" target="_blank" class="underline font-semibold">View live &#8599;</a>' : '';
                     var edit = j.edit_url ? ' &middot; <a href="' + j.edit_url + '" target="_blank" class="underline">Open page editor</a>' : '';
                     setResult(escapeHtml(j.message || 'Saved.') + live + edit, true);
+                    toast(j.message || 'Saved', true);
                     refreshSections(j.section_id); // reflect the new/updated section, keep it selected
                 } else if (j.needs_convert) {
                     setResult(escapeHtml(j.message || 'Page is not in sections mode.') +
@@ -170,7 +244,16 @@
         rootEl.addEventListener('click', function (e) {
             if (e.target.closest('[data-save-open]')) {
                 e.preventDefault();
-                open();
+                // Primary Save: in migrate/edit mode (target preselected) or when the
+                // panel is already open, this saves directly. In generic mode it opens
+                // the panel first so the user can pick a target/section.
+                var openBtn = e.target.closest('[data-save-open]');
+                var panelVisible = panel && !panel.classList.contains('hidden');
+                if (pageValue() && (migrateMode || panelVisible)) {
+                    submit(openBtn);
+                } else {
+                    open();
+                }
             } else if (e.target.closest('[data-save-cancel]')) {
                 e.preventDefault();
                 close();
@@ -186,12 +269,30 @@
         rootEl.addEventListener('change', function (e) {
             if (e.target.closest('[data-save-page]')) {
                 refreshSections(); // new page → reload its sections (resets to "New section")
+                syncViewPage();
             } else if (e.target.closest('[data-save-section]')) {
                 syncLoadBtn();
+                updateReplaceVisibility();
             } else if (e.target.closest('[data-save-loop]')) {
                 var box = rootEl.querySelector('[data-save-loop-config]');
                 if (box) { box.classList.toggle('hidden', !e.target.checked); }
             }
         });
+
+        // Migrate flow: when opened with ?target=, preselect that page + open the
+        // Save panel so it's clear where edits go.
+        var preselect = cfg.getAttribute('data-preselect-target');
+        if (preselect) {
+            // Edit mode: keep the panel closed (don't nag on every load); preselect
+            // the page + its single section silently so the top-right Save writes
+            // straight back to it in one click.
+            migrateMode = true;
+            var pageSel = rootEl.querySelector('[data-save-page]');
+            if (pageSel) { pageSel.value = preselect; }
+            refreshSections(null, true);
+        }
+
+        // Point the toolbar "View page" button at whatever target is selected.
+        syncViewPage();
     };
 }());

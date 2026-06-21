@@ -161,16 +161,45 @@
         },
     ];
 
+    /** Build a "Forms" group from the host-provided list (one block per form). */
+    function formsGroup(rootEl) {
+        var el = rootEl.querySelector('[data-vb-forms]');
+        if (!el) { return null; }
+        var forms;
+        try { forms = JSON.parse(el.textContent || '[]'); } catch (e) { forms = []; }
+        if (!forms || !forms.length) { return null; }
+        return {
+            label: 'Forms',
+            items: forms.map(function (f) {
+                return {
+                    label: '📋 ' + f.name,
+                    make: function () {
+                        return {
+                            type: 'div', classes: 'vb-form my-6', attributes: { 'data-vb-form': f.slug },
+                            children: [
+                                { type: 'p', classes: 'text-sm text-gray-500 italic border border-dashed border-gray-300 rounded p-4 text-center', content: '📋 Form: ' + f.name + ' (renders live on the page)' },
+                            ],
+                        };
+                    },
+                };
+            }),
+        };
+    }
+
     NB.createPalette = function createPalette(rootEl) {
         var panel = rootEl.querySelector('[data-palette-panel]');
         var list = rootEl.querySelector('[data-palette-list]');
         if (!panel || !list) { return; }
 
+        var groups = GROUPS.slice();
+        var fg = formsGroup(rootEl);
+        if (fg) { groups.push(fg); }
+
         // Flatten items so a button can reference its factory by index.
         var items = [];
         var html = '';
-        for (var g = 0; g < GROUPS.length; g++) {
-            var group = GROUPS[g];
+        for (var g = 0; g < groups.length; g++) {
+            var group = groups[g];
             html += '<div class="nb-pal-group"><div class="nb-pal-group-label">' +
                 NB.escapeHtml(group.label) + '</div><div class="nb-pal-buttons">';
             for (var i = 0; i < group.items.length; i++) {

@@ -125,6 +125,11 @@
                         '<div style="padding:1rem;color:#9ca3af;font-size:.85rem">Loading items…</div>' +
                         '</' + type + '>';
                 }
+                // Rich inline content (content WYSIWYG): emit verbatim.
+                var rawHtml = (node.html != null) ? String(node.html).trim() : '';
+                if (rawHtml !== '') {
+                    return indent + '<' + type + attrs + '>' + rawHtml + '</' + type + '>';
+                }
                 var hasContent = content !== '';
                 var hasChildren = children.length > 0;
                 if (!hasContent && !hasChildren) {
@@ -172,6 +177,17 @@
             }
         }
 
+        /** Host theme stylesheets to mirror the live site in the preview. */
+        function extraCssLinks() {
+            var el = state.rootEl.querySelector('[data-preview-css]');
+            if (!el) { return ''; }
+            var urls;
+            try { urls = JSON.parse(el.textContent || '[]'); } catch (e) { urls = []; }
+            return (urls || []).map(function (u) {
+                return '<link rel="stylesheet" href="' + String(u).replace(/"/g, '&quot;') + '">';
+            }).join('');
+        }
+
         function buildDoc(withIds) {
             var html = withIds
                 ? htmlWithIds()
@@ -186,6 +202,7 @@
                 '<meta name="viewport" content="width=device-width, initial-scale=1">' +
                 frameworkHead(fw) +
                 '<style>body{margin:0;padding:16px;background:#fff;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}</style>' +
+                extraCssLinks() +
                 hoverStyle +
                 '</head><body>' + (html || '') + '</body></html>';
         }

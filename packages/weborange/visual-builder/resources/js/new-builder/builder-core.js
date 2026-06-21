@@ -41,6 +41,14 @@
         'link', 'meta', 'param', 'source', 'track', 'wbr',
     ]);
 
+    // Text-formatting tags. When an element's children are ALL of these, its inner
+    // markup is preserved verbatim as `html` (rich inline content) instead of being
+    // split into child nodes — so bold / colour spans survive the round-trip.
+    const INLINE_FORMAT_TAGS = new Set([
+        'strong', 'b', 'em', 'i', 'u', 's', 'strike', 'del', 'ins', 'mark',
+        'small', 'sub', 'sup', 'code', 'span', 'br', 'font',
+    ]);
+
     /**
      * Get a DOMParser-like environment. In the browser we use the real one.
      * In Node (for tests) the caller may inject a parser via setDomParser().
@@ -98,9 +106,36 @@
             node.attributes = attributes;
         }
 
+        const childNodes = el.childNodes ? Array.from(el.childNodes) : [];
+        const childEls = childNodes.filter(function (c) { return c.nodeType === 1; });
+        const hasDirectText = childNodes.some(function (c) {
+            return c.nodeType === 3 && (c.nodeValue || '').trim() !== '';
+        });
+
+        // Rich inline content: keep the inner HTML verbatim as `html` (so bold /
+        // colour / inline links survive) when the children are text-formatting tags.
+        // Links (<a>) only count as rich when mixed with direct text — that way a
+        // standalone link/button stays an editable tree node.
+        const allPureFmt = childEls.length > 0 && childEls.every(function (c) {
+            return INLINE_FORMAT_TAGS.has((c.tagName || '').toLowerCase());
+        });
+        const allFmtOrLink = childEls.length > 0 && childEls.every(function (c) {
+            const t = (c.tagName || '').toLowerCase();
+            return INLINE_FORMAT_TAGS.has(t) || t === 'a';
+        });
+        const allInline = allPureFmt || (allFmtOrLink && hasDirectText);
+        if (allInline) {
+            node.html = (el.innerHTML || '').trim();
+            const richText = (el.textContent || '').trim();
+            if (richText !== '') {
+                node.content = richText;
+            }
+            node.children = [];
+            return node;
+        }
+
         let directText = '';
         const children = [];
-        const childNodes = el.childNodes ? Array.from(el.childNodes) : [];
         for (const child of childNodes) {
             if (child.nodeType === 3) { // text node
                 directText += child.nodeValue || '';
@@ -187,6 +222,12 @@
 
         if (VOID_ELEMENTS.has(type)) {
             return `${indent}<${type}${attrs}>`;
+        }
+
+        // Rich inline HTML (from the content WYSIWYG): emit verbatim, no escaping.
+        const rawHtml = (node.html !== undefined && node.html !== null) ? String(node.html).trim() : '';
+        if (rawHtml !== '') {
+            return `${indent}<${type}${attrs}>${rawHtml}</${type}>`;
         }
 
         const hasContent = content !== '';

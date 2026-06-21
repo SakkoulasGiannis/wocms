@@ -24,6 +24,14 @@ interface TokenSource
     public function tokens(string $source): array;
 
     /**
+     * Embeddable forms the builder can drop into a page (slug + display name).
+     * Return an empty array if the host has no forms feature.
+     *
+     * @return array<int, array{slug:string, name:string}>
+     */
+    public function forms(): array;
+
+    /**
      * Render a repeater's item template once per entity of the query, with
      * {tokens} resolved against each entity. Powers the live preview and the
      * frontend expansion of data-vb-loop regions.
