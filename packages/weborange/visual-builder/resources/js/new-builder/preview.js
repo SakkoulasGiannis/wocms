@@ -16,10 +16,12 @@
     var Core = window.NewBuilderCore;
 
     var WIDTHS = { mobile: 375, tablet: 768, full: null };
+    var DESKTOP_W = 1280; // real width the "Desktop" preview renders at (then scaled to fit)
 
     NB.createPreview = function createPreview(state, controller) {
         var loadCallbacks = [];
         var loopCache = {};
+        var sliderCache = {};
 
         function sampleConfig() {
             var cfg = state.rootEl.querySelector('[data-save-config]');
@@ -69,6 +71,7 @@
                         source: query.source, item_html: itemHtml,
                         limit: query.limit, order_by: query.order_by, order_dir: query.order_dir,
                         offset: query.offset, filter_field: query.filter_field, filter_value: query.filter_value,
+                        ids: query.ids, parent: query.parent,
                     }),
                 }).then(function (r) { return r.json(); }).then(function (j) {
                     var items = (j && j.items) || [];
@@ -80,6 +83,50 @@
                     var el2 = doc2 && doc2.querySelector('[data-nb-id="' + node._id + '"]');
                     if (el2) { el2.innerHTML = out; }
                 }).catch(function () { /* leave template as-is on failure */ });
+            });
+        }
+
+        function collectSliderNodes(nodes, out) {
+            nodes = nodes || state.roots;
+            out = out || [];
+            for (var i = 0; i < nodes.length; i++) {
+                var n = nodes[i];
+                if (n.attributes && n.attributes['data-vb-slider'] != null) { out.push(n); }
+                if (n.children && n.children.length) { collectSliderNodes(n.children, out); }
+            }
+            return out;
+        }
+
+        /**
+         * Replace each [data-vb-slider] block with the real rendered slider HTML
+         * from the host, so the preview shows the slider instead of a placeholder.
+         */
+        function hydrateSliders() {
+            var cfgEl = state.rootEl.querySelector('[data-save-config]');
+            var url = cfgEl ? cfgEl.getAttribute('data-slider-url') : null;
+            if (!url) { return; }
+            var iframe = state.els.preview;
+            var doc = iframe && iframe.contentDocument;
+            if (!doc) { return; }
+
+            collectSliderNodes().forEach(function (node) {
+                var id = node.attributes['data-vb-slider'];
+                if (!id) { return; }
+                var el = doc.querySelector('[data-nb-id="' + node._id + '"]');
+                if (!el) { return; }
+                var key = node._id + '|' + id;
+                if (sliderCache[key] != null) { el.innerHTML = sliderCache[key]; return; }
+
+                fetch(url + '?id=' + encodeURIComponent(id), { headers: { Accept: 'application/json' } })
+                    .then(function (r) { return r.json(); }).then(function (j) {
+                        var out = (j && j.html)
+                            ? j.html
+                            : '<div style="padding:1rem;color:#9ca3af;font-size:.85rem">Slider not found (check it is active and has slides).</div>';
+                        sliderCache[key] = out;
+                        var doc2 = iframe.contentDocument;
+                        var el2 = doc2 && doc2.querySelector('[data-nb-id="' + node._id + '"]');
+                        if (el2) { el2.innerHTML = out; }
+                    }).catch(function () { /* leave placeholder on failure */ });
             });
         }
 
@@ -123,6 +170,13 @@
                 if (node.attributes && node.attributes['data-vb-loop'] != null) {
                     return indent + '<' + type + attrs + '>' +
                         '<div style="padding:1rem;color:#9ca3af;font-size:.85rem">Loading items…</div>' +
+                        '</' + type + '>';
+                }
+                // Slider embed: leave the wrapper empty here — hydrateSliders fills
+                // it with the real rendered slider.
+                if (node.attributes && node.attributes['data-vb-slider'] != null) {
+                    return indent + '<' + type + attrs + '>' +
+                        '<div style="padding:1rem;color:#9ca3af;font-size:.85rem">Loading slider…</div>' +
                         '</' + type + '>';
                 }
                 // Rich inline content (content WYSIWYG): emit verbatim.
@@ -203,6 +257,7 @@
                 frameworkHead(fw) +
                 '<style>body{margin:0;padding:16px;background:#fff;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}</style>' +
                 extraCssLinks() +
+                (state.globalCss ? '<style data-vb-global-preview>' + state.globalCss + '</style>' : '') +
                 hoverStyle +
                 '</head><body>' + (html || '') + '</body></html>';
         }
@@ -215,10 +270,23 @@
          * left the preview unbound (no hover, no click-to-select) until the
          * first edit forced a re-render.
          */
+        function previewStage() {
+            return state.rootEl.querySelector('.nb-preview-stage');
+        }
+        var savedScroll = 0;
+        function restoreScroll() {
+            var stage = previewStage();
+            if (stage) { stage.scrollTop = savedScroll; }
+        }
+
         function bindOnNextLoad(iframe) {
             function once() {
                 iframe.removeEventListener('load', once);
                 loadCallbacks.forEach(function (cb) { cb(); });
+                applyFrame();
+                restoreScroll(); // re-render reset the preview scroll — put it back
+                // Re-measure + re-restore after async loop hydration / images settle.
+                setTimeout(function () { applyFrame(); restoreScroll(); }, 700);
             }
             iframe.addEventListener('load', once);
         }
@@ -229,6 +297,9 @@
             if (!iframe) { return; }
             clearTimeout(timer);
             timer = setTimeout(function () {
+                // Remember the scroll position so the re-render doesn't jump to top.
+                var stage = previewStage();
+                if (stage) { savedScroll = stage.scrollTop; }
                 bindOnNextLoad(iframe);
                 iframe.srcdoc = buildDoc(true);
             }, 350);
@@ -239,12 +310,55 @@
             window.open(URL.createObjectURL(blob), '_blank', 'noopener');
         }
 
-        function setWidth(key) {
-            state.previewWidth = key;
+        /** Wrap the iframe once so we can scale a desktop-width frame to fit the pane. */
+        function ensureWrap(iframe) {
+            var wrap = iframe.parentElement;
+            if (wrap && wrap.hasAttribute('data-preview-wrap')) { return wrap; }
+            wrap = document.createElement('div');
+            wrap.setAttribute('data-preview-wrap', '');
+            wrap.style.cssText = 'position:relative;overflow:hidden;flex:0 0 auto;box-shadow:0 1px 4px rgba(0,0,0,.08);background:#fff;';
+            iframe.parentNode.insertBefore(wrap, iframe);
+            wrap.appendChild(iframe);
+            return wrap;
+        }
+
+        /**
+         * Render the chosen device width at its REAL pixel width (so Tailwind's
+         * responsive breakpoints fire) and scale the whole frame down to fit the
+         * (often narrow) preview pane. Height follows the rendered content so the
+         * pane scrolls vertically.
+         */
+        function applyFrame() {
             var iframe = state.els.preview;
             if (!iframe) { return; }
-            var px = WIDTHS[key];
-            iframe.style.width = px ? (px + 'px') : '100%';
+            var wrap = ensureWrap(iframe);
+            var stage = wrap.parentElement;
+            var key = state.previewWidth || 'full';
+            var fixed = WIDTHS[key]; // 375 / 768 for mobile|tablet, null for desktop
+            var availW = stage ? Math.max(240, stage.clientWidth - 24) : DESKTOP_W;
+            // Desktop: fill ALL available width (so it isn't capped at 1280 on wide
+            // screens), but never below DESKTOP_W so md:/lg: breakpoints still fire.
+            var target = fixed || Math.max(DESKTOP_W, availW);
+            var scale = availW < target ? (availW / target) : 1;
+            var minH = stage ? Math.max(320, stage.clientHeight - 24) : 640;
+            var docH = 0;
+            try {
+                docH = (iframe.contentDocument && iframe.contentDocument.body)
+                    ? iframe.contentDocument.body.scrollHeight : 0;
+            } catch (e) { docH = 0; }
+            var frameH = Math.max(Math.round(minH / scale), docH || 0) || minH;
+            iframe.style.maxWidth = 'none';
+            iframe.style.width = target + 'px';
+            iframe.style.height = frameH + 'px';
+            iframe.style.transformOrigin = 'top left';
+            iframe.style.transform = scale < 1 ? 'scale(' + scale + ')' : 'none';
+            wrap.style.width = Math.round(target * scale) + 'px';
+            wrap.style.height = Math.round(frameH * scale) + 'px';
+        }
+
+        function setWidth(key) {
+            state.previewWidth = key;
+            applyFrame();
             var buttons = state.rootEl.querySelectorAll('[data-width]');
             buttons.forEach(function (b) {
                 b.classList.toggle('nb-width-on', b.dataset.width === key);
@@ -257,6 +371,17 @@
 
         // Hydrate repeaters with real data after every (re)render.
         loadCallbacks.push(hydrateLoops);
+        loadCallbacks.push(hydrateSliders);
+
+        // Wrap the (still empty) iframe now so re-parenting never reloads content later.
+        if (state.els.preview) { ensureWrap(state.els.preview); }
+
+        // Re-fit the scaled preview when the window/pane resizes.
+        var resizeTimer = null;
+        window.addEventListener('resize', function () {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(applyFrame, 120);
+        });
 
         return {
             render: render,

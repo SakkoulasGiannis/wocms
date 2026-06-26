@@ -4,8 +4,10 @@ namespace Weborange\VisualBuilder;
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Weborange\VisualBuilder\Contracts\AiGenerator;
 use Weborange\VisualBuilder\Contracts\BuilderPersistence;
 use Weborange\VisualBuilder\Contracts\TokenSource;
+use Weborange\VisualBuilder\Support\NullAiGenerator;
 use Weborange\VisualBuilder\Support\NullPersistence;
 use Weborange\VisualBuilder\Support\NullTokenSource;
 
@@ -19,6 +21,7 @@ class VisualBuilderServiceProvider extends ServiceProvider
         // saving and dynamic tokens. bindIf so the host always wins.
         $this->app->bindIf(BuilderPersistence::class, NullPersistence::class);
         $this->app->bindIf(TokenSource::class, NullTokenSource::class);
+        $this->app->bindIf(AiGenerator::class, NullAiGenerator::class);
     }
 
     public function boot(): void

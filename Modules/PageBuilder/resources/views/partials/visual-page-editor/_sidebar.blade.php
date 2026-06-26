@@ -74,10 +74,11 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M21 7v6h-6M21 13a9 9 0 1 1-3-7.7L21 8"/>
                     </svg>
                 </button>
-                @if ($sectionableType === \App\Models\Page::class)
-                    <a href="{{ route('admin.visual-builder.index', ['target' => $sectionableId]) }}"
+                @php($vbNode = \App\Models\ContentNode::where('content_type', $sectionableType)->where('content_id', $sectionableId)->first())
+                @if ($vbNode)
+                    <a href="{{ route('admin.visual-builder.index', ['target' => $vbNode->id]) }}"
                        class="inline-flex items-center gap-1 px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition"
-                       title="Edit this page's content in the New Builder">
+                       title="Edit this content in the New Builder">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
                         </svg>

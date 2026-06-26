@@ -33,6 +33,7 @@ class VisualBuilderHostServiceProvider extends ServiceProvider
 
         $this->app->bind(BuilderPersistence::class, CmsBuilderPersistence::class);
         $this->app->bind(TokenSource::class, CmsTokenSource::class);
+        $this->app->bind(\Weborange\VisualBuilder\Contracts\AiGenerator::class, \App\VisualBuilder\CmsAiGenerator::class);
     }
 
     public function boot(): void

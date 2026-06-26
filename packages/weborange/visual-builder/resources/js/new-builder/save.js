@@ -183,6 +183,11 @@
             var html = currentHtml();
             if (!html) { setResult('Nothing to save — the builder is empty.', false); return; }
 
+            // Prepend the Global CSS as a <style> block so it renders on the live page.
+            var gEl = rootEl.querySelector('[data-global-css]');
+            var gcss = gEl ? gEl.value.trim() : '';
+            if (gcss) { html = '<style data-vb-global>\n' + gcss + '\n</style>\n' + html; }
+
             var replaceEl = rootEl.querySelector('[data-save-replace]');
             var body = {
                 target_id: pageId,

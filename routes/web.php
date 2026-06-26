@@ -176,6 +176,9 @@ foreach (\Nwidart\Modules\Facades\Module::allEnabled() as $module) {
     }
 }
 
+// SEO: sitemap + robots (must be before catch-all wildcards)
+Route::get('/sitemap.xml', [\App\Http\Controllers\SitemapController::class, 'index'])->name('sitemap');
+
 // Template index routes (e.g., /services, /blog)
 Route::match(['get', 'post'], '/{templateSlug}', [FrontendController::class, 'handleTemplateIndex'])
     ->where('templateSlug', '[a-z0-9\-]+')

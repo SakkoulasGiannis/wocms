@@ -214,6 +214,7 @@
             renderTreeAreaKeepInspector();
             renderHtmlPane();
             renderJsonPane();
+            preview.render(); // reflect inspector edits (inline CSS, classes, attrs) live — debounced + scroll-preserving
             history.push();
         }
 
@@ -345,13 +346,28 @@
         /* ---- seed ---- */
         var seed = rootEl.querySelector('[data-seed-html]');
         if (seed && seed.value.trim() !== '') {
+            var seedHtml = seed.value;
+            // Pull the saved Global CSS out of the section HTML into the CSS editor
+            // (so it doesn't end up as a <style> node in the tree).
+            var gm = seedHtml.match(/<style[^>]*data-vb-global[^>]*>([\s\S]*?)<\/style>/i);
+            if (gm) {
+                state.globalCss = gm[1].trim();
+                seedHtml = seedHtml.replace(gm[0], '');
+            }
             try {
-                state.roots = NB.decorate(Core.htmlToJsonRoots(seed.value));
+                state.roots = NB.decorate(Core.htmlToJsonRoots(seedHtml));
             } catch (e) {
                 state.roots = NB.decorate([{ type: 'div', children: [] }]);
             }
         } else {
             state.roots = NB.decorate([{ type: 'div', children: [] }]);
+        }
+        if (state.els.globalCss) {
+            state.els.globalCss.value = state.globalCss;
+            state.els.globalCss.addEventListener('input', function () {
+                state.globalCss = state.els.globalCss.value;
+                preview.render(); // debounced + scroll-preserving
+            });
         }
         renderTreeArea();
         renderHtmlPane();
@@ -378,6 +394,7 @@
             if (typeof NB.createIconPicker === 'function') { NB.createIconPicker(root); }
             if (typeof NB.createCodeModal === 'function') { NB.createCodeModal(root); }
             if (typeof NB.createTokens === 'function') { NB.createTokens(root); }
+            if (typeof NB.createAi === 'function') { NB.createAi(root); }
             if (typeof NB.createSave === 'function') { NB.createSave(root); }
         }
     }

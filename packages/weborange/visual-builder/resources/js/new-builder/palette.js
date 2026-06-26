@@ -186,6 +186,31 @@
         };
     }
 
+    /** Build a "Sliders" group from the host-provided list (one block per slider). */
+    function slidersGroup(rootEl) {
+        var el = rootEl.querySelector('[data-vb-sliders]');
+        if (!el) { return null; }
+        var sliders;
+        try { sliders = JSON.parse(el.textContent || '[]'); } catch (e) { sliders = []; }
+        if (!sliders || !sliders.length) { return null; }
+        return {
+            label: 'Sliders',
+            items: sliders.map(function (s) {
+                return {
+                    label: '🖼️ ' + s.name,
+                    make: function () {
+                        return {
+                            type: 'div', classes: 'vb-slider my-6', attributes: { 'data-vb-slider': String(s.id) },
+                            children: [
+                                { type: 'p', classes: 'text-sm text-gray-500 italic border border-dashed border-gray-300 rounded p-4 text-center', content: '🖼️ Slider: ' + s.name + ' (renders live on the page)' },
+                            ],
+                        };
+                    },
+                };
+            }),
+        };
+    }
+
     NB.createPalette = function createPalette(rootEl) {
         var panel = rootEl.querySelector('[data-palette-panel]');
         var list = rootEl.querySelector('[data-palette-list]');
@@ -194,6 +219,8 @@
         var groups = GROUPS.slice();
         var fg = formsGroup(rootEl);
         if (fg) { groups.push(fg); }
+        var sg = slidersGroup(rootEl);
+        if (sg) { groups.push(sg); }
 
         // Flatten items so a button can reference its factory by index.
         var items = [];

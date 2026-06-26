@@ -2,7 +2,7 @@
 
 @php
     $vbAs = config('visual-builder.as', 'visual-builder.');
-    $vbModules = ['builder-core', 'utils', 'state', 'history', 'tree', 'inspector', 'preview', 'dnd', 'hover-sync', 'palette', 'elements', 'media', 'icons', 'codemodal', 'tokens', 'save', 'main'];
+    $vbModules = ['builder-core', 'utils', 'state', 'history', 'tree', 'inspector', 'preview', 'dnd', 'hover-sync', 'palette', 'elements', 'media', 'icons', 'codemodal', 'tokens', 'ai', 'save', 'main'];
 @endphp
 
 @section('title', config('visual-builder.title'))
@@ -234,6 +234,11 @@
                     Redo &#8631;
                 </button>
             </div>
+            <button data-ai-open type="button"
+                    class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-white rounded hover:opacity-90"
+                    style="background:linear-gradient(90deg,#7c3aed,#db2777)">
+                &#10024; AI
+            </button>
             <button data-palette-open type="button"
                     class="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 rounded hover:bg-indigo-700">
                 &#43; Blocks
@@ -271,15 +276,41 @@
 
     <div data-error class="hidden mb-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"></div>
 
+    {{-- AI generate panel --}}
+    <div data-ai-config class="hidden" data-ai-url="{{ route($vbAs.'ai') }}" data-csrf="{{ csrf_token() }}"></div>
+    <div data-ai-panel class="hidden mb-3 rounded-lg border border-violet-200 bg-violet-50/70 px-4 py-3">
+        <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold uppercase tracking-wide text-violet-800">&#10024; Generate with AI</span>
+            <button data-ai-cancel type="button" class="text-xs text-gray-500 hover:text-gray-700">Close</button>
+        </div>
+        <textarea data-ai-prompt rows="3"
+                  class="w-full text-sm rounded border-gray-300 focus:border-violet-500 focus:ring-violet-500"
+                  placeholder="Describe the section you want… e.g. “a hero with a heading, subtext and two buttons on a dark gradient” or “a 3-column features grid with icons”."></textarea>
+        <div class="mt-2 flex flex-wrap items-center gap-3">
+            <label class="inline-flex items-center gap-1.5 text-xs text-violet-800">
+                <input data-ai-mode type="checkbox" class="rounded border-gray-300 text-violet-600 focus:ring-violet-500">
+                Replace everything (otherwise append to the canvas)
+            </label>
+            <button data-ai-generate type="button"
+                    class="ml-auto inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-white rounded disabled:opacity-50"
+                    style="background:linear-gradient(90deg,#7c3aed,#db2777)">
+                <span data-ai-label>&#10024; Generate</span>
+            </button>
+        </div>
+        <p data-ai-result class="mt-2 text-xs text-violet-700/80">Tip: be specific about layout, colours, and content. The AI returns a Tailwind HTML section you can then edit visually.</p>
+    </div>
+
     {{-- Component palette --}}
     <script type="application/json" data-vb-forms>@json($vbForms ?? [])</script>
+    <script type="application/json" data-vb-sliders>@json($vbSliders ?? [])</script>
+    <script type="application/json" data-vb-nodes>@json($vbNodes ?? [])</script>
     <div data-palette-panel class="hidden mb-3 rounded-lg border border-indigo-200 bg-indigo-50/60 px-4 py-3">
         <div class="flex items-center justify-between mb-2">
             <span class="text-xs font-semibold uppercase tracking-wide text-indigo-800">Insert block</span>
             <button data-palette-cancel type="button" class="text-xs text-gray-500 hover:text-gray-700">Close</button>
         </div>
         <div data-palette-list class="flex flex-col gap-2"></div>
-        <p class="mt-2 text-xs text-indigo-700/80">Inserts into the selected node (or as a new root). Tip: select a container first to nest inside it.</p>
+        <p class="mt-2 text-xs text-indigo-700/80">Inserts into the selected node (or at the page root if nothing is selected). Tip: select a container to nest inside it, or click empty space in the tree / the ⊘ button to deselect and add at the root.</p>
     </div>
 
     {{-- Token picker panel --}}
@@ -305,6 +336,8 @@
          data-save-url="{{ route($vbAs.'save') }}"
          data-sections-url="{{ route($vbAs.'sections') }}"
          data-sample-url="{{ route($vbAs.'sample') }}"
+         data-slider-url="{{ route($vbAs.'render-slider') }}"
+         data-entries-url="{{ route($vbAs.'entries') }}"
          data-preselect-target="{{ $vbPreselectTarget ?? '' }}"
          data-csrf="{{ csrf_token() }}"></div>
     @if (config('visual-builder.media_url'))
@@ -405,13 +438,30 @@
         <div data-save-result class="mt-2 text-sm"></div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4" style="height: calc(100vh - 230px); min-height: 480px;">
+    {{-- Full-width builder: hide the host admin sidebar + trim chrome so the
+         3 panes (and especially the preview) get the whole screen. Scoped to this
+         page only — the style tag is loaded just by the builder view. --}}
+    <style>
+        body .flex.h-screen > aside { display: none !important; }
+        body .flex.h-screen > div > main { padding: .5rem !important; }
+    </style>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-3" style="height: calc(100vh - 150px); min-height: 480px;">
         {{-- LEFT: Tree / HTML / JSON (tabbed) --}}
-        <div class="lg:col-span-3 flex flex-col bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-            <div data-nbtabs class="flex border-b border-gray-200 bg-gray-50">
+        <div class="lg:col-span-2 flex flex-col bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+            <div data-nbtabs class="flex items-center border-b border-gray-200 bg-gray-50">
                 <button type="button" data-nbtab="tree" class="nb-tab nb-tab-active">Tree</button>
                 <button type="button" data-nbtab="html" class="nb-tab">HTML</button>
                 <button type="button" data-nbtab="json" class="nb-tab">JSON</button>
+                <button type="button" data-nbtab="css" class="nb-tab" title="Global CSS — loads in the preview and on the live page">CSS</button>
+                <div class="ml-auto flex items-center gap-0.5 pr-1.5">
+                    <button type="button" data-tree-deselect title="Deselect — next block inserts at the page root"
+                            class="px-1.5 py-1 text-gray-400 hover:text-blue-600 leading-none text-sm">&#8856;</button>
+                    <button type="button" data-tree-expand-all title="Expand all"
+                            class="px-1.5 py-1 text-gray-400 hover:text-blue-600 leading-none text-sm">&#9662;</button>
+                    <button type="button" data-tree-collapse-all title="Collapse all"
+                            class="px-1.5 py-1 text-gray-400 hover:text-blue-600 leading-none text-sm">&#9652;</button>
+                </div>
             </div>
             <div class="flex-1 relative overflow-hidden">
                 <div data-pane="tree" data-nbpanel="tree" class="nb-pane nb-panel absolute inset-0 overflow-auto p-2"></div>
@@ -419,11 +469,14 @@
                           class="nb-pane nb-panel hidden absolute inset-0 p-3 text-xs text-gray-800 focus:outline-none border-0"></textarea>
                 <textarea data-pane="json" data-nbpanel="json" spellcheck="false"
                           class="nb-pane nb-panel hidden absolute inset-0 p-3 text-xs text-gray-800 focus:outline-none border-0"></textarea>
+                <textarea data-global-css data-nbpanel="css" spellcheck="false"
+                          placeholder="/* Global CSS — applies to this section's content, live in the preview and on the published page. */&#10;.my-class { color: #4f46e5; }&#10;@media (max-width: 640px) { h1 { font-size: 1.5rem; } }"
+                          class="nb-pane nb-panel hidden absolute inset-0 p-3 font-mono text-xs text-gray-800 focus:outline-none border-0"></textarea>
             </div>
         </div>
 
         {{-- MIDDLE: live preview (widest) --}}
-        <div class="lg:col-span-6 flex flex-col bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+        <div class="lg:col-span-8 flex flex-col bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
             <div data-preview-toolbar class="px-3 py-2 border-b border-gray-200 bg-gray-50 flex items-center justify-between gap-2 flex-wrap">
                 <div class="flex items-center gap-2">
                     <span class="nb-col-head">Preview</span>
@@ -452,7 +505,7 @@
         </div>
 
         {{-- RIGHT: Inspector --}}
-        <div class="lg:col-span-3 flex flex-col bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+        <div class="lg:col-span-2 flex flex-col bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
             <div class="px-3 py-2.5 border-b border-gray-200 bg-gray-50">
                 <span class="nb-col-head">Inspector</span>
             </div>

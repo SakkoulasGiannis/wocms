@@ -829,6 +829,17 @@
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Custom CSS (all pages)
+                                <span class="text-xs text-gray-400 font-normal ml-1">(site-wide &mdash; loaded in &lt;head&gt; on every page)</span>
+                            </label>
+                            <textarea wire:model="site_custom_css" rows="8"
+                                      class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 font-mono text-sm"
+                                      placeholder=".btn { border-radius: 0; }&#10;h1 { letter-spacing: -0.02em; }"></textarea>
+                            @error('site_custom_css') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
                                 Body Scripts
                                 <span class="text-xs text-gray-400 font-normal ml-1">(injected before &lt;/body&gt;)</span>
                             </label>

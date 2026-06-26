@@ -5,6 +5,7 @@ namespace Weborange\VisualBuilder\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Weborange\VisualBuilder\Contracts\AiGenerator;
 use Weborange\VisualBuilder\Contracts\BuilderPersistence;
 use Weborange\VisualBuilder\Contracts\TokenSource;
 
@@ -17,7 +18,23 @@ class BuilderController extends Controller
     public function __construct(
         private readonly BuilderPersistence $persistence,
         private readonly TokenSource $tokens,
+        private readonly AiGenerator $ai,
     ) {}
+
+    /**
+     * Turn a natural-language prompt into section HTML via the host AI generator.
+     */
+    public function ai(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'prompt' => 'required|string|max:4000',
+            'current_html' => 'nullable|string',
+        ]);
+
+        $result = $this->ai->generate($data['prompt'], $data['current_html'] ?? null);
+
+        return response()->json($result, ($result['ok'] ?? false) ? 200 : 422);
+    }
 
     public function index(Request $request)
     {
@@ -28,6 +45,8 @@ class BuilderController extends Controller
             'vbTargets' => $this->persistence->targets(),
             'vbSources' => $this->tokens->sources(),
             'vbForms' => $this->tokens->forms(),
+            'vbSliders' => $this->tokens->sliders(),
+            'vbNodes' => $this->tokens->nodes(),
             'vbAssetVersion' => $this->assetVersion(),
             'vbSeedHtml' => $seed,
             'vbPreselectTarget' => $targetId,
@@ -115,6 +134,8 @@ class BuilderController extends Controller
             'offset' => 'nullable|integer',
             'filter_field' => 'nullable|string|max:60',
             'filter_value' => 'nullable|string|max:160',
+            'ids' => 'nullable|array',
+            'parent' => 'nullable',
         ]);
 
         $items = $this->tokens->renderLoop($data['source'], [
@@ -124,8 +145,28 @@ class BuilderController extends Controller
             'offset' => (int) ($data['offset'] ?? 0),
             'filter_field' => $data['filter_field'] ?? null,
             'filter_value' => $data['filter_value'] ?? null,
+            'ids' => $data['ids'] ?? null,
+            'parent' => $data['parent'] ?? null,
         ], $data['item_html']);
 
         return response()->json(['items' => $items]);
+    }
+
+    public function renderSlider(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'id' => 'required|string|max:60',
+        ]);
+
+        return response()->json(['html' => $this->tokens->renderSlider($data['id'])]);
+    }
+
+    public function entries(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'source' => 'required|string|max:80',
+        ]);
+
+        return response()->json(['entries' => $this->tokens->entries($data['source'])]);
     }
 }

@@ -32,6 +32,36 @@ interface TokenSource
     public function forms(): array;
 
     /**
+     * Embeddable sliders the builder can drop into a page (id + display name).
+     * Return an empty array if the host has no slider feature.
+     *
+     * @return array<int, array{id:int|string, name:string}>
+     */
+    public function sliders(): array;
+
+    /**
+     * Render a single slider (by id) to its frontend HTML — used by the builder
+     * live preview to show the real slider instead of a placeholder.
+     */
+    public function renderSlider(string $id): string;
+
+    /**
+     * Entries of a source (id + label) for the repeater's "pick specific items"
+     * selector. Return an empty array if the source is unknown.
+     *
+     * @return array<int, array{id:int|string, name?:string, label?:string}>
+     */
+    public function entries(string $source): array;
+
+    /**
+     * All content-tree nodes (id + label) for the repeater's "children of …"
+     * parent selector. Return an empty array if the host has no node tree.
+     *
+     * @return array<int, array{id:int|string, label:string}>
+     */
+    public function nodes(): array;
+
+    /**
      * Render a repeater's item template once per entity of the query, with
      * {tokens} resolved against each entity. Powers the live preview and the
      * frontend expansion of data-vb-loop regions.

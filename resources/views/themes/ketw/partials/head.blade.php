@@ -89,4 +89,9 @@
 
     @livewireStyles
     @stack('styles')
+
+    {{-- Site-wide custom CSS (Settings → Integrations) — last so it can override theme styles --}}
+    @if(\App\Models\Setting::get('site_custom_css'))
+        <style id="site-custom-css">{!! \App\Models\Setting::get('site_custom_css') !!}</style>
+    @endif
 </head>

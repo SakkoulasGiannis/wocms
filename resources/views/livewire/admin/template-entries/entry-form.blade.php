@@ -671,6 +671,7 @@
                                                 $mc = $template->model_class ?? 'Page';
                                                 $fqcn = str_contains($mc, '\\') ? $mc : "App\\Models\\{$mc}";
                                                 $sectionableTypeUrl = str_replace('\\', '-', $fqcn);
+                                                $vbNode = \App\Models\ContentNode::where('content_type', $fqcn)->where('content_id', $entryId)->first();
                                             @endphp
                                             <a href="{{ route('admin.page-sections.visual', ['sectionableType' => $sectionableTypeUrl, 'sectionableId' => $entryId]) }}"
                                                target="_blank"
@@ -681,7 +682,8 @@
                                                 </svg>
                                                 Visual Editor
                                             </a>
-                                            <a href="{{ route('admin.visual-builder.index', ['target' => $entryId]) }}"
+                                            @if($vbNode)
+                                            <a href="{{ route('admin.visual-builder.index', ['target' => $vbNode->id]) }}"
                                                target="_blank"
                                                class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm">
                                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -689,6 +691,7 @@
                                                 </svg>
                                                 New Builder (PoC)
                                             </a>
+                                            @endif
                                         @endif
                                         <button type="button"
                                                 onclick="@this.call('addSection')"

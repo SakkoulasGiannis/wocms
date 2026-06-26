@@ -3,52 +3,69 @@
 namespace App\VisualBuilder;
 
 use App\Models\ContentNode;
+use App\Models\Home;
 use App\Models\Page;
 use App\Models\PageSection;
+use Illuminate\Database\Eloquent\Model;
 use Weborange\VisualBuilder\Contracts\BuilderPersistence;
 
 /**
- * Host implementation of the visual-builder persistence contract: stores builder
- * output as page_sections (type 'html' or 'nb_loop') on reachable Pages.
+ * Host implementation of the visual-builder persistence contract.
+ *
+ * The builder `target` is a ContentNode id (content_tree row). Every editable
+ * content entity — the Home entry, Pages, and any model using the HasSections
+ * trait — is reachable through its ContentNode, so the builder can target them
+ * all uniformly instead of assuming the target is a Page.
  */
 class CmsBuilderPersistence implements BuilderPersistence
 {
+    /**
+     * ContentNode content types that expose section-based content and are
+     * therefore editable in the visual builder.
+     *
+     * @var array<int, class-string>
+     */
+    private const EDITABLE_TYPES = [
+        Home::class,
+        Page::class,
+    ];
+
     public function targets(): array
     {
-        $nodes = ContentNode::query()
-            ->where('content_type', Page::class)
+        return ContentNode::query()
+            ->whereIn('content_type', self::EDITABLE_TYPES)
             ->whereNotNull('content_id')
+            ->orderByRaw("CASE WHEN url_path = '/' THEN 0 ELSE 1 END")
             ->orderBy('url_path')
-            ->get(['title', 'url_path', 'content_id']);
+            ->get(['id', 'title', 'url_path', 'content_type', 'content_id'])
+            ->map(function (ContentNode $n): array {
+                $model = $this->modelFor($n);
+                $mode = $model ? ($model->getAttribute('render_mode') ?: 'sections') : 'sections';
+                $isHome = $n->url_path === '/';
+                $label = ($isHome ? '🏠 ' : '').($n->title ?: 'Untitled').' — '.($n->url_path ?: '/');
+                if ($mode !== 'sections') {
+                    $label .= ' (grapejs)';
+                }
 
-        $modes = Page::query()
-            ->whereIn('id', $nodes->pluck('content_id'))
-            ->pluck('render_mode', 'id');
-
-        return $nodes->map(function (ContentNode $n) use ($modes): array {
-            $mode = $modes[$n->content_id] ?? 'full_page_grapejs';
-            $label = ($n->title ?: 'Untitled').' — '.($n->url_path ?: '/');
-            if ($mode !== 'sections') {
-                $label .= ' (grapejs)';
-            }
-
-            return [
-                'id' => (int) $n->content_id,
-                'label' => $label,
-                'mode' => $mode,
-                'url' => $n->url_path ? url($n->url_path) : null,
-            ];
-        })->values()->all();
+                return [
+                    'id' => (int) $n->id,
+                    'label' => $label,
+                    'mode' => $mode,
+                    'url' => $n->url_path ? url($n->url_path) : null,
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     public function sections(int|string $targetId): array
     {
-        $page = Page::find($targetId);
-        if (! $page) {
+        $model = $this->modelForTarget($targetId);
+        if (! $model) {
             return [];
         }
 
-        return $page->sections()
+        return $model->sections()
             ->whereIn('section_type', ['html', 'nb_loop'])
             ->orderBy('order')
             ->get(['id', 'name', 'section_type', 'content'])
@@ -70,13 +87,13 @@ class CmsBuilderPersistence implements BuilderPersistence
 
     public function seedFor(int|string $targetId): ?string
     {
-        $page = Page::find($targetId);
-        if (! $page) {
+        $model = $this->modelForTarget($targetId);
+        if (! $model) {
             return null;
         }
 
-        if ($page->render_mode === 'sections') {
-            $parts = $page->sections()
+        if ($this->isSectionsMode($model)) {
+            $parts = $model->sections()
                 ->where('is_active', true)
                 ->whereNull('parent_section_id')
                 ->orderBy('order')
@@ -117,28 +134,32 @@ class CmsBuilderPersistence implements BuilderPersistence
         }
 
         // GrapesJS / simple pages: the raw body HTML is directly editable.
-        return trim((string) $page->body) !== '' ? (string) $page->body : null;
+        $body = (string) $model->getAttribute('body');
+
+        return trim($body) !== '' ? $body : null;
     }
 
     public function save(array $payload): array
     {
-        $page = Page::find($payload['target_id']);
-        if (! $page) {
-            return ['success' => false, 'message' => 'Target page not found.'];
+        $node = $this->resolveNode($payload['target_id'] ?? null);
+        $model = $node ? $this->modelFor($node) : null;
+        if (! $node || ! $model) {
+            return ['success' => false, 'message' => 'Target content not found.'];
         }
 
+        $title = $node->title ?: class_basename($model);
         $name = trim((string) ($payload['name'] ?? '')) ?: 'Builder section';
         $loop = $payload['loop'] ?? null;
 
-        if ($page->render_mode !== 'sections') {
+        if (! $this->isSectionsMode($model)) {
             if (empty($payload['convert'])) {
                 return [
                     'success' => false,
                     'needs_convert' => true,
-                    'message' => "“{$page->title}” isn't in sections mode. Tick “Switch to sections mode” to convert it (existing GrapesJS content is hidden, not deleted).",
+                    'message' => "“{$title}” isn't in sections mode. Tick “Switch to sections mode” to convert it (existing GrapesJS content is hidden, not deleted).",
                 ];
             }
-            $page->update(['render_mode' => 'sections']);
+            $model->forceFill(['render_mode' => 'sections'])->save();
         }
 
         $sectionType = $loop ? 'nb_loop' : 'html';
@@ -157,50 +178,78 @@ class CmsBuilderPersistence implements BuilderPersistence
         $replace = ! empty($payload['replace']);
 
         if ($replace) {
-            // Migration: soft-delete the page's existing sections (recoverable),
-            // then save the builder output as the page's single content section.
-            $page->sections()->delete();
+            // Migration: soft-delete the entity's existing sections (recoverable),
+            // then save the builder output as its single content section.
+            $model->sections()->delete();
         }
 
         if (! $replace && ! empty($payload['section_id'])) {
-            $section = $page->sections()->whereKey($payload['section_id'])->first();
+            $section = $model->sections()->whereKey($payload['section_id'])->first();
             if (! $section) {
-                return ['success' => false, 'message' => 'That section no longer exists on this page.'];
+                return ['success' => false, 'message' => 'That section no longer exists on this content.'];
             }
             $section->update(['section_type' => $sectionType, 'name' => $name, 'content' => $content]);
             $verb = 'Updated';
         } else {
-            $section = $page->sections()->create([
+            $section = $model->sections()->create([
                 'section_type' => $sectionType,
                 'name' => $name,
                 'content' => $content,
                 'settings' => [],
-                'order' => ((int) $page->sections()->max('order')) + 1,
+                'order' => ((int) $model->sections()->max('order')) + 1,
                 'is_active' => true,
                 'is_visible' => true,
             ]);
             $verb = $replace ? 'Migrated — replaced content of' : 'Saved';
         }
 
-        $node = ContentNode::query()
-            ->where('content_type', Page::class)
-            ->where('content_id', $page->id)
-            ->first();
-
-        if ($node) {
-            // Bust the cached frontend render so the new content shows immediately.
-            \App\Services\CacheInvalidator::clearContentNode($node->id);
-        }
+        // Bust the cached frontend render so the new content shows immediately.
+        \App\Services\CacheInvalidator::clearContentNode($node->id);
 
         return [
             'success' => true,
             'section_id' => $section->id,
-            'url' => $node?->url_path ? url($node->url_path) : null,
+            'url' => $node->url_path ? url($node->url_path) : null,
             'edit_url' => route('admin.page-sections.visual', [
-                'sectionableType' => 'App-Models-Page',
-                'sectionableId' => $page->id,
+                'sectionableType' => str_replace('\\', '-', $node->content_type),
+                'sectionableId' => $model->getKey(),
             ]),
-            'message' => "{$verb} ".($loop ? 'loop ' : '')."section “{$name}” on “{$page->title}”.",
+            'message' => "{$verb} ".($loop ? 'loop ' : '')."section “{$name}” on “{$title}”.",
         ];
+    }
+
+    private function resolveNode(int|string|null $targetId): ?ContentNode
+    {
+        if ($targetId === null || $targetId === '') {
+            return null;
+        }
+
+        return ContentNode::query()->whereKey($targetId)->first();
+    }
+
+    private function modelForTarget(int|string $targetId): ?Model
+    {
+        $node = $this->resolveNode($targetId);
+
+        return $node ? $this->modelFor($node) : null;
+    }
+
+    private function modelFor(ContentNode $node): ?Model
+    {
+        $class = $node->content_type;
+        if (! $class || ! $node->content_id || ! class_exists($class)) {
+            return null;
+        }
+
+        $model = $class::find($node->content_id);
+
+        return ($model && method_exists($model, 'sections')) ? $model : null;
+    }
+
+    private function isSectionsMode(Model $model): bool
+    {
+        $mode = $model->getAttribute('render_mode');
+
+        return $mode === null || $mode === 'sections';
     }
 }

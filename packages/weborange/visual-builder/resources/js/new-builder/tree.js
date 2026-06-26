@@ -133,10 +133,36 @@
             }
             if (row) {
                 controller.select(row.dataset.id);
+            } else {
+                // Click on empty tree space = deselect, so the next inserted
+                // block lands at the page root instead of nesting in a node.
+                controller.select(null);
             }
         }
 
         state.els.tree.addEventListener('click', onClick);
+
+        /** Expand (collapsed=false) or collapse (true) every node with children. */
+        function setAllCollapsed(collapsed) {
+            (function walk(nodes) {
+                for (var i = 0; i < nodes.length; i++) {
+                    var n = nodes[i];
+                    if (n.children && n.children.length) {
+                        n._collapsed = collapsed;
+                        walk(n.children);
+                    }
+                }
+            })(state.roots);
+            render();
+        }
+
+        var expandBtn = document.querySelector('[data-tree-expand-all]');
+        var collapseBtn = document.querySelector('[data-tree-collapse-all]');
+        if (expandBtn) { expandBtn.addEventListener('click', function () { setAllCollapsed(false); }); }
+        if (collapseBtn) { collapseBtn.addEventListener('click', function () { setAllCollapsed(true); }); }
+
+        var deselectBtn = document.querySelector('[data-tree-deselect]');
+        if (deselectBtn) { deselectBtn.addEventListener('click', function () { controller.select(null); }); }
 
         return { render: render };
     };

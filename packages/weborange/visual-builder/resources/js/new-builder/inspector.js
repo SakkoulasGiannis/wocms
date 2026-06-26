@@ -176,8 +176,57 @@
             return html;
         }
 
+        var loopEntriesCache = {};
+        var entriesInFlight = {};
+
+        /** Content-tree nodes (host-provided) for the "children of" parent select. */
+        function nodesList() {
+            var el = state.rootEl.querySelector('[data-vb-nodes]');
+            if (!el) { return []; }
+            try { return JSON.parse(el.textContent || '[]'); } catch (e) { return []; }
+        }
+
+        function nodeOptions(selected) {
+            var html = '<option value="">— any (whole collection) —</option>';
+            nodesList().forEach(function (n) {
+                html += '<option value="' + n.id + '"' + (String(n.id) === String(selected) ? ' selected' : '') +
+                    '>' + NB.escapeHtml(n.label) + '</option>';
+            });
+            return html;
+        }
+
+        /** Lazily fetch a source's entries (cached), then re-render the inspector. */
+        function ensureEntries(source) {
+            if (!source || loopEntriesCache[source] || entriesInFlight[source]) { return; }
+            var cfgEl = state.rootEl.querySelector('[data-save-config]');
+            var url = cfgEl ? cfgEl.getAttribute('data-entries-url') : null;
+            if (!url) { return; }
+            entriesInFlight[source] = true;
+            fetch(url + '?source=' + encodeURIComponent(source), { headers: { Accept: 'application/json' } })
+                .then(function (r) { return r.json(); })
+                .then(function (j) {
+                    loopEntriesCache[source] = (j && j.entries) || [];
+                    entriesInFlight[source] = false;
+                    render(); // options are ready — re-render the inspector
+                })
+                .catch(function () { entriesInFlight[source] = false; });
+        }
+
+        function entriesOptions(source, sel) {
+            var list = loopEntriesCache[source];
+            if (!list) { ensureEntries(source); return '<option value="" disabled>Loading items…</option>'; }
+            if (!list.length) { return '<option value="" disabled>No items in this source</option>'; }
+            var selSet = {};
+            (sel || []).forEach(function (id) { selSet[String(id)] = true; });
+            return list.map(function (e) {
+                return '<option value="' + e.id + '"' + (selSet[String(e.id)] ? ' selected' : '') +
+                    '>' + NB.escapeHtml(e.label || ('#' + e.id)) + '</option>';
+            }).join('');
+        }
+
         /** Query Builder panel for a repeater node. */
         function loopPanel(cfg) {
+            var entriesLoaded = !!loopEntriesCache[cfg.source];
             var orderVal = (cfg.order_by || 'created_at') + '|' + (cfg.order_dir || 'desc');
             function orderOpt(v, label) {
                 return '<option value="' + v + '"' + (v === orderVal ? ' selected' : '') + '>' + label + '</option>';
@@ -197,6 +246,14 @@
                 '<input data-loopq="filter_field" placeholder="field e.g. category_slug" value="' + NB.escapeHtml(cfg.filter_field || '') + '">' +
                 '<input data-loopq="filter_value" placeholder="value" value="' + NB.escapeHtml(cfg.filter_value || '') + '">' +
                 '</div></div>' +
+                '<div class="nb-field"><label>Only children of (optional)</label>' +
+                '<select data-loopq="parent">' + nodeOptions(cfg.parent || '') + '</select></div>' +
+                '<div class="nb-field"><label>Or pick specific items (overrides filter)</label>' +
+                '<select multiple size="6" data-loopq="ids"' + (entriesLoaded ? ' data-loaded="1"' : '') +
+                ' data-ids="' + NB.escapeHtml(JSON.stringify(cfg.ids || [])) + '" class="nb-loop-ids" style="width:100%">' +
+                entriesOptions(cfg.source || '', cfg.ids || []) +
+                '</select>' +
+                '<p class="nb-hint">Ctrl/Cmd-click to choose several. Leave empty to use the whole source / filter above.</p></div>' +
                 '<p class="nb-hint">The repeater renders its <strong>first child</strong> once per item. Select inner elements and bind text/images to <code>{tokens}</code> from the Tokens panel.</p>' +
                 '<button type="button" data-act="unmake-loop" class="nb-unmake-loop">✕ Remove repeater (keep element)</button>';
         }
@@ -340,6 +397,18 @@
                 if (ff) {
                     cfg.filter_field = ff;
                     cfg.filter_value = ins.querySelector('[data-loopq="filter_value"]').value;
+                }
+                var parentEl = ins.querySelector('[data-loopq="parent"]');
+                if (parentEl && parentEl.value) { cfg.parent = parentEl.value; }
+                var idsEl = ins.querySelector('[data-loopq="ids"]');
+                if (idsEl) {
+                    var ids;
+                    if (idsEl.getAttribute('data-loaded') === '1') {
+                        ids = Array.prototype.map.call(idsEl.selectedOptions, function (o) { return parseInt(o.value, 10); }).filter(Boolean);
+                    } else {
+                        try { ids = JSON.parse(idsEl.getAttribute('data-ids') || '[]'); } catch (e) { ids = []; }
+                    }
+                    if (ids.length) { cfg.ids = ids; }
                 }
                 attrs['data-vb-loop'] = JSON.stringify(cfg);
             }
@@ -498,8 +567,33 @@
             }
         }
 
-        function onInput() {
+        /**
+         * Live-refresh the applied-class chips + Quick-style highlights as the
+         * user types in the Classes box (without touching the input itself, so
+         * the cursor/focus stay put). Gives immediate "it registered" feedback.
+         */
+        function refreshClassUI() {
+            var located = state.selectedId ? state.findNode(state.selectedId) : null;
+            if (!located) { return; }
+            var n = located.node;
+            var chipsBox = state.els.inspector.querySelector('[data-cls-chips]');
+            if (chipsBox) { chipsBox.innerHTML = classChipsMarkup(n); }
+            var ctlBox = state.els.inspector.querySelector('[data-controls]');
+            if (ctlBox) { ctlBox.innerHTML = controlsMarkup(n); }
+        }
+
+        function onInput(e) {
             applyToNode();
+            if (e && e.target && e.target.getAttribute) {
+                if (e.target.getAttribute('data-field') === 'classes') {
+                    refreshClassUI();
+                }
+                // Changing a repeater's source must re-render the inspector so the
+                // "specific items" list reloads (and lazy-fetches) for the new source.
+                if (e.target.getAttribute('data-loopq') === 'source') {
+                    render();
+                }
+            }
             controller.applyInspector();
         }
 

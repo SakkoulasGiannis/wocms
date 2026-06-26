@@ -2,6 +2,7 @@
 
 namespace App\VisualBuilder;
 
+use App\Models\ContentNode;
 use App\Models\Template;
 use Illuminate\Support\Facades\Schema;
 use Weborange\VisualBuilder\Contracts\TokenSource;
@@ -67,6 +68,66 @@ class CmsTokenSource implements TokenSource
             ->map(fn (\App\Models\Form $f): array => ['slug' => $f->slug, 'name' => $f->name])
             ->values()
             ->all();
+    }
+
+    public function sliders(): array
+    {
+        if (! class_exists(\Modules\Slider\Models\Slider::class)) {
+            return [];
+        }
+
+        return \Modules\Slider\Models\Slider::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (\Modules\Slider\Models\Slider $s): array => ['id' => $s->id, 'name' => $s->name])
+            ->values()
+            ->all();
+    }
+
+    public function entries(string $source): array
+    {
+        $template = Template::query()->where('slug', $source)->first();
+        if (! $template || ! $template->model_class) {
+            return [];
+        }
+
+        $modelClass = str_contains($template->model_class, '\\')
+            ? $template->model_class
+            : 'App\\Models\\'.$template->model_class;
+
+        if (! class_exists($modelClass)) {
+            return [];
+        }
+
+        $model = new $modelClass;
+        $table = $model->getTable();
+        $pk = $model->getKeyName();
+        $labelCol = collect(['title', 'name', 'slug'])->first(fn (string $c): bool => Schema::hasColumn($table, $c)) ?? $pk;
+
+        return $modelClass::query()
+            ->orderByDesc($pk)
+            ->limit(300)
+            ->get()
+            ->map(fn ($e): array => ['id' => $e->getKey(), 'label' => (string) ($e->{$labelCol} ?: ('#'.$e->getKey()))])
+            ->all();
+    }
+
+    public function nodes(): array
+    {
+        return ContentNode::query()
+            ->orderBy('url_path')
+            ->get(['id', 'title', 'url_path'])
+            ->map(fn (ContentNode $n): array => [
+                'id' => $n->id,
+                'label' => ($n->title ?: 'Untitled').' — '.($n->url_path ?: '/'),
+            ])
+            ->all();
+    }
+
+    public function renderSlider(string $id): string
+    {
+        return app(LoopRenderer::class)->renderSlider($id);
     }
 
     public function renderLoop(string $source, array $query, string $itemHtml): array
