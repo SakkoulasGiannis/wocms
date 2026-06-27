@@ -257,6 +257,7 @@
                 frameworkHead(fw) +
                 '<style>body{margin:0;padding:16px;background:#fff;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}</style>' +
                 extraCssLinks() +
+                (state.siteCss ? '<style data-vb-site-preview>' + state.siteCss + '</style>' : '') +
                 (state.globalCss ? '<style data-vb-global-preview>' + state.globalCss + '</style>' : '') +
                 hoverStyle +
                 '</head><body>' + (html || '') + '</body></html>';

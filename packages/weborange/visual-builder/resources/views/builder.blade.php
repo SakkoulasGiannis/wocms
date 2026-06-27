@@ -142,6 +142,9 @@
     #new-builder-app .nb-tab { padding: .5rem .9rem; font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; border-bottom: 2px solid transparent; background: transparent; cursor: pointer; }
     #new-builder-app .nb-tab:hover { color: #374151; }
     #new-builder-app .nb-tab.nb-tab-active { color: #2563eb; border-bottom-color: #2563eb; background: #fff; }
+    #new-builder-app .nb-css-scope { color: #6b7280; background: #fff; border: 1px solid #e5e7eb; cursor: pointer; }
+    #new-builder-app .nb-css-scope:hover { color: #374151; }
+    #new-builder-app .nb-css-scope.nb-css-scope-active { color: #2563eb; background: #eff6ff; border-color: #bfdbfe; }
     #new-builder-app .nb-toolbtn:disabled { opacity: .4; cursor: not-allowed; }
     #new-builder-app .nb-col-head { font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--nb-muted); }
 
@@ -304,6 +307,7 @@
     <script type="application/json" data-vb-forms>@json($vbForms ?? [])</script>
     <script type="application/json" data-vb-sliders>@json($vbSliders ?? [])</script>
     <script type="application/json" data-vb-nodes>@json($vbNodes ?? [])</script>
+    <script type="application/json" data-vb-site-css>@json($vbSiteCss ?? '')</script>
     <div data-palette-panel class="hidden mb-3 rounded-lg border border-indigo-200 bg-indigo-50/60 px-4 py-3">
         <div class="flex items-center justify-between mb-2">
             <span class="text-xs font-semibold uppercase tracking-wide text-indigo-800">Insert block</span>
@@ -469,9 +473,23 @@
                           class="nb-pane nb-panel hidden absolute inset-0 p-3 text-xs text-gray-800 focus:outline-none border-0"></textarea>
                 <textarea data-pane="json" data-nbpanel="json" spellcheck="false"
                           class="nb-pane nb-panel hidden absolute inset-0 p-3 text-xs text-gray-800 focus:outline-none border-0"></textarea>
-                <textarea data-global-css data-nbpanel="css" spellcheck="false"
-                          placeholder="/* Global CSS — applies to this section's content, live in the preview and on the published page. */&#10;.my-class { color: #4f46e5; }&#10;@media (max-width: 640px) { h1 { font-size: 1.5rem; } }"
-                          class="nb-pane nb-panel hidden absolute inset-0 p-3 font-mono text-xs text-gray-800 focus:outline-none border-0"></textarea>
+                <div data-nbpanel="css" class="nb-pane nb-panel hidden absolute inset-0 flex flex-col">
+                    <div class="flex items-center gap-1 px-2 py-1.5 border-b border-gray-200 bg-gray-50 text-xs">
+                        <span class="text-gray-500 mr-1">Apply to:</span>
+                        <button type="button" data-css-scope-btn="page"
+                                class="nb-css-scope nb-css-scope-active px-2 py-1 rounded font-medium">This page</button>
+                        <button type="button" data-css-scope-btn="site"
+                                class="nb-css-scope px-2 py-1 rounded font-medium">All pages</button>
+                    </div>
+                    <div class="flex-1 relative overflow-hidden">
+                        <textarea data-global-css data-css-scope="page" spellcheck="false"
+                                  placeholder="/* This page only — saved into this page's content; shows in the preview and on the published page. */&#10;.my-class { color: #4f46e5; }&#10;@media (max-width: 640px) { h1 { font-size: 1.5rem; } }"
+                                  class="absolute inset-0 p-3 font-mono text-xs text-gray-800 focus:outline-none border-0 resize-none"></textarea>
+                        <textarea data-site-css data-css-scope="site" spellcheck="false"
+                                  placeholder="/* All pages (site-wide) — saved to Settings → Integrations; applies to every front-end page. */&#10;.spacing { margin-bottom: 20px; }"
+                                  class="hidden absolute inset-0 p-3 font-mono text-xs text-gray-800 focus:outline-none border-0 resize-none"></textarea>
+                    </div>
+                </div>
             </div>
         </div>
 

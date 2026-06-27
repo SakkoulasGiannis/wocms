@@ -189,6 +189,7 @@
             if (gcss) { html = '<style data-vb-global>\n' + gcss + '\n</style>\n' + html; }
 
             var replaceEl = rootEl.querySelector('[data-save-replace]');
+            var siteEl = rootEl.querySelector('[data-site-css]');
             var body = {
                 target_id: pageId,
                 section_id: sectionValue() || null,
@@ -196,6 +197,7 @@
                 name: nameEl ? nameEl.value : '',
                 convert: convertEl && convertEl.checked ? 1 : 0,
                 replace: replaceEl && replaceEl.checked ? 1 : 0,
+                site_css: siteEl ? siteEl.value : '',
             };
 
             var loopOn = rootEl.querySelector('[data-save-loop]');

@@ -18,11 +18,13 @@
             previewWidth: 'full',
             hoverId: null,
             globalCss: '',
+            siteCss: '',
             els: {
                 tree: rootEl.querySelector('[data-pane="tree"]'),
                 html: rootEl.querySelector('[data-pane="html"]'),
                 json: rootEl.querySelector('[data-pane="json"]'),
                 globalCss: rootEl.querySelector('[data-global-css]'),
+                siteCss: rootEl.querySelector('[data-site-css]'),
                 preview: rootEl.querySelector('[data-pane="preview"]'),
                 framework: rootEl.querySelector('[data-framework]'),
                 inspector: rootEl.querySelector('[data-inspector]'),

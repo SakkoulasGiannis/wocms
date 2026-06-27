@@ -45,6 +45,16 @@ class NullTokenSource implements TokenSource
         return [];
     }
 
+    public function siteCss(): string
+    {
+        return '';
+    }
+
+    public function saveSiteCss(string $css): void
+    {
+        //
+    }
+
     public function renderLoop(string $source, array $query, string $itemHtml): array
     {
         return [];

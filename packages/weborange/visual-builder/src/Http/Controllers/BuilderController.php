@@ -47,6 +47,7 @@ class BuilderController extends Controller
             'vbForms' => $this->tokens->forms(),
             'vbSliders' => $this->tokens->sliders(),
             'vbNodes' => $this->tokens->nodes(),
+            'vbSiteCss' => $this->tokens->siteCss(),
             'vbAssetVersion' => $this->assetVersion(),
             'vbSeedHtml' => $seed,
             'vbPreselectTarget' => $targetId,
@@ -79,7 +80,12 @@ class BuilderController extends Controller
             'loop_order_by' => 'nullable|string|max:60',
             'loop_order_dir' => 'nullable|string|in:asc,desc',
             'loop_heading' => 'nullable|string|max:160',
+            'site_css' => 'nullable|string',
         ]);
+
+        if ($request->has('site_css')) {
+            $this->tokens->saveSiteCss((string) ($data['site_css'] ?? ''));
+        }
 
         $loop = ! empty($data['loop_source']) ? [
             'source' => $data['loop_source'],

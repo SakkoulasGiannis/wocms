@@ -62,6 +62,19 @@ interface TokenSource
     public function nodes(): array;
 
     /**
+     * The host's site-wide custom CSS (applies to every front-end page). The
+     * builder loads this into its "All pages" CSS editor. Return '' if the host
+     * has no site-wide CSS store.
+     */
+    public function siteCss(): string;
+
+    /**
+     * Persist the host's site-wide custom CSS. Called from the builder's save
+     * when the "All pages" CSS editor changed. No-op if the host has no store.
+     */
+    public function saveSiteCss(string $css): void;
+
+    /**
      * Render a repeater's item template once per entity of the query, with
      * {tokens} resolved against each entity. Powers the live preview and the
      * frontend expansion of data-vb-loop regions.

@@ -60,6 +60,17 @@
                             :key="'ai-create-'.$template->slug" />
                     @endif
 
+                    @if(isset($isTree) && $isTree)
+                        <button type="button" data-tree-toggle-all
+                                class="inline-flex items-center px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-sm"
+                                title="Expand / collapse all">
+                            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+                            </svg>
+                            Toggle all
+                        </button>
+                    @endif
+
                     <a href="{{ route('admin.template-entries.create', $template->slug) }}"
                        class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -163,7 +174,8 @@
                         @endphp
                         @if($entry)
                         <tr class="hover:bg-gray-50"
-                            @if($sortable && $sortId) data-entry-id="{{ $sortId }}" data-parent-id="{{ $sortParent }}" @endif>
+                            @if($sortable && $sortId) data-entry-id="{{ $sortId }}" data-parent-id="{{ $sortParent }}" @endif
+                            @if(isset($isTree) && $isTree && $rowNode) data-node-id="{{ $rowNode->id }}" data-node-parent="{{ $sortParent }}" @endif>
                             @if($sortable)
                                 <td class="px-3 py-4 text-center">
                                     <button type="button"
@@ -175,7 +187,12 @@
                                     </button>
                                 </td>
                             @endif
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <td class="relative px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                @if(isset($isTree) && $isTree && $rowNode && count($rowNode->childNodes ?? []) > 0)
+                                    <button type="button" data-toggle-node="{{ $rowNode->id }}"
+                                            class="absolute left-1.5 top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-5 h-5 text-gray-500 hover:text-gray-900 leading-none"
+                                            title="Expand / collapse children">&#9662;</button>
+                                @endif
                                 @if($level > 0)
                                     <span class="text-gray-400">
                                         @for($i = 0; $i < $level; $i++)
@@ -390,6 +407,46 @@
                         initSortable();
                     });
                 }
+            })();
+        </script>
+    @endif
+
+    @if(isset($isTree) && $isTree)
+        <script>
+            (function () {
+                if (window.__nbTreeToggleInit) { return; }
+                window.__nbTreeToggleInit = true;
+
+                function rows() { return Array.prototype.slice.call(document.querySelectorAll('tr[data-node-id]')); }
+                function map() { var m = {}; rows().forEach(function (r) { m[r.getAttribute('data-node-id')] = r; }); return m; }
+                function parentRows() { return rows().filter(function (r) { return r.querySelector('[data-toggle-node]'); }); }
+                function updateBtn(r) { var b = r.querySelector('[data-toggle-node]'); if (b) { b.innerHTML = r.dataset.collapsed === '1' ? '&#9656;' : '&#9662;'; } }
+                function visible(r, m) {
+                    var p = r.getAttribute('data-node-parent');
+                    while (p && p !== '0') {
+                        var par = m[p]; if (!par) { break; }
+                        if (par.dataset.collapsed === '1') { return false; }
+                        p = par.getAttribute('data-node-parent');
+                    }
+                    return true;
+                }
+                function refresh() { var m = map(); rows().forEach(function (r) { r.style.display = visible(r, m) ? '' : 'none'; }); }
+
+                document.addEventListener('click', function (e) {
+                    var toggle = e.target.closest('[data-toggle-node]');
+                    if (toggle) {
+                        var r = toggle.closest('tr');
+                        r.dataset.collapsed = r.dataset.collapsed === '1' ? '0' : '1';
+                        updateBtn(r); refresh();
+                        return;
+                    }
+                    var all = e.target.closest('[data-tree-toggle-all]');
+                    if (all) {
+                        var anyOpen = parentRows().some(function (r) { return r.dataset.collapsed !== '1'; });
+                        parentRows().forEach(function (r) { r.dataset.collapsed = anyOpen ? '1' : '0'; updateBtn(r); });
+                        refresh();
+                    }
+                });
             })();
         </script>
     @endif

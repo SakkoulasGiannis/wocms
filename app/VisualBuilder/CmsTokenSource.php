@@ -3,6 +3,7 @@
 namespace App\VisualBuilder;
 
 use App\Models\ContentNode;
+use App\Models\Setting;
 use App\Models\Template;
 use Illuminate\Support\Facades\Schema;
 use Weborange\VisualBuilder\Contracts\TokenSource;
@@ -123,6 +124,16 @@ class CmsTokenSource implements TokenSource
                 'label' => ($n->title ?: 'Untitled').' — '.($n->url_path ?: '/'),
             ])
             ->all();
+    }
+
+    public function siteCss(): string
+    {
+        return (string) Setting::get('site_custom_css', '');
+    }
+
+    public function saveSiteCss(string $css): void
+    {
+        Setting::set('site_custom_css', $css, 'integrations');
     }
 
     public function renderSlider(string $id): string

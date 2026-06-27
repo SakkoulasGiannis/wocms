@@ -369,6 +369,30 @@
                 preview.render(); // debounced + scroll-preserving
             });
         }
+
+        /* ---- Site-wide CSS ("All pages" scope) — loaded from host, saved on Save ---- */
+        var siteCssData = rootEl.querySelector('[data-vb-site-css]');
+        if (siteCssData) {
+            try { state.siteCss = JSON.parse(siteCssData.textContent || '""') || ''; } catch (e) { state.siteCss = ''; }
+        }
+        if (state.els.siteCss) {
+            state.els.siteCss.value = state.siteCss;
+            state.els.siteCss.addEventListener('input', function () {
+                state.siteCss = state.els.siteCss.value;
+                preview.render();
+            });
+        }
+        rootEl.querySelectorAll('[data-css-scope-btn]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var scope = btn.getAttribute('data-css-scope-btn');
+                rootEl.querySelectorAll('[data-css-scope-btn]').forEach(function (b) {
+                    b.classList.toggle('nb-css-scope-active', b === btn);
+                });
+                rootEl.querySelectorAll('[data-css-scope]').forEach(function (ta) {
+                    ta.classList.toggle('hidden', ta.getAttribute('data-css-scope') !== scope);
+                });
+            });
+        });
         renderTreeArea();
         renderHtmlPane();
         renderJsonPane();
