@@ -26,8 +26,8 @@
         {{-- Vite Assets (CSS & JS from npm run build) --}}
         @vite(['resources/css/app.css', 'resources/js/app.js'])
 
-        {{-- Tailwind Plus Elements --}}
-        <script src="https://cdn.jsdelivr.net/npm/@tailwindplus/elements@1" type="module"></script>
+        {{-- Tailwind Plus Elements removed: no <el-*> component is used on the frontend,
+             it was ~492 KiB of unused JS (Lighthouse). Re-add per-page if ever needed. --}}
     @else
         {{-- Theme CSS Assets --}}
         {!! $themeManager->renderCssAssets() !!}
