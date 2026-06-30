@@ -49,6 +49,12 @@
         if (node.attributes && Object.keys(node.attributes).length > 0) {
             out.attributes = Object.assign({}, node.attributes);
         }
+        // Persist the editor label (_name) as a data attribute so it survives the
+        // HTML round-trip; elementToNode reads it back into _name on load.
+        if (node._name && String(node._name).trim() !== '') {
+            out.attributes = out.attributes || {};
+            out.attributes['data-vb-name'] = String(node._name).trim();
+        }
         if (node.html !== undefined && node.html !== null && String(node.html).trim() !== '') {
             out.html = String(node.html);
         } else if (node.content !== undefined && node.content !== null && String(node.content).trim() !== '') {

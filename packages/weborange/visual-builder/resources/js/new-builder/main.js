@@ -80,6 +80,12 @@
             dnd.init();
             inspector.render();
             hover.syncSelection();
+            // Scroll the newly-selected row into view — clicking an element in the
+            // preview may select a node that is off-screen in a long tree.
+            if (id) {
+                var row = state.els.tree.querySelector('.nb-row[data-id="' + id + '"]');
+                if (row) { row.scrollIntoView({ block: 'nearest' }); }
+            }
         }
 
         /**
@@ -171,6 +177,12 @@
                 var copy = NB.decorate([NB.clean(located.node)])[0];
                 located.siblings.splice(located.index + 1, 0, copy);
                 state.selectedId = copy._id;
+            } else if (act === 'wrap') {
+                var wrapper = NB.decorate([{ type: 'div', children: [] }])[0];
+                wrapper.children = [located.node];
+                wrapper._collapsed = false;
+                located.siblings.splice(located.index, 1, wrapper);
+                state.selectedId = wrapper._id;
             } else if (act === 'edit-html') {
                 editNodeHtml(located);
                 return;

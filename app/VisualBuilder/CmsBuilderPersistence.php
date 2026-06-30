@@ -6,6 +6,7 @@ use App\Models\ContentNode;
 use App\Models\Home;
 use App\Models\Page;
 use App\Models\PageSection;
+use App\Models\Setting;
 use Illuminate\Database\Eloquent\Model;
 use Weborange\VisualBuilder\Contracts\BuilderPersistence;
 
@@ -19,6 +20,9 @@ use Weborange\VisualBuilder\Contracts\BuilderPersistence;
  */
 class CmsBuilderPersistence implements BuilderPersistence
 {
+    /** Setting key holding the JSON array of ContentNode ids flagged as style templates. */
+    private const STYLE_TEMPLATES_KEY = 'vb_style_templates';
+
     /**
      * ContentNode content types that expose section-based content and are
      * therefore editable in the visual builder.
@@ -139,12 +143,64 @@ class CmsBuilderPersistence implements BuilderPersistence
         return trim($body) !== '' ? $body : null;
     }
 
+    /**
+     * ContentNodes the user has flagged as reusable style templates, resolved to
+     * {id,label} for the builder's AI "Use template" picker. Missing/deleted nodes
+     * are skipped automatically.
+     *
+     * @return array<int, array{id:int|string, label:string}>
+     */
+    public function styleTemplates(): array
+    {
+        $ids = $this->styleTemplateIds();
+        if (empty($ids)) {
+            return [];
+        }
+
+        return ContentNode::whereIn('id', $ids)
+            ->get(['id', 'title', 'url_path'])
+            ->map(fn (ContentNode $n): array => [
+                'id' => $n->id,
+                'label' => ($n->title ?: 'Untitled').' — '.($n->url_path ?: '/'),
+            ])
+            ->all();
+    }
+
+    /** @return array<int, int> */
+    private function styleTemplateIds(): array
+    {
+        $raw = Setting::get(self::STYLE_TEMPLATES_KEY, '[]');
+        $decoded = is_array($raw) ? $raw : json_decode((string) $raw, true);
+
+        return is_array($decoded)
+            ? array_values(array_unique(array_filter(array_map('intval', $decoded))))
+            : [];
+    }
+
+    private function setTemplateFlag(int $nodeId, bool $on): void
+    {
+        $ids = $this->styleTemplateIds();
+        if ($on) {
+            if (! in_array($nodeId, $ids, true)) {
+                $ids[] = $nodeId;
+            }
+        } else {
+            $ids = array_values(array_filter($ids, fn (int $i): bool => $i !== $nodeId));
+        }
+
+        Setting::set(self::STYLE_TEMPLATES_KEY, json_encode(array_values($ids)), 'visual_builder');
+    }
+
     public function save(array $payload): array
     {
         $node = $this->resolveNode($payload['target_id'] ?? null);
         $model = $node ? $this->modelFor($node) : null;
         if (! $node || ! $model) {
             return ['success' => false, 'message' => 'Target content not found.'];
+        }
+
+        if (array_key_exists('is_template', $payload)) {
+            $this->setTemplateFlag((int) $node->id, (bool) $payload['is_template']);
         }
 
         $title = $node->title ?: class_basename($model);

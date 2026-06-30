@@ -100,6 +100,12 @@
             if (attr.name === 'class') {
                 continue;
             }
+            // The editor label round-trips via data-vb-name → node._name (kept out
+            // of the visible attributes list so it stays a "Name", not an attr).
+            if (attr.name === 'data-vb-name') {
+                node._name = attr.value;
+                continue;
+            }
             attributes[attr.name] = attr.value;
         }
         if (Object.keys(attributes).length > 0) {

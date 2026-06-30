@@ -31,6 +31,15 @@ interface BuilderPersistence
     public function seedFor(int|string $targetId): ?string;
 
     /**
+     * Targets the host has marked as reusable "style templates" — the builder's
+     * AI panel offers these so a new page can be generated in a template's style.
+     * Return an empty array if the host has no template concept.
+     *
+     * @return array<int, array{id:int|string, label:string}>
+     */
+    public function styleTemplates(): array;
+
+    /**
      * Persist the builder output.
      *
      * @param  array{
@@ -39,6 +48,7 @@ interface BuilderPersistence
      *     html:string,
      *     name?:string,
      *     convert?:bool,
+     *     is_template?:bool,
      *     loop?:array{source:string, columns:int, limit:int, order_by:string, order_dir:string, heading:string}|null
      * }  $payload
      * @return array{success:bool, message:string, section_id?:int|string, url?:?string, edit_url?:?string, needs_convert?:bool}

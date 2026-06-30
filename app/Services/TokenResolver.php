@@ -71,6 +71,54 @@ class TokenResolver
     }
 
     /**
+     * Resolve a small WHITELIST of page-level tokens against the page entry, used
+     * at frontend render time so authors can drop {title} / {seo_description} etc.
+     * into any section. Unlike resolve(), this is whitelist-only: tokens NOT in the
+     * map are left untouched, so arbitrary `{...}` in copy or inline CSS is safe.
+     * Recognised-but-empty tokens collapse to '' (no ugly literal on the page).
+     * Values are HTML-escaped to avoid injecting markup from DB text.
+     */
+    public function resolvePageTokens(string $html, ?object $entry): string
+    {
+        if ($entry === null || ! str_contains($html, '{')) {
+            return $html;
+        }
+
+        $first = function (array $fields) use ($entry): ?string {
+            foreach ($fields as $f) {
+                $v = data_get($entry, $f);
+                if (is_string($v) && $v !== '') {
+                    return $v;
+                }
+                if (is_numeric($v)) {
+                    return (string) $v;
+                }
+            }
+
+            return null;
+        };
+
+        $map = [
+            'title' => $first(['title', 'name', 'seo_title']),
+            'name' => $first(['name', 'title']),
+            'seo_title' => $first(['seo_title', 'title', 'name']),
+            'seo_description' => $first(['seo_description', 'excerpt', 'description']),
+            'seo_keywords' => $first(['seo_keywords']),
+            'excerpt' => $first(['excerpt', 'seo_description', 'description']),
+            'description' => $first(['description', 'seo_description', 'excerpt']),
+            'slug' => $first(['slug']),
+        ];
+
+        $pattern = '/\{('.implode('|', array_keys($map)).')\}/u';
+
+        return preg_replace_callback(
+            $pattern,
+            fn (array $m): string => htmlspecialchars((string) ($map[$m[1]] ?? ''), ENT_QUOTES, 'UTF-8'),
+            $html
+        );
+    }
+
+    /**
      * Resolve a single {field} token. Tries Spatie media first when a conversion
      * is requested (or the field name looks image-like and the entry has media),
      * then falls through to direct property access.

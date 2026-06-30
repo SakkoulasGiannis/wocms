@@ -55,6 +55,9 @@
             var body = { prompt: prompt };
             // In replace mode, give the AI the current section so it can modify it.
             if (replace && currentHtml()) { body.current_html = currentHtml(); }
+            // Optional style template — the AI matches its look.
+            var tmpl = el('[data-ai-template]');
+            if (tmpl && tmpl.value) { body.template_id = tmpl.value; }
 
             fetch(url, {
                 method: 'POST',
@@ -82,11 +85,46 @@
             });
         }
 
+        function fixSeo(btn) {
+            var html = currentHtml();
+            if (!html) { setResult('Nothing to fix — the canvas is empty.', 'err'); return; }
+            var label = el('[data-ai-fixseo-label]');
+
+            if (btn) { btn.disabled = true; }
+            if (label) { label.textContent = '⚒ Fixing…'; }
+            setResult('Auditing heading structure… this can take a few seconds.', 'info');
+
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, Accept: 'application/json' },
+                body: JSON.stringify({ mode: 'fix_seo', current_html: html }),
+            }).then(function (r) {
+                return r.json().then(function (j) { return { ok: r.ok, body: j }; });
+            }).then(function (res) {
+                var j = res.body || {};
+                if (j.ok && j.html) {
+                    var done = loadResultHtml(j.html, true);
+                    setResult(done
+                        ? 'Done — heading structure fixed. Review the canvas, then Save.'
+                        : 'Fixed, but could not load it into the builder.', done ? 'ok' : 'err');
+                } else {
+                    setResult(j.error || 'SEO structure fix failed.', 'err');
+                }
+            }).catch(function (e) {
+                setResult('Network error: ' + e.message, 'err');
+            }).finally(function () {
+                if (btn) { btn.disabled = false; }
+                if (label) { label.innerHTML = '&#9874; Fix SEO structure'; }
+            });
+        }
+
         rootEl.addEventListener('click', function (e) {
             if (e.target.closest('[data-ai-open]')) { e.preventDefault(); open(); return; }
             if (e.target.closest('[data-ai-cancel]')) { e.preventDefault(); close(); return; }
             var gen = e.target.closest('[data-ai-generate]');
             if (gen) { e.preventDefault(); generate(gen); return; }
+            var fix = e.target.closest('[data-ai-fixseo]');
+            if (fix) { e.preventDefault(); fixSeo(fix); return; }
         });
 
         // Ctrl/Cmd+Enter in the prompt triggers Generate.

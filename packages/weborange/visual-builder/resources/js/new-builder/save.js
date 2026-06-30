@@ -190,6 +190,7 @@
 
             var replaceEl = rootEl.querySelector('[data-save-replace]');
             var siteEl = rootEl.querySelector('[data-site-css]');
+            var templateEl = rootEl.querySelector('[data-save-template]');
             var body = {
                 target_id: pageId,
                 section_id: sectionValue() || null,
@@ -199,6 +200,7 @@
                 replace: replaceEl && replaceEl.checked ? 1 : 0,
                 site_css: siteEl ? siteEl.value : '',
             };
+            if (templateEl) { body.is_template = templateEl.checked ? 1 : 0; }
 
             var loopOn = rootEl.querySelector('[data-save-loop]');
             if (loopOn && loopOn.checked) {
@@ -249,6 +251,14 @@
         }
 
         rootEl.addEventListener('click', function (e) {
+            if (e.target.closest('[data-save-options]')) {
+                e.preventDefault();
+                // Always reveal the panel (Replace / sections-mode / template options),
+                // even in migrate mode where the primary Save saves directly.
+                var p = panel && !panel.classList.contains('hidden');
+                if (p) { close(); } else { open(); }
+                return;
+            }
             if (e.target.closest('[data-save-open]')) {
                 e.preventDefault();
                 // Primary Save: in migrate/edit mode (target preselected) or when the

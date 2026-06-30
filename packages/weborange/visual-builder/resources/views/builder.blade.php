@@ -41,9 +41,11 @@
     #new-builder-app .nb-actions { margin-left: auto; display: flex; gap: .25rem; opacity: 0; transition: opacity .1s; }
     #new-builder-app .nb-row:hover .nb-actions { opacity: 1; }
     #new-builder-app .nb-actions button {
-        font-size: .6875rem; padding: .1rem .35rem; border: 1px solid #d1d5db;
-        border-radius: .25rem; background: #fff; color: #374151;
+        font-size: .8rem; line-height: 1; padding: .2rem; min-width: 1.55rem; height: 1.55rem;
+        display: inline-flex; align-items: center; justify-content: center;
+        border: 1px solid #d1d5db; border-radius: .25rem; background: #fff; color: #374151;
     }
+    #new-builder-app .nb-actions button:hover { background: #f3f4f6; color: #111827; border-color: #9ca3af; }
     #new-builder-app .nb-actions button.nb-del { color: #b91c1c; border-color: #fecaca; }
 
     /* ---- inspector ---- */
@@ -271,8 +273,13 @@
                 &#8599; View page
             </a>
             <button data-save-open type="button"
-                    class="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 rounded hover:bg-emerald-700">
+                    class="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 rounded-l hover:bg-emerald-700">
                 &#128190; Save
+            </button>
+            <button data-save-options type="button"
+                    title="Save options — Replace page content, sections mode, save as template…"
+                    class="inline-flex items-center px-2 py-1.5 text-xs font-semibold text-white bg-emerald-600 rounded-r border-l border-emerald-500 hover:bg-emerald-700">
+                &#9662;
             </button>
         </div>
     </div>
@@ -286,6 +293,17 @@
             <span class="text-xs font-semibold uppercase tracking-wide text-violet-800">&#10024; Generate with AI</span>
             <button data-ai-cancel type="button" class="text-xs text-gray-500 hover:text-gray-700">Close</button>
         </div>
+        @if(!empty($vbStyleTemplates))
+            <div class="mb-2">
+                <label class="block text-xs font-medium text-violet-800 mb-1">Use a style template (optional) — the AI copies its look</label>
+                <select data-ai-template class="w-full text-sm rounded border-gray-300 focus:border-violet-500 focus:ring-violet-500">
+                    <option value="">— none (free style) —</option>
+                    @foreach($vbStyleTemplates as $vbT)
+                        <option value="{{ $vbT['id'] }}">{{ $vbT['label'] }}</option>
+                    @endforeach
+                </select>
+            </div>
+        @endif
         <textarea data-ai-prompt rows="3"
                   class="w-full text-sm rounded border-gray-300 focus:border-violet-500 focus:ring-violet-500"
                   placeholder="Describe the section you want… e.g. “a hero with a heading, subtext and two buttons on a dark gradient” or “a 3-column features grid with icons”."></textarea>
@@ -294,8 +312,13 @@
                 <input data-ai-mode type="checkbox" class="rounded border-gray-300 text-violet-600 focus:ring-violet-500">
                 Replace everything (otherwise append to the canvas)
             </label>
+            <button data-ai-fixseo type="button"
+                    class="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded hover:bg-emerald-100 disabled:opacity-50"
+                    title="Fix the heading hierarchy (one h1, correct h2/h3 order) of the whole page for SEO — review the result before saving.">
+                <span data-ai-fixseo-label>&#9874; Fix SEO structure</span>
+            </button>
             <button data-ai-generate type="button"
-                    class="ml-auto inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-white rounded disabled:opacity-50"
+                    class="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-white rounded disabled:opacity-50"
                     style="background:linear-gradient(90deg,#7c3aed,#db2777)">
                 <span data-ai-label>&#10024; Generate</span>
             </button>
@@ -387,6 +410,11 @@
                        title="Soft-deletes this page's existing sections (recoverable) and saves the builder output as its content. Use to finish a migration.">
                     <input data-save-replace type="checkbox" class="rounded border-gray-300 text-red-600 focus:ring-red-500">
                     Replace page content (finish migration)
+                </label>
+                <label class="inline-flex items-center gap-1.5 text-xs text-violet-800"
+                       title="Mark this page as a reusable style template — it will appear in the AI panel's 'Use template' picker so new pages can be generated in its style.">
+                    <input data-save-template type="checkbox" @checked($vbIsTemplate ?? false) class="rounded border-gray-300 text-violet-600 focus:ring-violet-500">
+                    Save as style template (reusable by AI)
                 </label>
             </div>
             <div class="flex items-center gap-2 pb-1">

@@ -27,11 +27,23 @@ class BuilderController extends Controller
     public function ai(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'prompt' => 'required|string|max:4000',
+            'prompt' => 'nullable|string|max:4000',
             'current_html' => 'nullable|string',
+            'mode' => 'nullable|string|in:generate,fix_seo',
+            'template_id' => 'nullable',
         ]);
 
-        $result = $this->ai->generate($data['prompt'], $data['current_html'] ?? null);
+        if (($data['mode'] ?? 'generate') === 'fix_seo') {
+            $result = $this->ai->fixStructure((string) ($data['current_html'] ?? ''));
+        } else {
+            if (trim((string) ($data['prompt'] ?? '')) === '') {
+                return response()->json(['ok' => false, 'error' => 'Describe what you want first.'], 422);
+            }
+            $styleReference = ! empty($data['template_id'])
+                ? $this->persistence->seedFor($data['template_id'])
+                : null;
+            $result = $this->ai->generate($data['prompt'], $data['current_html'] ?? null, $styleReference);
+        }
 
         return response()->json($result, ($result['ok'] ?? false) ? 200 : 422);
     }
@@ -41,6 +53,13 @@ class BuilderController extends Controller
         $targetId = $request->query('target');
         $seed = ($targetId !== null && $targetId !== '') ? $this->persistence->seedFor($targetId) : null;
 
+        $styleTemplates = $this->persistence->styleTemplates();
+        $isTemplate = $targetId !== null && in_array(
+            (string) $targetId,
+            array_map(fn (array $t): string => (string) $t['id'], $styleTemplates),
+            true
+        );
+
         return view('visual-builder::builder', [
             'vbTargets' => $this->persistence->targets(),
             'vbSources' => $this->tokens->sources(),
@@ -48,6 +67,8 @@ class BuilderController extends Controller
             'vbSliders' => $this->tokens->sliders(),
             'vbNodes' => $this->tokens->nodes(),
             'vbSiteCss' => $this->tokens->siteCss(),
+            'vbStyleTemplates' => $styleTemplates,
+            'vbIsTemplate' => $isTemplate,
             'vbAssetVersion' => $this->assetVersion(),
             'vbSeedHtml' => $seed,
             'vbPreselectTarget' => $targetId,
@@ -81,6 +102,7 @@ class BuilderController extends Controller
             'loop_order_dir' => 'nullable|string|in:asc,desc',
             'loop_heading' => 'nullable|string|max:160',
             'site_css' => 'nullable|string',
+            'is_template' => 'sometimes|boolean',
         ]);
 
         if ($request->has('site_css')) {
@@ -104,7 +126,7 @@ class BuilderController extends Controller
             'convert' => (bool) ($data['convert'] ?? false),
             'replace' => (bool) ($data['replace'] ?? false),
             'loop' => $loop,
-        ]);
+        ] + ($request->has('is_template') ? ['is_template' => (bool) $data['is_template']] : []));
 
         $status = ($result['success'] ?? false) ? 200 : (($result['needs_convert'] ?? false) ? 409 : 422);
 

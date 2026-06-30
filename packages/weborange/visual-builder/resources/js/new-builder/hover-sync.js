@@ -81,7 +81,8 @@
                 state.hoverId = id;
                 clearPreviewOutline();
                 if (el) { el.setAttribute('data-nb-hover', '1'); }
-                highlightTreeRow(id, true);
+                // Tree is intentionally NOT touched on preview hover — it only
+                // highlights/selects the node when the element is clicked.
             });
             doc.addEventListener('mouseleave', function () {
                 state.hoverId = null;

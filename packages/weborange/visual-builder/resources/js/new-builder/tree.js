@@ -84,11 +84,12 @@
             var actions = document.createElement('span');
             actions.className = 'nb-actions';
             actions.innerHTML =
-                '<button data-act="add-child" title="Add child">＋child</button>' +
-                '<button data-act="add-sibling" title="Add sibling">＋sib</button>' +
-                '<button data-act="duplicate" title="Duplicate">⧉ dup</button>' +
-                '<button data-act="edit-html" title="Edit HTML of this element + children">&lt;/&gt;</button>' +
-                '<button data-act="delete" title="Delete" class="nb-del">✕</button>';
+                '<button data-act="add-child" title="Add child" aria-label="Add child">⊕</button>' +
+                '<button data-act="add-sibling" title="Add sibling" aria-label="Add sibling">＋</button>' +
+                '<button data-act="duplicate" title="Duplicate" aria-label="Duplicate">⧉</button>' +
+                '<button data-act="wrap" title="Wrap this element in a div" aria-label="Wrap in div">⬚</button>' +
+                '<button data-act="edit-html" title="Edit HTML of this element + children" aria-label="Edit HTML">&lt;/&gt;</button>' +
+                '<button data-act="delete" title="Delete" aria-label="Delete" class="nb-del">✕</button>';
             row.appendChild(actions);
 
             li.appendChild(row);

@@ -606,6 +606,13 @@ class FrontendController extends Controller
             $pCount->setValue($vf, $snapCount);
         }
 
+        // Resolve page-level tokens ({title}, {seo_description}, …) against the
+        // page entry. Skipped in visual-editor preview so authors still see the
+        // literal token while editing.
+        if (! $forceVe) {
+            $html = app(\App\Services\TokenResolver::class)->resolvePageTokens($html, $entry);
+        }
+
         return $html;
     }
 

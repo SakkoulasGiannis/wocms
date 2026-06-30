@@ -26,6 +26,11 @@ class NullPersistence implements BuilderPersistence
         return null;
     }
 
+    public function styleTemplates(): array
+    {
+        return [];
+    }
+
     public function save(array $payload): array
     {
         return [
