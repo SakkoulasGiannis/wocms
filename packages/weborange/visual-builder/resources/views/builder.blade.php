@@ -312,8 +312,15 @@
                 <input data-ai-mode type="checkbox" class="rounded border-gray-300 text-violet-600 focus:ring-violet-500">
                 Replace everything (otherwise append to the canvas)
             </label>
+            @if(!empty($vbStyleTemplates))
+                <button data-ai-apply-template type="button"
+                        class="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded hover:bg-indigo-100 disabled:opacity-50"
+                        title="Rebuild the current page content in the style of the selected template (classes, fonts, structure) and fix headings — review before saving.">
+                    <span data-ai-apply-template-label>&#127912; Apply template style</span>
+                </button>
+            @endif
             <button data-ai-fixseo type="button"
-                    class="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded hover:bg-emerald-100 disabled:opacity-50"
+                    class="@if(empty($vbStyleTemplates)) ml-auto @endif inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded hover:bg-emerald-100 disabled:opacity-50"
                     title="Fix the heading hierarchy (one h1, correct h2/h3 order) of the whole page for SEO — review the result before saving.">
                 <span data-ai-fixseo-label>&#9874; Fix SEO structure</span>
             </button>

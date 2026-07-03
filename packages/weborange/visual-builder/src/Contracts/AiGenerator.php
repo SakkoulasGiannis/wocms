@@ -25,9 +25,21 @@ interface AiGenerator
      * Fix ONLY the semantic structure of the given page HTML for SEO/accessibility
      * (heading hierarchy: a single top-level h1, correctly ordered h2/h3, the main
      * title promoted to the right level). Visible text, CSS classes and styling are
-     * preserved unchanged. Return the corrected HTML the builder can re-parse.
+     * preserved unchanged. When no h1 exists and $pageTitle is given, create one
+     * from it. Return the corrected HTML the builder can re-parse.
      *
      * @return array{ok:bool, html?:string, error?:string}
      */
-    public function fixStructure(string $html): array;
+    public function fixStructure(string $html, ?string $pageTitle = null): array;
+
+    /**
+     * Re-style the given page HTML so it adopts the look of $styleReference (a
+     * "style template" page): reuse its Tailwind classes, fonts, sizes, colours,
+     * spacing and section structure, while KEEPING the current page's actual text
+     * content. Also fixes the heading hierarchy (single h1, created from $pageTitle
+     * when the content has none). Return the restyled HTML the builder can re-parse.
+     *
+     * @return array{ok:bool, html?:string, error?:string}
+     */
+    public function restyleToTemplate(string $html, string $styleReference, ?string $pageTitle = null): array;
 }

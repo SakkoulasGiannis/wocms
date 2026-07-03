@@ -34,16 +34,20 @@ class CmsAiGenerator implements AiGenerator
         return ['ok' => true, 'html' => $html];
     }
 
-    public function fixStructure(string $html): array
+    public function fixStructure(string $html, ?string $pageTitle = null): array
     {
         if (trim($html) === '') {
             return ['ok' => false, 'error' => 'Nothing to fix — the page is empty.'];
         }
 
-        $system = <<<'SYS'
+        $titleRule = ($pageTitle !== null && trim($pageTitle) !== '')
+            ? "\n        - If the content has NO <h1> at all, create one using this page title: \"".trim($pageTitle)."\", placed as the first heading of the main content."
+            : '';
+
+        $system = <<<SYS
         You are an SEO and accessibility expert. You are given the full HTML of a web page's content.
         Fix ONLY the semantic heading structure and tags. Rules:
-        - There must be exactly ONE <h1>: the main title of the page content. If the main title currently uses the wrong tag (e.g. <h4>, <h2>, a styled <div> or <p>), convert it to <h1>.
+        - There must be exactly ONE <h1>: the main title of the page content. If the main title currently uses the wrong tag (e.g. <h4>, <h2>, a styled <div> or <p>), convert it to <h1>.{$titleRule}
         - Headings below it must follow a correct, non-skipping order: <h1> then <h2>, then <h3> under an <h2>, etc. Never jump from <h1> straight to <h4>.
         - Keep ALL visible text exactly the same — do not rewrite, add, translate or remove any words.
         - Keep ALL CSS classes, inline styles, attributes, ids, images, links and the overall structure intact. Change ONLY tag names / heading levels where needed for correct semantics.
@@ -51,8 +55,48 @@ class CmsAiGenerator implements AiGenerator
         - Output ONLY the corrected raw HTML. No markdown fences, no explanation.
         SYS;
 
+        return $this->sendAndClean($system."\n\nHTML to fix:\n\n".$html);
+    }
+
+    public function restyleToTemplate(string $html, string $styleReference, ?string $pageTitle = null): array
+    {
+        if (trim($html) === '') {
+            return ['ok' => false, 'error' => 'Nothing to restyle — the page is empty.'];
+        }
+        if (trim($styleReference) === '') {
+            return ['ok' => false, 'error' => 'Pick a style template first.'];
+        }
+
+        $titleRule = ($pageTitle !== null && trim($pageTitle) !== '')
+            ? "\n        - If the content has no main heading, add an <h1> using this page title: \"".trim($pageTitle)."\"."
+            : '';
+
+        $system = <<<SYS
+        You are an expert web designer. You are given the CURRENT HTML content of a page and a REFERENCE template page. Rebuild the current content so it adopts the reference's visual design.
+        Rules:
+        - Reuse the reference's Tailwind utility-class patterns, fonts, font sizes/weights, colours, spacing, button styles, container widths and overall SECTION STRUCTURE.
+        - KEEP the current page's actual text content, headings text, links and images — only change the markup/classes/structure around them so it looks like it belongs to the same site as the reference.
+        - Fix the heading hierarchy: exactly one <h1> for the main title, then correctly ordered <h2>/<h3>.{$titleRule}
+        - Style with Tailwind utility classes (no <style>, no inline style). Keep real image URLs; use https://placehold.co/WIDTHxHEIGHT only where the current content has no image.
+        - Output ONLY the rebuilt raw HTML. No markdown fences, no explanation.
+        SYS;
+
+        return $this->sendAndClean(
+            $system."\n\nREFERENCE TEMPLATE:\n".$this->trimReference($styleReference)."\n\nCURRENT CONTENT TO RESTYLE:\n".$html
+        );
+    }
+
+    /**
+     * Send a prompt to the active provider and clean the returned HTML — strip
+     * markdown fences and any leading prose (the page HTML can start with any tag,
+     * not just <section>).
+     *
+     * @return array{ok:bool, html?:string, error?:string}
+     */
+    private function sendAndClean(string $prompt): array
+    {
         try {
-            $resp = $this->ai->getProvider()->chat($system."\n\nHTML to fix:\n\n".$html);
+            $resp = $this->ai->getProvider()->chat($prompt);
         } catch (\Throwable $e) {
             return ['ok' => false, 'error' => 'AI request failed: '.$e->getMessage()];
         }
@@ -61,22 +105,20 @@ class CmsAiGenerator implements AiGenerator
             return ['ok' => false, 'error' => $resp->error ?: 'AI request failed.'];
         }
 
-        // Lighter clean than cleanHtml(): the page HTML can legitimately start
-        // with any tag (not just <section>), so only strip fences/leading prose.
-        $fixed = trim((string) $resp->content);
-        $fixed = preg_replace('/^```[a-zA-Z]*\s*/', '', $fixed);
-        $fixed = preg_replace('/\s*```\s*$/', '', (string) $fixed);
-        $pos = strpos((string) $fixed, '<');
+        $out = trim((string) $resp->content);
+        $out = preg_replace('/^```[a-zA-Z]*\s*/', '', $out);
+        $out = preg_replace('/\s*```\s*$/', '', (string) $out);
+        $pos = strpos((string) $out, '<');
         if ($pos !== false && $pos > 0) {
-            $fixed = substr((string) $fixed, $pos);
+            $out = substr((string) $out, $pos);
         }
-        $fixed = trim((string) $fixed);
+        $out = trim((string) $out);
 
-        if ($fixed === '') {
+        if ($out === '') {
             return ['ok' => false, 'error' => 'The AI did not return usable HTML. Try again.'];
         }
 
-        return ['ok' => true, 'html' => $fixed];
+        return ['ok' => true, 'html' => $out];
     }
 
     private function buildPrompt(string $prompt, ?string $currentHtml, ?string $styleReference = null): string

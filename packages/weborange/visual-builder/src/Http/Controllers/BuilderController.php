@@ -29,12 +29,22 @@ class BuilderController extends Controller
         $data = $request->validate([
             'prompt' => 'nullable|string|max:4000',
             'current_html' => 'nullable|string',
-            'mode' => 'nullable|string|in:generate,fix_seo',
+            'mode' => 'nullable|string|in:generate,fix_seo,apply_template',
             'template_id' => 'nullable',
+            'page_title' => 'nullable|string|max:300',
         ]);
 
-        if (($data['mode'] ?? 'generate') === 'fix_seo') {
-            $result = $this->ai->fixStructure((string) ($data['current_html'] ?? ''));
+        $mode = $data['mode'] ?? 'generate';
+        $pageTitle = $data['page_title'] ?? null;
+
+        if ($mode === 'fix_seo') {
+            $result = $this->ai->fixStructure((string) ($data['current_html'] ?? ''), $pageTitle);
+        } elseif ($mode === 'apply_template') {
+            if (empty($data['template_id'])) {
+                return response()->json(['ok' => false, 'error' => 'Pick a style template first.'], 422);
+            }
+            $reference = (string) ($this->persistence->seedFor($data['template_id']) ?? '');
+            $result = $this->ai->restyleToTemplate((string) ($data['current_html'] ?? ''), $reference, $pageTitle);
         } else {
             if (trim((string) ($data['prompt'] ?? '')) === '') {
                 return response()->json(['ok' => false, 'error' => 'Describe what you want first.'], 422);

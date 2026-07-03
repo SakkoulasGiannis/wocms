@@ -14,7 +14,12 @@ class NullAiGenerator implements AiGenerator
         return ['ok' => false, 'error' => 'AI generation is not configured for this app.'];
     }
 
-    public function fixStructure(string $html): array
+    public function fixStructure(string $html, ?string $pageTitle = null): array
+    {
+        return ['ok' => false, 'error' => 'AI generation is not configured for this app.'];
+    }
+
+    public function restyleToTemplate(string $html, string $styleReference, ?string $pageTitle = null): array
     {
         return ['ok' => false, 'error' => 'AI generation is not configured for this app.'];
     }

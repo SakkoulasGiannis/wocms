@@ -97,7 +97,7 @@
             fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, Accept: 'application/json' },
-                body: JSON.stringify({ mode: 'fix_seo', current_html: html }),
+                body: JSON.stringify({ mode: 'fix_seo', current_html: html, page_title: pageTitle() }),
             }).then(function (r) {
                 return r.json().then(function (j) { return { ok: r.ok, body: j }; });
             }).then(function (res) {
@@ -118,6 +118,52 @@
             });
         }
 
+        // The title of the currently-selected target — used to create a missing h1.
+        function pageTitle() {
+            var sel = rootEl.querySelector('[data-save-page]');
+            if (!sel || !sel.options || sel.selectedIndex < 0) { return ''; }
+            var txt = (sel.options[sel.selectedIndex].textContent || '').trim();
+            var dash = txt.indexOf(' — '); // labels look like "Title — /url-path"
+            return dash > -1 ? txt.slice(0, dash).trim() : txt;
+        }
+
+        // Rebuild the current canvas content in the selected template's style.
+        function applyTemplate(btn) {
+            var html = currentHtml();
+            if (!html) { setResult('Nothing to restyle — the canvas is empty.', 'err'); return; }
+            var tmpl = el('[data-ai-template]');
+            var templateId = tmpl ? tmpl.value : '';
+            if (!templateId) { setResult('Pick a style template from the dropdown first.', 'err'); return; }
+            var label = el('[data-ai-apply-template-label]');
+
+            if (btn) { btn.disabled = true; }
+            if (label) { label.textContent = '🎨 Applying…'; }
+            setResult('Rebuilding the page in the template style… this can take a few seconds.', 'info');
+
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, Accept: 'application/json' },
+                body: JSON.stringify({ mode: 'apply_template', current_html: html, template_id: templateId, page_title: pageTitle() }),
+            }).then(function (r) {
+                return r.json().then(function (j) { return { ok: r.ok, body: j }; });
+            }).then(function (res) {
+                var j = res.body || {};
+                if (j.ok && j.html) {
+                    var done = loadResultHtml(j.html, true);
+                    setResult(done
+                        ? 'Done — restyled to the template. Review the canvas, then Save.'
+                        : 'Restyled, but could not load it into the builder.', done ? 'ok' : 'err');
+                } else {
+                    setResult(j.error || 'Apply template failed.', 'err');
+                }
+            }).catch(function (e) {
+                setResult('Network error: ' + e.message, 'err');
+            }).finally(function () {
+                if (btn) { btn.disabled = false; }
+                if (label) { label.innerHTML = '&#127912; Apply template style'; }
+            });
+        }
+
         rootEl.addEventListener('click', function (e) {
             if (e.target.closest('[data-ai-open]')) { e.preventDefault(); open(); return; }
             if (e.target.closest('[data-ai-cancel]')) { e.preventDefault(); close(); return; }
@@ -125,6 +171,8 @@
             if (gen) { e.preventDefault(); generate(gen); return; }
             var fix = e.target.closest('[data-ai-fixseo]');
             if (fix) { e.preventDefault(); fixSeo(fix); return; }
+            var appl = e.target.closest('[data-ai-apply-template]');
+            if (appl) { e.preventDefault(); applyTemplate(appl); return; }
         });
 
         // Ctrl/Cmd+Enter in the prompt triggers Generate.
