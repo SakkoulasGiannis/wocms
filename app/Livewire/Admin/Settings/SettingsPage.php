@@ -80,9 +80,13 @@ class SettingsPage extends Component
 
     public $google_maps_api_key = '';
 
+    public $recaptcha_enabled = false;
+
     public $recaptcha_site_key = '';
 
     public $recaptcha_secret_key = '';
+
+    public $recaptcha_min_score = '0.5';
 
     public $social_facebook = '';
 
@@ -163,6 +167,8 @@ class SettingsPage extends Component
         $this->google_maps_api_key = Setting::get('google_maps_api_key', '');
         $this->recaptcha_site_key = Setting::get('recaptcha_site_key', '');
         $this->recaptcha_secret_key = Setting::get('recaptcha_secret_key', '');
+        $this->recaptcha_enabled = (bool) Setting::get('recaptcha_enabled', false);
+        $this->recaptcha_min_score = Setting::get('recaptcha_min_score', '0.5');
         $this->social_facebook = Setting::get('social_facebook', '');
         $this->social_instagram = Setting::get('social_instagram', '');
         $this->social_twitter = Setting::get('social_twitter', '');
@@ -484,8 +490,10 @@ class SettingsPage extends Component
             'custom_body_scripts' => 'nullable|string',
             'site_custom_css' => 'nullable|string',
             'google_maps_api_key' => 'nullable|string|max:255',
+            'recaptcha_enabled' => 'boolean',
             'recaptcha_site_key' => 'nullable|string|max:255',
             'recaptcha_secret_key' => 'nullable|string|max:255',
+            'recaptcha_min_score' => 'nullable|numeric|min:0|max:1',
             'social_facebook' => 'nullable|url|max:255',
             'social_instagram' => 'nullable|url|max:255',
             'social_twitter' => 'nullable|url|max:255',
@@ -503,6 +511,8 @@ class SettingsPage extends Component
         Setting::set('google_maps_api_key', $this->google_maps_api_key, 'integrations', encrypt: true);
         Setting::set('recaptcha_site_key', $this->recaptcha_site_key, 'integrations');
         Setting::set('recaptcha_secret_key', $this->recaptcha_secret_key, 'integrations', encrypt: true);
+        Setting::set('recaptcha_enabled', $this->recaptcha_enabled ? '1' : '0', 'integrations');
+        Setting::set('recaptcha_min_score', $this->recaptcha_min_score !== '' && $this->recaptcha_min_score !== null ? (string) $this->recaptcha_min_score : '0.5', 'integrations');
         Setting::set('social_facebook', $this->social_facebook, 'integrations');
         Setting::set('social_instagram', $this->social_instagram, 'integrations');
         Setting::set('social_twitter', $this->social_twitter, 'integrations');

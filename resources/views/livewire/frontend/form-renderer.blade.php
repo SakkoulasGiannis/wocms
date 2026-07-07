@@ -18,7 +18,25 @@
                 </div>
             @endif
 
-            <form wire:submit.prevent="submit" class="space-y-6">
+            {{-- With reCAPTCHA v3 active we intercept the submit, fetch a fresh
+                 token from Google, stash it in the Livewire property (deferred)
+                 and only then trigger the Livewire submit action. Without
+                 reCAPTCHA the form behaves exactly as before. --}}
+            <form
+                @if($recaptchaSiteKey)
+                    x-data
+                    x-on:submit.prevent="
+                        if (typeof grecaptcha === 'undefined' || typeof grecaptcha.execute !== 'function') { $wire.submit(); return; }
+                        grecaptcha.ready(function () {
+                            grecaptcha.execute('{{ $recaptchaSiteKey }}', { action: 'form_submit' })
+                                .then(function (token) { $wire.set('recaptchaToken', token, false); $wire.submit(); })
+                                .catch(function () { $wire.submit(); });
+                        });
+                    "
+                @else
+                    wire:submit.prevent="submit"
+                @endif
+                class="space-y-6">
                 @foreach($form->fields as $field)
                     @if($field->type === 'hidden')
                         <input type="hidden" wire:model="formData.{{ $field->name }}" value="{{ $field->default_value }}">
@@ -178,10 +196,10 @@
                     @endif
                 @endforeach
 
-                {{-- Honeypot field for spam protection (hidden) --}}
-                <div class="hidden" aria-hidden="true">
-                    <label for="honeypot">Leave this field blank</label>
-                    <input type="text" id="honeypot" wire:model="honeypot" tabindex="-1" autocomplete="off">
+                {{-- Honeypot field for spam protection (visually hidden, bots fill it) --}}
+                <div style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;" aria-hidden="true">
+                    <label for="field-website-url">Website</label>
+                    <input type="text" id="field-website-url" name="website_url" wire:model="website_url" tabindex="-1" autocomplete="off">
                 </div>
 
                 <div class="pt-4">
@@ -202,5 +220,9 @@
                 </div>
             </form>
         </div>
+    @endif
+
+    @if($recaptchaSiteKey)
+        <script src="https://www.google.com/recaptcha/api.js?render={{ $recaptchaSiteKey }}" defer></script>
     @endif
 </div>

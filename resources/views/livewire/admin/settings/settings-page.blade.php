@@ -795,12 +795,37 @@
                             @error('google_maps_api_key') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                         </div>
 
+                    </div>
+                </div>
+
+                <!-- Spam Protection / reCAPTCHA v3 -->
+                <div class="bg-white rounded-lg shadow p-6 mb-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-1">Προστασία Spam — Google reCAPTCHA v3</h2>
+                    <p class="text-sm text-gray-500 mb-4">
+                        Αόρατη προστασία spam στις φόρμες του site (χωρίς κουτάκι "δεν είμαι ρομπότ").
+                        Δημιουργήστε κλειδιά τύπου <strong>reCAPTCHA v3</strong> στο
+                        <a href="https://www.google.com/recaptcha/admin" target="_blank" rel="noopener" class="text-blue-600 hover:underline">google.com/recaptcha/admin</a>.
+                    </p>
+
+                    <div class="space-y-4">
+                        <div class="flex items-start">
+                            <div class="flex items-center h-5">
+                                <input type="checkbox" wire:model="recaptcha_enabled" id="recaptcha_enabled"
+                                       class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                            </div>
+                            <div class="ml-3">
+                                <label for="recaptcha_enabled" class="text-sm font-medium text-gray-700">Ενεργοποίηση reCAPTCHA v3 στις φόρμες</label>
+                                <p class="text-xs text-gray-500">Ενεργοποιείται μόνο όταν έχουν συμπληρωθεί και τα δύο κλειδιά. Οι ύποπτες υποβολές απορρίπτονται σιωπηλά.</p>
+                            </div>
+                        </div>
+
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">reCAPTCHA Site Key</label>
                                 <input type="text" wire:model="recaptcha_site_key"
                                        class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 font-mono text-sm"
                                        placeholder="6Le...">
+                                <p class="mt-1 text-xs text-gray-500">Το δημόσιο κλειδί (Site Key) από το Google reCAPTCHA admin</p>
                                 @error('recaptcha_site_key') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                             </div>
                             <div>
@@ -808,8 +833,18 @@
                                 <input type="password" wire:model="recaptcha_secret_key"
                                        class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 font-mono text-sm"
                                        placeholder="6Le...">
+                                <p class="mt-1 text-xs text-gray-500">Το μυστικό κλειδί (Secret Key) — αποθηκεύεται κρυπτογραφημένο</p>
                                 @error('recaptcha_secret_key') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                             </div>
+                        </div>
+
+                        <div class="max-w-xs">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Ελάχιστο score (0 – 1)</label>
+                            <input type="number" step="0.1" min="0" max="1" wire:model="recaptcha_min_score"
+                                   class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
+                                   placeholder="0.5">
+                            <p class="mt-1 text-xs text-gray-500">Υποβολές με score κάτω από αυτό απορρίπτονται. Προεπιλογή: 0.5</p>
+                            @error('recaptcha_min_score') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                         </div>
                     </div>
                 </div>
