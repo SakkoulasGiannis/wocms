@@ -15,9 +15,13 @@ class FormSubmissionNotification extends Mailable
     use Queueable, SerializesModels;
 
     public $form;
+
     public $submissionData;
+
     public $submission;
+
     public $formattedData;
+
     public $replyToEmail;
 
     /**
@@ -41,8 +45,8 @@ class FormSubmissionNotification extends Mailable
      */
     public function envelope(): Envelope
     {
-        $envelope = Envelope::from(config('mail.from.address'))
-            ->subject($this->form->notification_subject ?? 'New Form Submission: ' . $this->form->name);
+        $envelope = (new Envelope)->from(config('mail.from.address'))
+            ->subject($this->form->notification_subject ?? 'New Form Submission: '.$this->form->name);
 
         // Add reply-to if available
         if ($this->replyToEmail) {
@@ -87,7 +91,7 @@ class FormSubmissionNotification extends Mailable
             if (is_array($value)) {
                 $displayValue = implode(', ', $value);
             } elseif ($field && $field->type === 'file' && $value) {
-                $displayValue = '<a href="' . asset('storage/' . $value) . '" target="_blank">View File</a>';
+                $displayValue = '<a href="'.asset('storage/'.$value).'" target="_blank">View File</a>';
             } else {
                 $displayValue = $value;
             }

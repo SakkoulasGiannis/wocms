@@ -121,7 +121,11 @@
                         @if($site_logo_upload)
                             <div class="mt-3">
                                 <p class="text-xs text-gray-500 mb-2">New Logo Preview:</p>
-                                <img src="{{ $site_logo_upload->temporaryUrl() }}" class="max-w-xs max-h-24 rounded-lg shadow-sm border border-gray-200">
+                                @if(str_ends_with(strtolower($site_logo_upload->getClientOriginalName()), '.svg'))
+                                    <p class="text-sm text-gray-700">{{ $site_logo_upload->getClientOriginalName() }} — έτοιμο για αποθήκευση</p>
+                                @else
+                                    <img src="{{ $site_logo_upload->temporaryUrl() }}" class="max-w-xs max-h-24 rounded-lg shadow-sm border border-gray-200">
+                                @endif
                             </div>
                         @endif
 

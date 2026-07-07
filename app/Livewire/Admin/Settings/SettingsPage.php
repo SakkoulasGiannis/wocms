@@ -192,7 +192,7 @@ class SettingsPage extends Component
     {
         $this->validate([
             'site_name' => 'required|string|max:255',
-            'site_logo_upload' => 'nullable|image|max:2048', // 2MB max
+            'site_logo_upload' => 'nullable|image:allow_svg|max:2048', // 2MB max
             'site_favicon_upload' => 'nullable|image|mimes:png,ico,jpg,jpeg|max:1024', // 1MB max
             'site_description' => 'nullable|string|max:1000',
         ]);
