@@ -7,9 +7,7 @@
     <title>@yield('title', 'Admin') - CMS</title>
 
     <!-- Favicon -->
-    @if(\App\Models\Setting::get('site_favicon'))
-        <link rel="icon" type="image/x-icon" href="{{ \App\Models\Setting::get('site_favicon') }}">
-    @endif
+    @include('partials.favicon')
 
     <script src="https://cdn.tailwindcss.com"></script>
     <style type="text/tailwindcss">

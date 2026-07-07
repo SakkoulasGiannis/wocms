@@ -6,9 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     {{-- Favicon --}}
-    @if(\App\Models\Setting::get('site_favicon'))
-        <link rel="shortcut icon" href="{{ \App\Models\Setting::get('site_favicon') }}">
-    @endif
+    @include('partials.favicon')
 
     {{-- SEO Meta Tags — always use the component so empty-string fallbacks kick in correctly --}}
     @php

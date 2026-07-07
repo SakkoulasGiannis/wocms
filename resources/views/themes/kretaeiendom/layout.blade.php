@@ -6,9 +6,8 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <!-- Favicon -->
-    @if(\App\Models\Setting::get('site_favicon'))
-        <link rel="shortcut icon" href="{{ \App\Models\Setting::get('site_favicon') }}">
-        <link rel="apple-touch-icon-precomposed" href="{{ \App\Models\Setting::get('site_favicon') }}">
+    @if(\App\Models\Setting::get('site_favicon') || \App\Models\Setting::get('site_favicon_png'))
+        @include('partials.favicon')
     @else
         <link rel="shortcut icon" href="/themes/kretaeiendom/images/logo/favicon.png">
     @endif

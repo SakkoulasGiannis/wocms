@@ -5,9 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
     <!-- Favicon -->
-    @if(\App\Models\Setting::get('site_favicon'))
-        <link rel="shortcut icon" href="{{ \App\Models\Setting::get('site_favicon') }}">
-        <link rel="apple-touch-icon-precomposed" href="{{ \App\Models\Setting::get('site_favicon') }}">
+    @if(\App\Models\Setting::get('site_favicon') || \App\Models\Setting::get('site_favicon_png'))
+        @include('partials.favicon')
     @else
         <link rel="shortcut icon" href="/themes/bootstrap/images/logo/favicon.png">
         <link rel="apple-touch-icon-precomposed" href="/themes/bootstrap/images/logo/favicon.png">

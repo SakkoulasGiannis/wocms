@@ -154,7 +154,7 @@
                         <!-- File Upload Input -->
                         <input type="file"
                                wire:model="site_favicon_upload"
-                               accept="image/png,image/x-icon,image/jpeg,image/jpg"
+                               accept="image/png,image/x-icon,image/jpeg,image/jpg,image/svg+xml"
                                class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
 
                         <!-- Loading Indicator -->
@@ -166,7 +166,11 @@
                         @if($site_favicon_upload)
                             <div class="mt-3">
                                 <p class="text-xs text-gray-500 mb-2">New Favicon Preview:</p>
-                                <img src="{{ $site_favicon_upload->temporaryUrl() }}" class="w-8 h-8 rounded shadow-sm border border-gray-200">
+                                @if(str_ends_with(strtolower($site_favicon_upload->getClientOriginalName()), '.svg'))
+                                    <p class="text-sm text-gray-700">{{ $site_favicon_upload->getClientOriginalName() }} — έτοιμο για αποθήκευση</p>
+                                @else
+                                    <img src="{{ $site_favicon_upload->temporaryUrl() }}" class="w-8 h-8 rounded shadow-sm border border-gray-200">
+                                @endif
                             </div>
                         @endif
 
@@ -175,7 +179,48 @@
                         @enderror
 
                         <p class="mt-1 text-xs text-gray-500">
-                            Upload a favicon image (PNG, ICO, JPG recommended 32x32 or 16x16). Max size: 1MB.
+                            Upload a favicon image (SVG, PNG, ICO, JPG recommended 32x32 or 16x16). Max size: 1MB.
+                        </p>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Favicon PNG (fallback για Safari/iOS)
+                        </label>
+
+                        <!-- Current PNG Fallback Preview -->
+                        @if($site_favicon_png && !$site_favicon_png_upload)
+                            <div class="mb-3">
+                                <p class="text-xs text-gray-500 mb-2">Current PNG Fallback:</p>
+                                <img src="{{ $site_favicon_png }}" alt="Favicon PNG" class="w-8 h-8 rounded shadow-sm border border-gray-200">
+                            </div>
+                        @endif
+
+                        <!-- File Upload Input -->
+                        <input type="file"
+                               wire:model="site_favicon_png_upload"
+                               accept="image/png"
+                               class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+
+                        <!-- Loading Indicator -->
+                        <div wire:loading wire:target="site_favicon_png_upload" class="mt-2 text-sm text-blue-600">
+                            Uploading...
+                        </div>
+
+                        <!-- New Upload Preview -->
+                        @if($site_favicon_png_upload)
+                            <div class="mt-3">
+                                <p class="text-xs text-gray-500 mb-2">New PNG Fallback Preview:</p>
+                                <img src="{{ $site_favicon_png_upload->temporaryUrl() }}" class="w-8 h-8 rounded shadow-sm border border-gray-200">
+                            </div>
+                        @endif
+
+                        @error('site_favicon_png_upload')
+                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                        @enderror
+
+                        <p class="mt-1 text-xs text-gray-500">
+                            Προαιρετικό. Χρησιμοποιείται μαζί με SVG favicon ως fallback (PNG μόνο, π.χ. 180x180). Max size: 1MB.
                         </p>
                     </div>
 

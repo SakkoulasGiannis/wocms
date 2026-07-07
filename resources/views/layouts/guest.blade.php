@@ -8,9 +8,7 @@
         <title>{{ config('app.name', 'Laravel') }}</title>
 
         <!-- Favicon -->
-        @if(\App\Models\Setting::get('site_favicon'))
-            <link rel="icon" type="image/x-icon" href="{{ \App\Models\Setting::get('site_favicon') }}">
-        @endif
+        @include('partials.favicon')
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">

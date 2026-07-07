@@ -5,9 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <!-- Favicon -->
-    @if(\App\Models\Setting::get('site_favicon'))
-        <link rel="icon" type="image/x-icon" href="{{ \App\Models\Setting::get('site_favicon') }}">
-    @endif
+    @include('partials.favicon')
 
     {{-- SEO Meta Tags --}}
     @if(isset($content) || isset($post))

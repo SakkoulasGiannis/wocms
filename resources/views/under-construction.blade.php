@@ -6,9 +6,7 @@
     <title>{{ \App\Models\Setting::get('site_name', 'WOCMS') }} - Coming Soon</title>
 
     <!-- Favicon -->
-    @if(\App\Models\Setting::get('site_favicon'))
-        <link rel="icon" type="image/x-icon" href="{{ \App\Models\Setting::get('site_favicon') }}">
-    @endif
+    @include('partials.favicon')
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>

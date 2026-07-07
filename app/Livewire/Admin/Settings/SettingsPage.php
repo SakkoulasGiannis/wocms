@@ -25,6 +25,10 @@ class SettingsPage extends Component
 
     public $site_favicon_upload = null; // For favicon upload
 
+    public $site_favicon_png = '';
+
+    public $site_favicon_png_upload = null; // For PNG fallback favicon upload
+
     public $site_description = '';
 
     public $under_construction = false;
@@ -129,6 +133,7 @@ class SettingsPage extends Component
         $this->site_name = Setting::get('site_name', 'My CMS');
         $this->site_logo = Setting::get('site_logo', '');
         $this->site_favicon = Setting::get('site_favicon', '');
+        $this->site_favicon_png = Setting::get('site_favicon_png', '');
         $this->site_description = Setting::get('site_description', '');
         $this->under_construction = Setting::get('under_construction', false);
         $this->active_theme = Setting::get('active_theme', 'tailwind');
@@ -199,7 +204,8 @@ class SettingsPage extends Component
         $this->validate([
             'site_name' => 'required|string|max:255',
             'site_logo_upload' => 'nullable|image:allow_svg|max:2048', // 2MB max
-            'site_favicon_upload' => 'nullable|image|mimes:png,ico,jpg,jpeg|max:1024', // 1MB max
+            'site_favicon_upload' => 'nullable|image:allow_svg|mimes:png,ico,jpg,jpeg,svg|max:1024', // 1MB max
+            'site_favicon_png_upload' => 'nullable|image|mimes:png|max:1024', // 1MB max, PNG fallback
             'site_description' => 'nullable|string|max:1000',
         ]);
 
@@ -227,6 +233,17 @@ class SettingsPage extends Component
         } elseif ($this->site_favicon) {
             // Keep existing favicon if no new upload
             Setting::set('site_favicon', $this->site_favicon, 'general');
+        }
+
+        // Handle PNG fallback favicon upload (used alongside an SVG favicon for Safari/iOS)
+        if ($this->site_favicon_png_upload) {
+            $path = $this->site_favicon_png_upload->store('settings', 'public');
+            $this->site_favicon_png = '/storage/'.$path;
+            Setting::set('site_favicon_png', $this->site_favicon_png, 'general');
+            $this->site_favicon_png_upload = null; // Reset upload field
+        } elseif ($this->site_favicon_png) {
+            // Keep existing PNG fallback if no new upload
+            Setting::set('site_favicon_png', $this->site_favicon_png, 'general');
         }
 
         Setting::set('site_description', $this->site_description, 'general');
