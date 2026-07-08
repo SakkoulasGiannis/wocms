@@ -47,7 +47,7 @@ class AnalyticsPartialTest extends TestCase
         $html = $this->renderPartial();
 
         $this->assertSame(1, substr_count($html, 'https://www.googletagmanager.com/gtag/js?id=G-TEST123456'));
-        $this->assertSame(1, substr_count($html, "gtag('config','G-TEST123456')"));
+        $this->assertSame(1, substr_count($html, "gtag('config', 'G-TEST123456')"));
         $this->assertStringContainsString('dns-prefetch', $html);
         // GTM / Pixel remain absent
         $this->assertStringNotContainsString('gtm.js', $html);
