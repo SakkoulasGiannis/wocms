@@ -7,6 +7,9 @@
     <!-- Favicon -->
     @include('partials.favicon')
 
+    {{-- Analytics & tracking (Settings → Integrations) --}}
+    @include('partials.analytics')
+
     {{-- SEO Meta Tags --}}
     @if(isset($content) || isset($post))
         <x-seo-meta :entry="$content ?? $post ?? null" :title="$content->title ?? $post->title ?? $title ?? ''" />

@@ -499,10 +499,15 @@ class SettingsPage extends Component
 
     public function saveIntegrations(): void
     {
+        $this->google_analytics_id = trim((string) $this->google_analytics_id);
+        $this->google_tag_manager_id = trim((string) $this->google_tag_manager_id);
+        $this->facebook_pixel_id = trim((string) $this->facebook_pixel_id);
+
         $this->validate([
-            'google_analytics_id' => 'nullable|string|max:50',
-            'google_tag_manager_id' => 'nullable|string|max:50',
-            'facebook_pixel_id' => 'nullable|string|max:50',
+            // Empty string allowed (Livewire props are '' not null, so `nullable` alone wouldn't skip the regex)
+            'google_analytics_id' => ['nullable', 'string', 'max:50', 'regex:/^(G-[A-Z0-9]+)?$/i'],
+            'google_tag_manager_id' => ['nullable', 'string', 'max:50', 'regex:/^(GTM-[A-Z0-9]+)?$/i'],
+            'facebook_pixel_id' => ['nullable', 'string', 'max:50', 'regex:/^[0-9]*$/'],
             'custom_head_scripts' => 'nullable|string',
             'custom_body_scripts' => 'nullable|string',
             'site_custom_css' => 'nullable|string',

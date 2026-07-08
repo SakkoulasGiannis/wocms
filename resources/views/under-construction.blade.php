@@ -8,6 +8,9 @@
     <!-- Favicon -->
     @include('partials.favicon')
 
+    {{-- Analytics & tracking (Settings → Integrations) --}}
+    @include('partials.analytics')
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 

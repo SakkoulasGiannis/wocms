@@ -8,6 +8,9 @@
     {{-- Favicon --}}
     @include('partials.favicon')
 
+    {{-- Analytics & tracking (Settings → Integrations) --}}
+    @include('partials.analytics')
+
     {{-- SEO Meta Tags — always use the component so empty-string fallbacks kick in correctly --}}
     @php
         $seoEntry = $content ?? $post ?? $property ?? $rentalProperty ?? $home ?? null;

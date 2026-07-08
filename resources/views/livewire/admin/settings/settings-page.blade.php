@@ -800,7 +800,11 @@
                                 <input type="text" wire:model="google_analytics_id"
                                        class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
                                        placeholder="G-XXXXXXXXXX">
-                                <p class="mt-1 text-xs text-gray-500">Google Analytics 4 Measurement ID</p>
+                                <p class="mt-1 text-xs text-gray-500">
+                                    GA4 Measurement ID (μορφή G-XXXXXXXXXX). Θα το βρείτε στο Google Analytics →
+                                    Admin (Διαχείριση) → Data streams (Ροές δεδομένων) → επιλέξτε τη ροή web →
+                                    Measurement ID. Όσο είναι κενό, δεν φορτώνει κανένα script στο site.
+                                </p>
                                 @error('google_analytics_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                             </div>
 
@@ -809,7 +813,10 @@
                                 <input type="text" wire:model="google_tag_manager_id"
                                        class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
                                        placeholder="GTM-XXXXXXX">
-                                <p class="mt-1 text-xs text-gray-500">Container ID from Google Tag Manager</p>
+                                <p class="mt-1 text-xs text-gray-500">
+                                    Container ID (μορφή GTM-XXXXXXX) από το Google Tag Manager → Workspace, πάνω δεξιά.
+                                    Προαιρετικό — αν χρησιμοποιείτε GA4 απευθείας, αφήστε το κενό.
+                                </p>
                                 @error('google_tag_manager_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                             </div>
                         </div>
@@ -819,7 +826,10 @@
                             <input type="text" wire:model="facebook_pixel_id"
                                    class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
                                    placeholder="XXXXXXXXXXXXXXXX">
-                            <p class="mt-1 text-xs text-gray-500">Facebook/Meta Pixel tracking ID</p>
+                            <p class="mt-1 text-xs text-gray-500">
+                                Meta Pixel ID (μόνο αριθμοί) από το Meta Events Manager → Data sources → Pixel.
+                                Προαιρετικό — όσο είναι κενό, δεν φορτώνει τίποτα.
+                            </p>
                             @error('facebook_pixel_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                         </div>
                     </div>
