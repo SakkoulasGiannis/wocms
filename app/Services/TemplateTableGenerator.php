@@ -72,21 +72,7 @@ class TemplateTableGenerator
         }
 
         // Protected columns that should never be dropped
-        $protectedColumns = ['id', 'render_mode', 'status', 'sort_order', 'created_at', 'updated_at', 'deleted_at'];
-
-        // Add SEO columns to protected list if template has SEO
-        if ($template->has_seo) {
-            $seoColumns = [
-                'seo_title', 'seo_description', 'seo_keywords', 'seo_canonical_url', 'seo_focus_keyword',
-                'seo_robots_index', 'seo_robots_follow',
-                'seo_og_title', 'seo_og_description', 'seo_og_image', 'seo_og_type', 'seo_og_url',
-                'seo_twitter_card', 'seo_twitter_title', 'seo_twitter_description', 'seo_twitter_image',
-                'seo_twitter_site', 'seo_twitter_creator',
-                'seo_schema_type', 'seo_schema_custom',
-                'seo_redirect_url', 'seo_redirect_type', 'seo_sitemap_include', 'seo_sitemap_priority', 'seo_sitemap_changefreq',
-            ];
-            $protectedColumns = array_merge($protectedColumns, $seoColumns);
-        }
+        $protectedColumns = self::protectedColumns($template);
 
         // First, drop removed columns
         $columnsToDelete = [];
@@ -139,6 +125,37 @@ class TemplateTableGenerator
             });
             \Log::info("Added system column: sort_order on {$tableName}");
         }
+    }
+
+    /**
+     * Columns that must never be dropped by automated field-removal logic
+     * (system columns, plus SEO columns when the template has SEO enabled).
+     *
+     * Shared across every code path that considers dropping a column
+     * (this generator's own sync, the AI chat's field-removal proposal, etc.)
+     * so the list only needs to be maintained in one place.
+     *
+     * @return array<int, string>
+     */
+    public static function protectedColumns(Template $template): array
+    {
+        $protectedColumns = ['id', 'render_mode', 'status', 'sort_order', 'created_at', 'updated_at', 'deleted_at'];
+
+        // Add SEO columns to protected list if template has SEO
+        if ($template->has_seo) {
+            $seoColumns = [
+                'seo_title', 'seo_description', 'seo_keywords', 'seo_canonical_url', 'seo_focus_keyword',
+                'seo_robots_index', 'seo_robots_follow',
+                'seo_og_title', 'seo_og_description', 'seo_og_image', 'seo_og_type', 'seo_og_url',
+                'seo_twitter_card', 'seo_twitter_title', 'seo_twitter_description', 'seo_twitter_image',
+                'seo_twitter_site', 'seo_twitter_creator',
+                'seo_schema_type', 'seo_schema_custom',
+                'seo_redirect_url', 'seo_redirect_type', 'seo_sitemap_include', 'seo_sitemap_priority', 'seo_sitemap_changefreq',
+            ];
+            $protectedColumns = array_merge($protectedColumns, $seoColumns);
+        }
+
+        return $protectedColumns;
     }
 
     /**

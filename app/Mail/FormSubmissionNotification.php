@@ -86,12 +86,20 @@ class FormSubmissionNotification extends Mailable
         foreach ($this->submissionData as $key => $value) {
             $field = $this->form->fields()->where('name', $key)->first();
             $label = $field ? $field->label : ucfirst(str_replace('_', ' ', $key));
+            $isFileField = $field && $field->type === 'file';
 
-            // Handle different value types
-            if (is_array($value)) {
+            // Handle different value types. File values are rendered as HTML links, so
+            // every path must be escaped before it reaches the `{!! !!}` view output -
+            // a crafted filename/stored path must never break out of the anchor tag.
+            if ($isFileField && $value) {
+                $paths = is_array($value) ? $value : [$value];
+                $links = [];
+                foreach ($paths as $path) {
+                    $links[] = '<a href="'.e(asset('storage/'.$path)).'" target="_blank">View File</a>';
+                }
+                $displayValue = implode(', ', $links);
+            } elseif (is_array($value)) {
                 $displayValue = implode(', ', $value);
-            } elseif ($field && $field->type === 'file' && $value) {
-                $displayValue = '<a href="'.asset('storage/'.$value).'" target="_blank">View File</a>';
             } else {
                 $displayValue = $value;
             }
@@ -99,7 +107,7 @@ class FormSubmissionNotification extends Mailable
             $formatted[] = [
                 'label' => $label,
                 'value' => $displayValue,
-                'is_html' => $field && $field->type === 'file',
+                'is_html' => $isFileField && (bool) $value,
             ];
         }
 

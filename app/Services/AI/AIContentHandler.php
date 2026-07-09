@@ -5,6 +5,7 @@ namespace App\Services\AI;
 use App\Models\ContentNode;
 use App\Models\Template;
 use App\Services\BladeCompiler;
+use App\Services\TemplateTableGenerator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
@@ -980,9 +981,13 @@ class AIContentHandler
                 $changes[] = "Προστέθηκαν {$added} νέα πεδία";
             }
 
+            // SECURITY: the AI chat must NEVER drop a database column or delete a
+            // TemplateField itself — an LLM interprets ambiguous instructions, and a
+            // single message like "clean up the old fields" could otherwise destroy
+            // client data. Only propose the removal; a human must act deliberately in
+            // the template editor.
             if ($action === 'remove_fields' && ! empty($modifications['fields_to_remove'])) {
-                $removed = $this->removeFieldsFromTemplate($template, $modifications['fields_to_remove']);
-                $changes[] = "Αφαιρέθηκαν {$removed} πεδία";
+                return $this->proposeFieldRemoval($template, $modifications['fields_to_remove']);
             }
 
             if ($action === 'modify_fields' && ! empty($modifications['fields_to_modify'])) {
@@ -1050,28 +1055,59 @@ class AIContentHandler
     }
 
     /**
-     * Remove fields from template
+     * Build a non-destructive proposal listing which fields the AI thinks
+     * should be removed, instead of dropping the database column or
+     * deleting the TemplateField. This method never mutates anything —
+     * see the SECURITY note at the `remove_fields` call site.
      */
-    protected function removeFieldsFromTemplate(Template $template, array $fieldNamesToRemove): int
+    protected function proposeFieldRemoval(Template $template, array $fieldNamesToRemove): array
     {
-        $removed = 0;
+        $protectedColumns = TemplateTableGenerator::protectedColumns($template);
+        $proposed = [];
+        $protected = [];
 
         foreach ($fieldNamesToRemove as $fieldName) {
             $field = $template->fields()->where('name', $fieldName)->first();
 
-            if ($field) {
-                // Remove column from database table
-                if ($template->table_name && DB::getSchemaBuilder()->hasTable($template->table_name)) {
-                    $this->removeColumnFromTable($template->table_name, $fieldName);
-                }
+            if (! $field) {
+                continue;
+            }
 
-                // Delete field from template_fields
-                $field->delete();
-                $removed++;
+            if (in_array($fieldName, $protectedColumns, true)) {
+                $protected[] = $fieldName;
+
+                continue;
+            }
+
+            $proposed[] = $field;
+        }
+
+        $message = "⚠️ Δεν έκανα καμία αλλαγή αυτόματα — η αφαίρεση πεδίων template γίνεται ΜΟΝΟ χειροκίνητα, για να μην χαθούν δεδομένα κατά λάθος.\n\n";
+
+        if (empty($proposed) && empty($protected)) {
+            $message .= 'Δεν βρήκα κάποιο από τα πεδία που ανέφερες σε αυτό το template.';
+        } else {
+            if (! empty($proposed)) {
+                $tableInfo = $template->table_name ? " (πίνακας `{$template->table_name}`)" : '';
+                $message .= "**Προτείνω να αφαιρέσεις τα εξής πεδία**{$tableInfo} από το template **{$template->name}**:\n";
+                foreach ($proposed as $field) {
+                    $message .= "- `{$field->name}`".($field->label ? " ({$field->label})" : '')."\n";
+                }
+                $message .= "\nΆνοιξε το [Επεξεργασία template](/admin/templates/{$template->id}/edit) και αφαίρεσέ τα εκεί, ένα προς ένα, με τη δική σου επιβεβαίωση.";
+            }
+
+            if (! empty($protected)) {
+                $message .= "\n\n🔒 Τα εξής θεωρούνται προστατευμένα και δεν αφαιρούνται ποτέ αυτόματα ούτε προτείνονται: ".implode(', ', $protected);
             }
         }
 
-        return $removed;
+        return [
+            'success' => true,
+            'message' => $message,
+            'template_id' => $template->id,
+            'template_slug' => $template->slug,
+            'proposed_fields_to_remove' => collect($proposed)->pluck('name')->values()->all(),
+        ];
     }
 
     /**
@@ -1129,31 +1165,6 @@ class AIContentHandler
             \Log::error('Failed to add column', [
                 'table' => $tableName,
                 'column' => $field->name,
-                'error' => $e->getMessage(),
-            ]);
-            throw $e;
-        }
-    }
-
-    /**
-     * Remove column from database table
-     */
-    protected function removeColumnFromTable(string $tableName, string $columnName): void
-    {
-        try {
-            DB::getSchemaBuilder()->table($tableName, function ($table) use ($columnName) {
-                $table->dropColumn($columnName);
-            });
-
-            \Log::info('Column removed from table', [
-                'table' => $tableName,
-                'column' => $columnName,
-            ]);
-
-        } catch (\Exception $e) {
-            \Log::error('Failed to remove column', [
-                'table' => $tableName,
-                'column' => $columnName,
                 'error' => $e->getMessage(),
             ]);
             throw $e;
