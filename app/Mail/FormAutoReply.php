@@ -28,7 +28,7 @@ class FormAutoReply extends Mailable
      */
     public function envelope(): Envelope
     {
-        return Envelope::from(config('mail.from.address'))
+        return (new Envelope)->from(config('mail.from.address'))
             ->subject($this->form->auto_reply_subject ?? 'Thank you for your submission');
     }
 
