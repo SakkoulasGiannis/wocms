@@ -55,7 +55,9 @@
 
                 <div class="max-w-4xl mx-auto prose prose-lg">
                     @if(isset($content->body) && $content->body)
-                        {!! $content->body !!}
+                        {{-- Never Blade::render() DB content (RCE) — safe token
+                             substitution only (see App\Services\ContentShortcodeRenderer). --}}
+                        {!! app(\App\Services\ContentShortcodeRenderer::class)->render($content->body) !!}
                     @else
                         <div class="text-center text-gray-500 py-12">
                             <p>This page is empty. Edit it from the admin panel to add your content.</p>

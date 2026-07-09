@@ -812,14 +812,12 @@ class FrontendController extends Controller
                         $rawHtml = $content->content ?? '';
                     }
 
-                    // Compile Blade syntax in the HTML
-                    try {
-                        $data['html'] = \Illuminate\Support\Facades\Blade::render($rawHtml, $data);
-                    } catch (\Exception $e) {
-                        // If Blade compilation fails, use raw HTML
-                        \Log::warning('Blade compilation failed for simple_content: '.$e->getMessage());
-                        $data['html'] = $rawHtml;
-                    }
+                    // SECURITY: never Blade::render() raw DB content — that
+                    // would let any @php/{{ }}/component tag an editor or an
+                    // AI generator ever wrote execute server-side. Only the
+                    // exact `<x-form slug="..." />` token is substituted;
+                    // everything else stays inert literal HTML.
+                    $data['html'] = app(\App\Services\ContentShortcodeRenderer::class)->render($rawHtml);
                 }
                 $view = $this->themeManager->getTemplateView('simple') ?? 'frontend.simple';
 
@@ -833,12 +831,10 @@ class FrontendController extends Controller
                 // Final fallback: use default view with raw HTML
                 // Compile Blade syntax if content has HTML
                 if ($content && isset($content->html) && ! empty($content->html)) {
-                    try {
-                        $data['content']->html = \Illuminate\Support\Facades\Blade::render($content->html, $data);
-                    } catch (\Exception $e) {
-                        \Log::warning('Blade compilation failed for GrapeJS content: '.$e->getMessage());
-                        // Keep original HTML if compilation fails
-                    }
+                    // SECURITY: see the simple_content branch above — never
+                    // Blade::render() raw DB content. Safe token substitution
+                    // only.
+                    $data['content']->html = app(\App\Services\ContentShortcodeRenderer::class)->render($content->html);
                 }
                 $view = $this->themeManager->getTemplateView('default') ?? 'frontend.default';
 
