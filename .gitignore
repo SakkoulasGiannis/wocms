@@ -81,3 +81,7 @@ resources/views/frontend/partials/footer.blade.php
 
 # Local-only deployment / server instructions for this specific site
 /.local-docs/
+.playwright-mcp/
+storage/backups/
+/Antigravity-IDE.dmg
+COMMITS_LAST_2_MONTHS.md
