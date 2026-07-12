@@ -2,10 +2,13 @@
 
 namespace Tests\Feature;
 
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class RobotsTxtTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_robots_txt_is_served_dynamically_with_per_site_sitemap(): void
     {
         $response = $this->get('/robots.txt');
