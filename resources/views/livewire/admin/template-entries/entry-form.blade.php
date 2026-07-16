@@ -661,6 +661,37 @@
                                 </div>
                             @endif
 
+                            <!-- Primary: New Visual Builder -->
+                            @php
+                                $vbMc = $template->model_class ?? 'Page';
+                                $vbFqcn = str_contains($vbMc, '\\') ? $vbMc : "App\\Models\\{$vbMc}";
+                                $vbPrimaryNode = $entryId ? \App\Models\ContentNode::where('content_type', $vbFqcn)->where('content_id', $entryId)->first() : null;
+                            @endphp
+                            <div class="bg-white rounded-lg shadow p-6 mb-6" wire:key="visual-builder-cta">
+                                <div class="flex items-center justify-between gap-4 flex-wrap">
+                                    <div>
+                                        <h3 class="text-lg font-semibold text-gray-900">Visual Builder</h3>
+                                        <p class="text-sm text-gray-500 mt-1">Αυτή η σελίδα χρησιμοποιεί τον νέο drag &amp; drop editor.</p>
+                                    </div>
+                                    @if($vbPrimaryNode)
+                                        <a href="{{ route('admin.visual-builder.index', ['target' => $vbPrimaryNode->id]) }}"
+                                           class="inline-flex items-center px-5 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm font-semibold">
+                                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                            </svg>
+                                            Άνοιγμα Visual Builder
+                                        </a>
+                                    @else
+                                        <span class="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
+                                            Αποθήκευσε πρώτα τη σελίδα για να ανοίξει ο Visual Builder.
+                                        </span>
+                                    @endif
+                                </div>
+                            </div>
+
+                            <!-- Legacy section editor (deprecated — collapsed) -->
+                            <details class="mb-2" wire:key="legacy-sections-wrap">
+                            <summary class="cursor-pointer text-sm text-gray-500 hover:text-gray-700 select-none mb-4">Legacy section editor (deprecated) — άνοιξέ το μόνο αν χρειαστεί</summary>
                             <!-- Page Sections Management -->
                             <div class="bg-white rounded-lg shadow p-6" wire:key="sections-management">
                                 <div class="flex items-center justify-between mb-6">
@@ -1130,6 +1161,7 @@
                                     </div>
                                 @endif
                             </div>
+                            </details>
 
                         @endif
 

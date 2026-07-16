@@ -225,9 +225,16 @@
 @section(config('visual-builder.content_section', 'content'))
 <div id="new-builder-app" class="px-4 sm:px-0" data-seed-html-wrap>
     <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <p class="text-sm text-gray-500">
-            Bidirectional HTML &harr; JSON visual builder. Edit any pane &mdash; the others stay in sync.
-        </p>
+        <div class="flex items-center gap-3">
+            <button type="button"
+                    onclick="var r=document.referrer;window.location.href=(r&amp;&amp;r.indexOf(window.location.origin)===0&amp;&amp;r.indexOf('/new-builder')===-1)?r:'/admin';"
+                    class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50">
+                &larr; Back
+            </button>
+            <p class="hidden sm:block text-sm text-gray-500">
+                Bidirectional HTML &harr; JSON visual builder. Edit any pane &mdash; the others stay in sync.
+            </p>
+        </div>
         <div data-toolbar class="flex items-center gap-2">
             <div class="flex items-center gap-1 mr-1">
                 <button data-tool="undo" type="button" disabled title="Undo (Ctrl/Cmd+Z)"
