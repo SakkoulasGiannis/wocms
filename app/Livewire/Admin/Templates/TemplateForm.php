@@ -36,7 +36,7 @@ class TemplateForm extends Component
 
     public $file_path = '';
 
-    public $render_mode = 'full_page_grapejs';
+    public $render_mode = 'sections';
 
     public $html_content = '';
 
@@ -107,7 +107,7 @@ class TemplateForm extends Component
             $this->description = $this->template->description;
             $this->has_physical_file = $this->template->has_physical_file;
             $this->file_path = $this->template->file_path;
-            $this->render_mode = $this->template->render_mode ?? 'full_page_grapejs';
+            $this->render_mode = $this->template->render_mode ?? 'sections';
             $this->html_content = $this->template->html_content;
             $this->is_active = $this->template->is_active;
             $this->is_public = $this->template->is_public;
@@ -226,8 +226,8 @@ class TemplateForm extends Component
                 'id' => null,
                 'name' => 'body',
                 'label' => 'Body',
-                'type' => 'grapejs',
-                'description' => 'Main content - adapts based on render mode (GrapeJS/WYSIWYG/Sections)',
+                'type' => 'wysiwyg',
+                'description' => 'Main content - adapts based on render mode (Visual Builder / WYSIWYG / Sections)',
                 'is_required' => false,
                 'show_in_table' => false,
                 'column_position' => 'main',

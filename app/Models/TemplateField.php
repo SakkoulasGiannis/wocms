@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use App\Services\TemplateTableGenerator;
+use Illuminate\Database\Eloquent\Model;
 
 class TemplateField extends Model
 {
@@ -44,14 +44,14 @@ class TemplateField extends Model
         // When a field is created or deleted, sync the template table
         static::created(function ($field) {
             if ($field->template && $field->template->table_name) {
-                $tableGenerator = new TemplateTableGenerator();
+                $tableGenerator = new TemplateTableGenerator;
                 $tableGenerator->createTableAndModel($field->template->fresh());
             }
         });
 
         static::deleted(function ($field) {
             if ($field->template && $field->template->table_name) {
-                $tableGenerator = new TemplateTableGenerator();
+                $tableGenerator = new TemplateTableGenerator;
                 $tableGenerator->createTableAndModel($field->template->fresh());
             }
         });
@@ -59,7 +59,7 @@ class TemplateField extends Model
         static::updated(function ($field) {
             // Only sync if field name or type changed
             if ($field->isDirty(['name', 'type']) && $field->template && $field->template->table_name) {
-                $tableGenerator = new TemplateTableGenerator();
+                $tableGenerator = new TemplateTableGenerator;
                 $tableGenerator->createTableAndModel($field->template->fresh());
             }
         });
@@ -82,7 +82,6 @@ class TemplateField extends Model
             'datetime' => 'Date & Time',
             'textarea' => 'Textarea',
             'wysiwyg' => 'WYSIWYG Editor',
-            'grapejs' => 'GrapeJS Page Builder',
             'markdown' => 'Markdown',
             'code' => 'Code Editor',
             'select' => 'Select Dropdown',
@@ -102,7 +101,7 @@ class TemplateField extends Model
 
     public function getValidationRulesString(): string
     {
-        if (!$this->validation_rules) {
+        if (! $this->validation_rules) {
             return '';
         }
 

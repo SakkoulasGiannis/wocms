@@ -113,9 +113,11 @@
                     </label>
                     <select wire:model="render_mode"
                             class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2">
-                        <option value="full_page_grapejs">Full Page GrapeJS - Entire page with drag & drop builder</option>
-                        <option value="sections">Page Sections - Build with multiple flexible sections</option>
+                        <option value="sections">Visual Builder (New) - Drag & drop με τον νέο editor</option>
                         <option value="simple_content">Simple Content - Basic WYSIWYG editor</option>
+                        @if($render_mode === 'full_page_grapejs')
+                            <option value="full_page_grapejs">Full Page GrapeJS (deprecated)</option>
+                        @endif
                     </select>
                     @error('render_mode')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
