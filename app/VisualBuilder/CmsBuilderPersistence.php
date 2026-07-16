@@ -218,6 +218,21 @@ class CmsBuilderPersistence implements BuilderPersistence
             $model->forceFill(['render_mode' => 'sections'])->save();
         }
 
+        // History: record a rollback point capturing the page exactly as it is
+        // now, before we replace/update its sections. This is what makes a
+        // later "I cleared the builder" recoverable from the page's History
+        // (the sections themselves are only soft-deleted, but this snapshot is
+        // the user-facing, one-click restore). Only Pages have a home in
+        // page_revisions; other entities (Home) are skipped.
+        if ($model instanceof Page) {
+            \App\Services\PageCompiler::snapshot(
+                page: $model,
+                source: 'builder-edit',
+                prompt: 'Visual builder save',
+                userId: \Illuminate\Support\Facades\Auth::id(),
+            );
+        }
+
         $sectionType = $loop ? 'nb_loop' : 'html';
         $content = $loop
             ? [

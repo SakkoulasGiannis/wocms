@@ -56,6 +56,23 @@ class PageCompiler
         return $this;
     }
 
+    /**
+     * Capture a standalone snapshot of a Page's current state into
+     * page_revisions, independent of any compile. Non-AI editors (e.g. the
+     * visual builder) call this to record a rollback point *before* they
+     * mutate the page's sections, so a later accidental "cleared the editor"
+     * is recoverable from the page History. Never throws — recording history
+     * must not break a save.
+     */
+    public static function snapshot(Page $page, string $source, ?string $prompt = null, ?int $userId = null): ?int
+    {
+        $i = new self;
+        $i->revisionPrompt = $prompt;
+        $i->revisionUserId = $userId ?? Auth::id();
+
+        return $i->recordRevision($page, $source);
+    }
+
     public static function fromJson(string $json): self
     {
         $i = new self;
@@ -428,7 +445,13 @@ class PageCompiler
             // has `custom_html` while the SectionTemplate slug is `custom-html`.
             $template = $this->findTemplateFlexible($slug);
 
-            if (! $template && ! $existingSection) {
+            // Visual-builder-native section types render from section_type alone
+            // and may legitimately have no SectionTemplate row (`nb_loop` never
+            // does). Never skip them on restore — that would silently drop
+            // visual-builder content the revision is meant to bring back.
+            $builderNative = in_array($slug, ['html', 'nb_loop', 'nb-loop'], true);
+
+            if (! $template && ! $existingSection && ! $builderNative) {
                 $this->warnings[] = "Unknown section_type '{$slug}' — skipped (no matching SectionTemplate and no existing section to preserve)";
 
                 continue;
@@ -442,10 +465,10 @@ class PageCompiler
             // Keep the existing DB section_type when we couldn't find a template
             // but the row exists — this preserves the original (possibly legacy)
             // slug variant rather than overwriting it with the AI's guess.
-            $section->section_type = $template ? $slug : ($existingSection->section_type ?? $slug);
+            $section->section_type = $template ? $slug : ($existingSection?->section_type ?? $slug);
             $section->section_template_id = $spec['section_template_id']
-                ?? ($template->id ?? $existingSection->section_template_id);
-            $section->name = $spec['name'] ?? ($template->name ?? $existingSection->name ?? $slug);
+                ?? ($template?->id ?? $existingSection?->section_template_id);
+            $section->name = $spec['name'] ?? ($template?->name ?? $existingSection?->name ?? $slug);
             $section->order = $spec['order'] ?? $idx;
             $section->scope = $spec['scope'] ?? null;
             $section->is_active = $spec['is_active'] ?? true;

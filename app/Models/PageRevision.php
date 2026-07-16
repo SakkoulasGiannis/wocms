@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $id
  * @property int $page_id
  * @property array $spec
- * @property string $source pre-ai-create | post-ai-create | pre-ai-edit | post-ai-edit
+ * @property string $source pre-ai-create | post-ai-create | pre-ai-edit | post-ai-edit | builder-edit
  * @property string|null $prompt
  * @property int|null $user_id
  * @property \Carbon\Carbon $created_at
@@ -57,6 +57,7 @@ class PageRevision extends Model
             'post-ai-create' => 'After creation (AI)',
             'pre-ai-edit' => 'Before edit (AI)',
             'post-ai-edit' => 'After edit (AI)',
+            'builder-edit' => 'Before builder save',
             default => $this->source,
         };
     }
