@@ -850,6 +850,15 @@
                             @error('google_maps_api_key') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                         </div>
 
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Pexels API Key</label>
+                            <input type="password" wire:model="pexels_api_key"
+                                   class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 font-mono"
+                                   placeholder="Your Pexels API key">
+                            <p class="mt-1 text-xs text-gray-500">Used by the AI builder to fetch real stock photos. Get a free key at <span class="font-mono">pexels.com/api</span>.</p>
+                            @error('pexels_api_key') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+
                     </div>
                 </div>
 

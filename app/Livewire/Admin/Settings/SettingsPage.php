@@ -84,6 +84,8 @@ class SettingsPage extends Component
 
     public $google_maps_api_key = '';
 
+    public $pexels_api_key = '';
+
     public $recaptcha_enabled = false;
 
     public $recaptcha_site_key = '';
@@ -170,6 +172,7 @@ class SettingsPage extends Component
         $this->site_custom_css = Setting::get('site_custom_css', '');
         $this->custom_body_scripts = Setting::get('custom_body_scripts', '');
         $this->google_maps_api_key = Setting::get('google_maps_api_key', '');
+        $this->pexels_api_key = Setting::get('pexels_api_key', '');
         $this->recaptcha_site_key = Setting::get('recaptcha_site_key', '');
         $this->recaptcha_secret_key = Setting::get('recaptcha_secret_key', '');
         $this->recaptcha_enabled = (bool) Setting::get('recaptcha_enabled', false);
@@ -512,6 +515,7 @@ class SettingsPage extends Component
             'custom_body_scripts' => 'nullable|string',
             'site_custom_css' => 'nullable|string',
             'google_maps_api_key' => 'nullable|string|max:255',
+            'pexels_api_key' => 'nullable|string|max:255',
             'recaptcha_enabled' => 'boolean',
             'recaptcha_site_key' => 'nullable|string|max:255',
             'recaptcha_secret_key' => 'nullable|string|max:255',
@@ -531,6 +535,7 @@ class SettingsPage extends Component
         Setting::set('custom_body_scripts', $this->custom_body_scripts, 'integrations');
         Setting::set('site_custom_css', $this->site_custom_css, 'integrations');
         Setting::set('google_maps_api_key', $this->google_maps_api_key, 'integrations', encrypt: true);
+        Setting::set('pexels_api_key', $this->pexels_api_key, 'integrations', encrypt: true);
         Setting::set('recaptcha_site_key', $this->recaptcha_site_key, 'integrations');
         Setting::set('recaptcha_secret_key', $this->recaptcha_secret_key, 'integrations', encrypt: true);
         Setting::set('recaptcha_enabled', $this->recaptcha_enabled ? '1' : '0', 'integrations');
