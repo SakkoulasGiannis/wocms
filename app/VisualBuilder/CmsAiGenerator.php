@@ -17,10 +17,10 @@ class CmsAiGenerator implements AiGenerator
         private readonly PexelsResolver $pexels,
     ) {}
 
-    public function generate(string $prompt, ?string $currentHtml = null, ?string $styleReference = null): array
+    public function generate(string $prompt, ?string $currentHtml = null, ?string $styleReference = null, ?string $intent = null): array
     {
         try {
-            $resp = $this->ai->getProvider()->chat($this->buildPrompt($prompt, $currentHtml, $styleReference));
+            $resp = $this->ai->getProvider()->chat($this->buildPrompt($prompt, $currentHtml, $styleReference, $intent));
         } catch (\Throwable $e) {
             return ['ok' => false, 'error' => 'AI request failed: '.$e->getMessage()];
         }
@@ -182,7 +182,7 @@ class CmsAiGenerator implements AiGenerator
         }, $html);
     }
 
-    private function buildPrompt(string $prompt, ?string $currentHtml, ?string $styleReference = null): string
+    private function buildPrompt(string $prompt, ?string $currentHtml, ?string $styleReference = null, ?string $intent = null): string
     {
         $system = <<<'SYS'
         You are an expert web designer building ONE page section for a website.
@@ -206,7 +206,11 @@ class CmsAiGenerator implements AiGenerator
         }
 
         if ($currentHtml !== null && trim($currentHtml) !== '') {
-            $system .= "\n\nThe user is editing this EXISTING section. Modify it to satisfy the request and return the FULL updated HTML:\n\n".$currentHtml;
+            if ($intent === 'append') {
+                $system .= "\n\nHere is the page's EXISTING content, given ONLY for context and visual style. Generate a NEW, additional section that fits the same look, tone and topic. Return ONLY the new section's HTML — do NOT repeat or include the existing content:\n\n".$currentHtml;
+            } else {
+                $system .= "\n\nHere is the page's CURRENT content. Rewrite and improve it to satisfy the request — modernise the layout, structure and styling — but PRESERVE the real information, facts and meaning of the existing text (do not invent unrelated content or drop real details). Return the FULL updated HTML for the whole page:\n\n".$currentHtml;
+            }
         }
 
         return $system."\n\nUser request: ".$prompt;

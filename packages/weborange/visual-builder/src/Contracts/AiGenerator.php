@@ -17,9 +17,13 @@ interface AiGenerator
      * generator should mimic its fonts, sizes, colours, spacing, Tailwind classes
      * and overall structure while inserting the user's requested content.
      *
+     * $intent controls how $currentHtml is used: 'improve' (default) rewrites the
+     * existing content and returns the full updated page; 'append' treats it as
+     * context/style only and returns just a new additional section.
+     *
      * @return array{ok:bool, html?:string, error?:string}
      */
-    public function generate(string $prompt, ?string $currentHtml = null, ?string $styleReference = null): array;
+    public function generate(string $prompt, ?string $currentHtml = null, ?string $styleReference = null, ?string $intent = null): array;
 
     /**
      * Fix ONLY the semantic structure of the given page HTML for SEO/accessibility

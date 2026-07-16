@@ -30,6 +30,7 @@ class BuilderController extends Controller
             'prompt' => 'nullable|string|max:4000',
             'current_html' => 'nullable|string',
             'mode' => 'nullable|string|in:generate,fix_seo,apply_template',
+            'ai_mode' => 'nullable|string|in:improve,append',
             'template_id' => 'nullable',
             'page_title' => 'nullable|string|max:300',
         ]);
@@ -52,7 +53,7 @@ class BuilderController extends Controller
             $styleReference = ! empty($data['template_id'])
                 ? $this->persistence->seedFor($data['template_id'])
                 : null;
-            $result = $this->ai->generate($data['prompt'], $data['current_html'] ?? null, $styleReference);
+            $result = $this->ai->generate($data['prompt'], $data['current_html'] ?? null, $styleReference, $data['ai_mode'] ?? null);
         }
 
         return response()->json($result, ($result['ok'] ?? false) ? 200 : 422);

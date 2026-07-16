@@ -317,7 +317,7 @@
         <div class="mt-2 flex flex-wrap items-center gap-3">
             <label class="inline-flex items-center gap-1.5 text-xs text-violet-800">
                 <input data-ai-mode type="checkbox" class="rounded border-gray-300 text-violet-600 focus:ring-violet-500">
-                Replace everything (otherwise append to the canvas)
+                Add as a new section (default: improve &amp; replace the current content)
             </label>
             @if(!empty($vbStyleTemplates))
                 <button data-ai-apply-template type="button"

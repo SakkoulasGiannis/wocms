@@ -9,7 +9,7 @@ use Weborange\VisualBuilder\Contracts\AiGenerator;
  */
 class NullAiGenerator implements AiGenerator
 {
-    public function generate(string $prompt, ?string $currentHtml = null, ?string $styleReference = null): array
+    public function generate(string $prompt, ?string $currentHtml = null, ?string $styleReference = null, ?string $intent = null): array
     {
         return ['ok' => false, 'error' => 'AI generation is not configured for this app.'];
     }

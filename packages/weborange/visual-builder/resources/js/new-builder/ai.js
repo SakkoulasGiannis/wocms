@@ -45,7 +45,12 @@
             var promptEl = el('[data-ai-prompt]');
             var prompt = promptEl ? promptEl.value.trim() : '';
             if (!prompt) { setResult('Type what you want first.', 'err'); return; }
-            var replace = !!(el('[data-ai-mode]') && el('[data-ai-mode]').checked);
+            var addNew = !!(el('[data-ai-mode]') && el('[data-ai-mode]').checked);
+            var existing = currentHtml();
+            var hasContent = !!existing;
+            // Default: improve the existing content and replace the canvas with the
+            // better version. "Add as a new section" appends an extra section instead.
+            var replaceResult = hasContent && !addNew;
             var label = el('[data-ai-label]');
 
             if (btn) { btn.disabled = true; }
@@ -53,8 +58,10 @@
             setResult('Thinking… this can take a few seconds.', 'info');
 
             var body = { prompt: prompt };
-            // In replace mode, give the AI the current section so it can modify it.
-            if (replace && currentHtml()) { body.current_html = currentHtml(); }
+            // Always give the AI the current canvas so it improves the REAL page
+            // content instead of inventing something unrelated. ai_mode tells the
+            // backend whether to rewrite it (improve) or add an extra section (append).
+            if (hasContent) { body.current_html = existing; body.ai_mode = addNew ? 'append' : 'improve'; }
             // Optional style template — the AI matches its look.
             var tmpl = el('[data-ai-template]');
             if (tmpl && tmpl.value) { body.template_id = tmpl.value; }
@@ -68,9 +75,9 @@
             }).then(function (res) {
                 var j = res.body || {};
                 if (j.ok && j.html) {
-                    var done = loadResultHtml(j.html, replace);
+                    var done = loadResultHtml(j.html, replaceResult);
                     if (done) {
-                        setResult('Done — generated and ' + (replace ? 'replaced the canvas' : 'appended to the canvas') + '. Edit it visually below.', 'ok');
+                        setResult('Done — ' + (replaceResult ? 'improved and replaced the canvas' : 'added a new section') + '. Edit it visually below.', 'ok');
                     } else {
                         setResult('Generated, but could not load it into the builder.', 'err');
                     }
