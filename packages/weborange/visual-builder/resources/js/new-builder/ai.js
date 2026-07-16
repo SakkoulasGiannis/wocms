@@ -37,27 +37,79 @@
             return true;
         }
 
+        // ── Element-scoped AI ──────────────────────────────────────────────
+        // While a target element is "attached", Generate edits ONLY that element
+        // (sends its HTML, replaces just it) instead of the whole page.
+        var attachedId = null;
+        var attachedLabel = '';
+        var lastSelection = null; // {id,label} of the node currently selected in the builder
+
+        function nb() { return rootEl.__nb; }
+
+        function escapeHtml(s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+            });
+        }
+
+        function renderTarget() {
+            var box = el('[data-ai-target]');
+            if (!box) { return; }
+            if (attachedId) {
+                box.className = 'text-[11px] rounded-md border border-violet-300 bg-violet-100 text-violet-800 px-2 py-1.5 leading-snug flex items-center gap-1.5';
+                box.innerHTML = '<span>🎯 Editing <b>' + escapeHtml(attachedLabel || 'element') + '</b> only</span>'
+                    + '<button type="button" data-ai-detach class="ml-auto text-violet-500 hover:text-violet-700" title="Edit the whole page instead">✕</button>';
+            } else if (lastSelection) {
+                box.className = 'text-[11px] rounded-md border border-gray-200 bg-gray-50 text-gray-600 px-2 py-1.5 leading-snug flex items-center gap-1.5';
+                box.innerHTML = '<span>Selected: <b>' + escapeHtml(lastSelection.label) + '</b></span>'
+                    + '<button type="button" data-ai-attach class="ml-auto text-violet-600 hover:text-violet-800 font-medium" title="Make the AI edit only this element">Edit only this →</button>';
+            } else {
+                box.className = 'hidden';
+                box.innerHTML = '';
+            }
+        }
+
+        if (nb() && typeof nb().onSelectionChange === 'function') {
+            nb().onSelectionChange(function (info) {
+                lastSelection = info;
+                renderTarget();
+            });
+        }
+
         function generate(btn) {
             var promptEl = el('[data-ai-prompt]');
             var prompt = promptEl ? promptEl.value.trim() : '';
             if (!prompt) { setResult('Type what you want first.', 'err'); return; }
-            var addNew = !!(el('[data-ai-mode]') && el('[data-ai-mode]').checked);
-            var existing = currentHtml();
+
+            // Element-scoped mode: an element is attached → edit only that element.
+            var scoped = !!attachedId;
+            var scopedHtml = '';
+            if (scoped) {
+                scopedHtml = (nb() && nb().getNodeHtml) ? (nb().getNodeHtml(attachedId) || '') : '';
+                if (!scopedHtml) {
+                    attachedId = null; renderTarget();
+                    setResult('The targeted element is gone — switched to editing the whole page. Try again.', 'err');
+                    return;
+                }
+            }
+
+            var addNew = !scoped && !!(el('[data-ai-mode]') && el('[data-ai-mode]').checked);
+            var existing = scoped ? scopedHtml : currentHtml();
             var hasContent = !!existing;
-            // Default: improve the existing content and replace the canvas with the
-            // better version. "Add as a new section" appends an extra section instead.
+            // Default: improve the existing content and replace the canvas. "Add as a
+            // new section" appends. In scoped mode we always replace the element.
             var replaceResult = hasContent && !addNew;
             var label = el('[data-ai-label]');
 
             if (btn) { btn.disabled = true; }
             if (label) { label.textContent = '✨ Generating…'; }
-            setResult('Thinking… this can take a few seconds.', 'info');
+            setResult(scoped ? 'Editing the selected element…' : 'Thinking… this can take a few seconds.', 'info');
 
             var body = { prompt: prompt };
-            // Always give the AI the current canvas so it improves the REAL page
-            // content instead of inventing something unrelated. ai_mode tells the
-            // backend whether to rewrite it (improve) or add an extra section (append).
-            if (hasContent) { body.current_html = existing; body.ai_mode = addNew ? 'append' : 'improve'; }
+            if (hasContent) {
+                body.current_html = existing;
+                body.ai_mode = scoped ? 'element' : (addNew ? 'append' : 'improve');
+            }
             // Optional style template — the AI matches its look.
             var tmpl = el('[data-ai-template]');
             if (tmpl && tmpl.value) { body.template_id = tmpl.value; }
@@ -71,9 +123,19 @@
             }).then(function (res) {
                 var j = res.body || {};
                 if (j.ok && j.html) {
-                    var done = loadResultHtml(j.html, replaceResult);
+                    var done;
+                    if (scoped) {
+                        var newId = (nb() && nb().replaceNodeHtml) ? nb().replaceNodeHtml(attachedId, j.html) : null;
+                        done = !!newId;
+                        if (done) { attachedId = newId; }
+                        renderTarget();
+                    } else {
+                        done = loadResultHtml(j.html, replaceResult);
+                    }
                     if (done) {
-                        setResult('Done — ' + (replaceResult ? 'improved and replaced the canvas' : 'added a new section') + '. Edit it visually below.', 'ok');
+                        setResult(scoped
+                            ? 'Done — updated the selected element.'
+                            : ('Done — ' + (replaceResult ? 'improved and replaced the canvas' : 'added a new section') + '. Edit it visually below.'), 'ok');
                     } else {
                         setResult('Generated, but could not load it into the builder.', 'err');
                     }
@@ -168,6 +230,16 @@
         }
 
         rootEl.addEventListener('click', function (e) {
+            if (e.target.closest('[data-ai-attach]')) {
+                e.preventDefault();
+                if (lastSelection) { attachedId = lastSelection.id; attachedLabel = lastSelection.label; renderTarget(); }
+                return;
+            }
+            if (e.target.closest('[data-ai-detach]')) {
+                e.preventDefault();
+                attachedId = null; attachedLabel = ''; renderTarget();
+                return;
+            }
             var gen = e.target.closest('[data-ai-generate]');
             if (gen) { e.preventDefault(); generate(gen); return; }
             var fix = e.target.closest('[data-ai-fixseo]');

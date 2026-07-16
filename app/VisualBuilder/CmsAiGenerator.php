@@ -185,6 +185,27 @@ class CmsAiGenerator implements AiGenerator
 
     private function buildPrompt(string $prompt, ?string $currentHtml, ?string $styleReference = null, ?string $intent = null): string
     {
+        // Element-scoped edit: the user picked ONE element in the builder. Edit
+        // just that fragment and return it — no <section> wrapper, same root tag.
+        if ($intent === 'element' && $currentHtml !== null && trim($currentHtml) !== '') {
+            $sys = <<<'SYS'
+            You are editing ONE HTML element (with its children) taken from an existing page — NOT a whole page or section.
+            Rules:
+            - Apply the user's request to this element only.
+            - Return ONLY the updated element's raw HTML, as a fragment. Keep the SAME kind of root tag unless the request explicitly asks to change it. Do NOT wrap it in a new <section>/<div> or add <html>/<head>/<body>.
+            - Style with Tailwind utility classes only (no <style>, no <script>, no inline style except transition-delay).
+            - Preserve the real text and meaning; keep existing images' real src. For any NEW image use https://placehold.co/WIDTHxHEIGHT with a concise descriptive English alt.
+            - Keep any existing "vb-reveal" classes.
+            - Output ONLY the raw HTML. No markdown fences, no explanation.
+            SYS;
+
+            if ($styleReference !== null && trim($styleReference) !== '') {
+                $sys .= "\n\nMatch the visual style (fonts, colours, spacing, Tailwind class patterns) of this reference page:\n".$this->trimReference($styleReference);
+            }
+
+            return $sys."\n\nThe element to edit:\n".$currentHtml."\n\nUser request: ".$prompt;
+        }
+
         $system = <<<'SYS'
         You are an expert web designer building ONE page section for a website.
         Output ONLY raw HTML for a single self-contained section. Rules:

@@ -30,7 +30,7 @@ class BuilderController extends Controller
             'prompt' => 'nullable|string|max:4000',
             'current_html' => 'nullable|string',
             'mode' => 'nullable|string|in:generate,fix_seo,apply_template',
-            'ai_mode' => 'nullable|string|in:improve,append',
+            'ai_mode' => 'nullable|string|in:improve,append,element',
             'template_id' => 'nullable',
             'page_title' => 'nullable|string|max:300',
         ]);

@@ -71,6 +71,7 @@
             if (!skipHistory) {
                 history.push();
             }
+            notifySelection();
         }
 
         /* ---- controller actions ---- */
@@ -80,12 +81,52 @@
             dnd.init();
             inspector.render();
             hover.syncSelection();
+            notifySelection();
             // Scroll the newly-selected row into view — clicking an element in the
             // preview may select a node that is off-screen in a long tree.
             if (id) {
                 var row = state.els.tree.querySelector('.nb-row[data-id="' + id + '"]');
                 if (row) { row.scrollIntoView({ block: 'nearest' }); }
             }
+        }
+
+        /* ---- element-scoped AI: expose the current selection + per-node HTML so
+           the AI panel can target a single element instead of the whole page ---- */
+        var vbSelectionListeners = [];
+        var vbLastSelId;
+        function vbSelectedInfo() {
+            var id = state.selectedId;
+            if (!id) { return null; }
+            var loc = state.findNode(id);
+            if (!loc || !loc.node) { return null; }
+            var n = loc.node;
+            var cls = n.classes ? String(n.classes).trim().split(/\s+/).slice(0, 2).map(function (c) { return '.' + c; }).join('') : '';
+            return { id: id, label: (n.type || 'div') + cls };
+        }
+        function vbNodeHtml(id) {
+            var loc = state.findNode(id);
+            if (!loc || !loc.node) { return null; }
+            return Core.jsonToHtml(NB.cleanRoots([loc.node]));
+        }
+        function vbReplaceNodeHtml(id, html) {
+            var loc = state.findNode(id);
+            if (!loc) { return null; }
+            var roots = NB.decorate(Core.htmlToJsonRoots(html).map(NB.clean));
+            var args = [loc.index, 1].concat(roots);
+            Array.prototype.splice.apply(loc.siblings, args);
+            state.selectedId = roots.length ? roots[0]._id : null;
+            renderAll();
+            return state.selectedId;
+        }
+        function notifySelection() {
+            if (state.selectedId === vbLastSelId) { return; }
+            vbLastSelId = state.selectedId;
+            var info = vbSelectedInfo();
+            vbSelectionListeners.forEach(function (cb) { try { cb(info); } catch (e) {} });
+        }
+        function vbOnSelectionChange(cb) {
+            vbSelectionListeners.push(cb);
+            try { cb(vbSelectedInfo()); } catch (e) {}
         }
 
         /**
@@ -412,7 +453,17 @@
         history.reset();
         history.updateButtons();
 
-        var api = { state: state, insertBlock: insertBlock, loadRoots: loadRoots, insertToken: insertToken, addAt: addAt };
+        var api = {
+            state: state,
+            insertBlock: insertBlock,
+            loadRoots: loadRoots,
+            insertToken: insertToken,
+            addAt: addAt,
+            getSelectedInfo: vbSelectedInfo,
+            getNodeHtml: vbNodeHtml,
+            replaceNodeHtml: vbReplaceNodeHtml,
+            onSelectionChange: vbOnSelectionChange,
+        };
         rootEl.__nb = api;
         return api;
     }

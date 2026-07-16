@@ -488,6 +488,8 @@
                 </div>
                 <div data-nbpanel="ai" class="nb-panel hidden absolute inset-0 overflow-auto p-3 space-y-2">
                     <div class="text-xs font-semibold uppercase tracking-wide text-violet-800">&#10024; Generate with AI</div>
+                    {{-- Element-scoped AI target: filled by ai.js when a node is selected / attached. --}}
+                    <div data-ai-target class="hidden text-[11px] rounded-md border px-2 py-1.5 leading-snug"></div>
                     @if(!empty($vbStyleTemplates))
                         <div>
                             <label class="block text-[11px] font-medium text-violet-800 mb-1">Style template (optional)</label>
