@@ -91,6 +91,15 @@
     @livewireStyles
     @stack('styles')
 
+    {{-- Scroll-reveal: elements with .vb-reveal animate in on scroll (progressive
+         enhancement — flag set only when IntersectionObserver exists). --}}
+    <style>
+        html.vb-reveal-on .vb-reveal{opacity:0;transform:translateY(24px);transition:opacity .7s cubic-bezier(.16,1,.3,1),transform .7s cubic-bezier(.16,1,.3,1);will-change:opacity,transform;}
+        html.vb-reveal-on .vb-reveal.vb-in{opacity:1;transform:none;}
+        @media (prefers-reduced-motion: reduce){html.vb-reveal-on .vb-reveal{opacity:1!important;transform:none!important;transition:none!important;}}
+    </style>
+    <script>if('IntersectionObserver' in window){document.documentElement.classList.add('vb-reveal-on');}</script>
+
     {{-- Site-wide custom CSS (Settings → Integrations) — last so it can override theme styles --}}
     @if(\App\Models\Setting::get('site_custom_css'))
         <style id="site-custom-css">{!! \App\Models\Setting::get('site_custom_css') !!}</style>

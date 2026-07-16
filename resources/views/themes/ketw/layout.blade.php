@@ -32,6 +32,20 @@
 
     {{-- Alpine.js (already bundled with Livewire but being explicit) --}}
 
+    {{-- Scroll-reveal observer: reveal .vb-reveal elements as they enter view. --}}
+    <script>
+    (function(){
+        if(!document.documentElement.classList.contains('vb-reveal-on')){return;}
+        function init(){
+            var io=new IntersectionObserver(function(entries){
+                entries.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('vb-in'); io.unobserve(e.target); } });
+            },{rootMargin:'0px 0px -8% 0px',threshold:0.05});
+            document.querySelectorAll('.vb-reveal:not(.vb-in)').forEach(function(el){ io.observe(el); });
+        }
+        if(document.readyState!=='loading'){ init(); } else { document.addEventListener('DOMContentLoaded', init); }
+    })();
+    </script>
+
     {{-- Custom Body Scripts from Settings --}}
     @if(\App\Models\Setting::get('custom_body_scripts'))
         {!! \App\Models\Setting::get('custom_body_scripts') !!}
