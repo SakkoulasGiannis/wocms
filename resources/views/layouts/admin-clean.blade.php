@@ -26,17 +26,10 @@
 
     @stack('head-scripts')
 
-    <!-- Alpine.js - Load only once -->
-    <script>
-        // Suppress Alpine multiple instances warning
-        window.deferLoadingAlpine = window.deferLoadingAlpine || function (callback) {
-            if (!window.Alpine) {
-                callback();
-            }
-        };
-    </script>
-    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    {{-- Alpine is bundled with Livewire v3 (@livewireScripts) together with the
+         persist / intersect / collapse / focus plugins. Do NOT load Alpine from a
+         CDN here — a second instance breaks Livewire reactivity (nested-component
+         wire:click stops firing, modals never open). --}}
 
     @livewireStyles
     @stack('styles')
