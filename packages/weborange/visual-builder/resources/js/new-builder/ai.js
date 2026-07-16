@@ -15,11 +15,7 @@
         if (!cfg) { return; }
         var url = cfg.getAttribute('data-ai-url');
         var csrf = cfg.getAttribute('data-csrf');
-        var panel = rootEl.querySelector('[data-ai-panel]');
-
         function el(sel) { return rootEl.querySelector(sel); }
-        function open() { if (panel) { panel.classList.remove('hidden'); } var p = el('[data-ai-prompt]'); if (p) { p.focus(); } }
-        function close() { if (panel) { panel.classList.add('hidden'); } }
 
         function setResult(msg, kind) {
             var r = el('[data-ai-result]');
@@ -172,8 +168,6 @@
         }
 
         rootEl.addEventListener('click', function (e) {
-            if (e.target.closest('[data-ai-open]')) { e.preventDefault(); open(); return; }
-            if (e.target.closest('[data-ai-cancel]')) { e.preventDefault(); close(); return; }
             var gen = e.target.closest('[data-ai-generate]');
             if (gen) { e.preventDefault(); generate(gen); return; }
             var fix = e.target.closest('[data-ai-fixseo]');

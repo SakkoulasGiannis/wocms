@@ -144,6 +144,8 @@
     #new-builder-app .nb-tab { padding: .5rem .9rem; font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; border-bottom: 2px solid transparent; background: transparent; cursor: pointer; }
     #new-builder-app .nb-tab:hover { color: #374151; }
     #new-builder-app .nb-tab.nb-tab-active { color: #2563eb; border-bottom-color: #2563eb; background: #fff; }
+    #new-builder-app .nb-tab-ai { color: #7c3aed; font-weight: 600; }
+    #new-builder-app .nb-tab-ai.nb-tab-active { color: #7c3aed; border-bottom-color: #7c3aed; }
     #new-builder-app .nb-css-scope { color: #6b7280; background: #fff; border: 1px solid #e5e7eb; cursor: pointer; }
     #new-builder-app .nb-css-scope:hover { color: #374151; }
     #new-builder-app .nb-css-scope.nb-css-scope-active { color: #2563eb; background: #eff6ff; border-color: #bfdbfe; }
@@ -246,11 +248,6 @@
                     Redo &#8631;
                 </button>
             </div>
-            <button data-ai-open type="button"
-                    class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-white rounded hover:opacity-90"
-                    style="background:linear-gradient(90deg,#7c3aed,#db2777)">
-                &#10024; AI
-            </button>
             <button data-palette-open type="button"
                     class="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 rounded hover:bg-indigo-700">
                 &#43; Blocks
@@ -293,52 +290,8 @@
 
     <div data-error class="hidden mb-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"></div>
 
-    {{-- AI generate panel --}}
+    {{-- AI generate config (the panel UI lives in the left "AI" tab, see below) --}}
     <div data-ai-config class="hidden" data-ai-url="{{ route($vbAs.'ai') }}" data-csrf="{{ csrf_token() }}"></div>
-    <div data-ai-panel class="hidden mb-3 rounded-lg border border-violet-200 bg-violet-50/70 px-4 py-3">
-        <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-semibold uppercase tracking-wide text-violet-800">&#10024; Generate with AI</span>
-            <button data-ai-cancel type="button" class="text-xs text-gray-500 hover:text-gray-700">Close</button>
-        </div>
-        @if(!empty($vbStyleTemplates))
-            <div class="mb-2">
-                <label class="block text-xs font-medium text-violet-800 mb-1">Use a style template (optional) — the AI copies its look</label>
-                <select data-ai-template class="w-full text-sm rounded border-gray-300 focus:border-violet-500 focus:ring-violet-500">
-                    <option value="">— none (free style) —</option>
-                    @foreach($vbStyleTemplates as $vbT)
-                        <option value="{{ $vbT['id'] }}">{{ $vbT['label'] }}</option>
-                    @endforeach
-                </select>
-            </div>
-        @endif
-        <textarea data-ai-prompt rows="3"
-                  class="w-full text-sm rounded border-gray-300 focus:border-violet-500 focus:ring-violet-500"
-                  placeholder="Describe the section you want… e.g. “a hero with a heading, subtext and two buttons on a dark gradient” or “a 3-column features grid with icons”."></textarea>
-        <div class="mt-2 flex flex-wrap items-center gap-3">
-            <label class="inline-flex items-center gap-1.5 text-xs text-violet-800">
-                <input data-ai-mode type="checkbox" class="rounded border-gray-300 text-violet-600 focus:ring-violet-500">
-                Add as a new section (default: improve &amp; replace the current content)
-            </label>
-            @if(!empty($vbStyleTemplates))
-                <button data-ai-apply-template type="button"
-                        class="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded hover:bg-indigo-100 disabled:opacity-50"
-                        title="Rebuild the current page content in the style of the selected template (classes, fonts, structure) and fix headings — review before saving.">
-                    <span data-ai-apply-template-label>&#127912; Apply template style</span>
-                </button>
-            @endif
-            <button data-ai-fixseo type="button"
-                    class="@if(empty($vbStyleTemplates)) ml-auto @endif inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded hover:bg-emerald-100 disabled:opacity-50"
-                    title="Fix the heading hierarchy (one h1, correct h2/h3 order) of the whole page for SEO — review the result before saving.">
-                <span data-ai-fixseo-label>&#9874; Fix SEO structure</span>
-            </button>
-            <button data-ai-generate type="button"
-                    class="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-white rounded disabled:opacity-50"
-                    style="background:linear-gradient(90deg,#7c3aed,#db2777)">
-                <span data-ai-label>&#10024; Generate</span>
-            </button>
-        </div>
-        <p data-ai-result class="mt-2 text-xs text-violet-700/80">Tip: be specific about layout, colours, and content. The AI returns a Tailwind HTML section you can then edit visually.</p>
-    </div>
 
     {{-- Component palette --}}
     <script type="application/json" data-vb-forms>@json($vbForms ?? [])</script>
@@ -500,6 +453,7 @@
                 <button type="button" data-nbtab="html" class="nb-tab">HTML</button>
                 <button type="button" data-nbtab="json" class="nb-tab">JSON</button>
                 <button type="button" data-nbtab="css" class="nb-tab" title="Global CSS — loads in the preview and on the live page">CSS</button>
+                <button type="button" data-nbtab="ai" class="nb-tab nb-tab-ai" title="Generate &amp; improve with AI">&#10024; AI</button>
                 <div class="ml-auto flex items-center gap-0.5 pr-1.5">
                     <button type="button" data-tree-deselect title="Deselect — next block inserts at the page root"
                             class="px-1.5 py-1 text-gray-400 hover:text-blue-600 leading-none text-sm">&#8856;</button>
@@ -531,6 +485,47 @@
                                   placeholder="/* All pages (site-wide) — saved to Settings → Integrations; applies to every front-end page. */&#10;.spacing { margin-bottom: 20px; }"
                                   class="hidden absolute inset-0 p-3 font-mono text-xs text-gray-800 focus:outline-none border-0 resize-none"></textarea>
                     </div>
+                </div>
+                <div data-nbpanel="ai" class="nb-panel hidden absolute inset-0 overflow-auto p-3 space-y-2">
+                    <div class="text-xs font-semibold uppercase tracking-wide text-violet-800">&#10024; Generate with AI</div>
+                    @if(!empty($vbStyleTemplates))
+                        <div>
+                            <label class="block text-[11px] font-medium text-violet-800 mb-1">Style template (optional)</label>
+                            <select data-ai-template class="w-full text-xs rounded border-gray-300 focus:border-violet-500 focus:ring-violet-500">
+                                <option value="">— none (free style) —</option>
+                                @foreach($vbStyleTemplates as $vbT)
+                                    <option value="{{ $vbT['id'] }}">{{ $vbT['label'] }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @endif
+                    <textarea data-ai-prompt rows="5"
+                              class="w-full text-xs rounded border-gray-300 focus:border-violet-500 focus:ring-violet-500"
+                              placeholder="Describe what you want… e.g. “make this page modern with clean spacing and real photos”."></textarea>
+                    <label class="flex items-start gap-1.5 text-[11px] text-violet-800">
+                        <input data-ai-mode type="checkbox" class="mt-0.5 rounded border-gray-300 text-violet-600 focus:ring-violet-500">
+                        <span>Add as a new section (default: improve &amp; replace the current content)</span>
+                    </label>
+                    <button data-ai-generate type="button"
+                            class="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-semibold text-white rounded disabled:opacity-50"
+                            style="background:linear-gradient(90deg,#7c3aed,#db2777)">
+                        <span data-ai-label>&#10024; Generate</span>
+                    </button>
+                    <div class="flex gap-2">
+                        <button data-ai-fixseo type="button"
+                                class="flex-1 inline-flex items-center justify-center gap-1.5 px-2 py-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded hover:bg-emerald-100 disabled:opacity-50"
+                                title="Fix the heading hierarchy (one h1, correct h2/h3) and image alt text for SEO — review before saving.">
+                            <span data-ai-fixseo-label>&#9874; Fix SEO</span>
+                        </button>
+                        @if(!empty($vbStyleTemplates))
+                            <button data-ai-apply-template type="button"
+                                    class="flex-1 inline-flex items-center justify-center gap-1.5 px-2 py-1.5 text-[11px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded hover:bg-indigo-100 disabled:opacity-50"
+                                    title="Rebuild the current page in the selected template's style and fix headings — review before saving.">
+                                <span data-ai-apply-template-label>&#127912; Apply style</span>
+                            </button>
+                        @endif
+                    </div>
+                    <p data-ai-result class="text-[11px] text-violet-700/80">Describe a change and the AI improves the current page (real Pexels photos + SEO alt included). Ctrl/Cmd+Enter to generate.</p>
                 </div>
             </div>
         </div>
@@ -613,6 +608,10 @@
                 app.querySelectorAll('[data-nbpanel]').forEach(function (p) {
                     p.classList.toggle('hidden', p.getAttribute('data-nbpanel') !== tab);
                 });
+                if (tab === 'ai') {
+                    var aiPrompt = app.querySelector('[data-ai-prompt]');
+                    if (aiPrompt) { aiPrompt.focus(); }
+                }
             });
         });
     })();
