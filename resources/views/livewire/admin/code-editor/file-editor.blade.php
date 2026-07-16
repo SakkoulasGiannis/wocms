@@ -88,6 +88,16 @@
         {{-- File Selector Sidebar --}}
         <div class="w-64 bg-gray-50 border-r border-gray-200 overflow-y-auto">
             <div class="p-4">
+                @if(count($themes) > 0)
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Theme</label>
+                    <select wire:model.live="theme"
+                            class="w-full mb-4 text-sm rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                        @foreach($themes as $t)
+                            <option value="{{ $t }}">{{ $t }}{{ $t === \App\Models\Setting::get('active_theme') ? ' (active)' : '' }}</option>
+                        @endforeach
+                    </select>
+                @endif
+
                 <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Files</h3>
 
                 @php

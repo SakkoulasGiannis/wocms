@@ -29,89 +29,94 @@ class FileEditor extends Component
 
     public $availableDirectories = [];
 
+    /** Currently-selected theme (defaults to the site's active theme). */
+    public $theme = '';
+
+    /** All theme folders under resources/views/themes. */
+    public $themes = [];
+
     protected $listeners = ['fileSelected'];
 
     public function mount()
     {
-        // Define editable files grouped by category
-        $this->files = $this->getEditableFiles();
+        $this->themes = $this->discoverThemes();
 
-        // Select first file by default
-        $this->selectedFile = array_values($this->files)[0]['path'];
+        // Default to the active theme; fall back to the first available.
+        $active = (string) \App\Models\Setting::get('active_theme', '');
+        $this->theme = in_array($active, $this->themes, true)
+            ? $active
+            : ($this->themes[0] ?? '');
+
+        $this->files = $this->getEditableFiles();
+        $this->selectedFile = ! empty($this->files) ? $this->files[0]['path'] : '';
         $this->loadFile();
+    }
+
+    /** Reload the file list when the theme dropdown changes. */
+    public function updatedTheme(): void
+    {
+        $this->files = $this->getEditableFiles();
+        $this->selectedFile = ! empty($this->files) ? $this->files[0]['path'] : '';
+        $this->loadFile();
+    }
+
+    /** @return array<int,string> */
+    protected function discoverThemes(): array
+    {
+        $base = resource_path('views/themes');
+        if (! is_dir($base)) {
+            return [];
+        }
+
+        return collect(File::directories($base))
+            ->map(fn ($d) => basename($d))
+            ->sort()
+            ->values()
+            ->all();
+    }
+
+    protected function themePath(string $sub = ''): string
+    {
+        return resource_path('views/themes/'.$this->theme.($sub !== '' ? '/'.$sub : ''));
     }
 
     protected function getEditableFiles()
     {
         $files = [];
+        $themeDir = $this->themePath();
 
-        // Core Layout Files
-        $files[] = [
-            'name' => 'Layout',
-            'path' => resource_path('views/frontend/layout.blade.php'),
-            'category' => 'Core',
-            'description' => 'Main layout wrapper',
-        ];
-        $files[] = [
-            'name' => 'Header',
-            'path' => resource_path('views/frontend/partials/header.blade.php'),
-            'category' => 'Core',
-            'description' => 'Site header/navigation',
-        ];
-        $files[] = [
-            'name' => 'Footer',
-            'path' => resource_path('views/frontend/partials/footer.blade.php'),
-            'category' => 'Core',
-            'description' => 'Site footer',
-        ];
-
-        // Template Files (from templates table)
-        $templates = \App\Models\Template::where('has_physical_file', true)
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get();
-
-        foreach ($templates as $template) {
-            // Check if template file exists
-            $templatePath = resource_path('views/templates/'.$template->slug.'.blade.php');
-
-            if (File::exists($templatePath)) {
-                $files[] = [
-                    'name' => $template->name,
-                    'path' => $templatePath,
-                    'category' => 'Templates',
-                    'description' => $template->description ?: 'Template: '.$template->slug,
-                ];
-            }
+        if ($this->theme === '' || ! is_dir($themeDir)) {
+            return $files;
         }
 
-        // Frontend Template Files (generated templates)
-        $generatedTemplates = File::glob(resource_path('views/frontend/templates/*.blade.php'));
-        foreach ($generatedTemplates as $templatePath) {
-            $filename = basename($templatePath, '.blade.php');
-            $files[] = [
-                'name' => ucfirst(str_replace(['-', '_'], ' ', $filename)),
-                'path' => $templatePath,
-                'category' => 'Generated',
-                'description' => 'Auto-generated template',
-            ];
-        }
-
-        // Frontend Partials
-        $partials = File::glob(resource_path('views/frontend/partials/*.blade.php'));
-        foreach ($partials as $partialPath) {
-            $filename = basename($partialPath, '.blade.php');
-            // Skip if already added (header/footer)
-            if (in_array($partialPath, array_column($files, 'path'))) {
+        // Every Blade file inside the selected theme, grouped by its top-level
+        // sub-folder (Layout / Partials / Layouts / Components / …). Backups and
+        // Blade-compiled files are skipped.
+        foreach (File::allFiles($themeDir) as $file) {
+            $filename = $file->getFilename();
+            if (! str_ends_with($filename, '.blade.php')) {
                 continue;
             }
+            if (str_contains($filename, '.backup-')) {
+                continue;
+            }
+
+            $relative = ltrim(str_replace($themeDir, '', $file->getPathname()), '/');
+            $parts = explode('/', $relative);
+            $category = count($parts) > 1 ? ucfirst(str_replace(['-', '_'], ' ', $parts[0])) : 'Layout';
+            $name = str_replace('.blade.php', '', $filename);
+
             $files[] = [
-                'name' => ucfirst(str_replace(['-', '_'], ' ', $filename)),
-                'path' => $partialPath,
-                'category' => 'Partials',
-                'description' => 'Partial template',
+                'name' => ucfirst(str_replace(['-', '_'], ' ', $name)),
+                'path' => $file->getPathname(),
+                'category' => $category,
+                'description' => $this->theme.'/'.$relative,
             ];
         }
+
+        usort($files, function ($a, $b) {
+            return [$a['category'], $a['name']] <=> [$b['category'], $b['name']];
+        });
 
         return $files;
     }
@@ -311,7 +316,7 @@ class FileEditor extends Component
             // Ensure the backup file belongs to the selected file
             $directory = dirname($this->selectedFile);
             $filename = basename($this->selectedFile);
-            $expectedBackupPrefix = $directory . '/' . $filename . '.backup-';
+            $expectedBackupPrefix = $directory.'/'.$filename.'.backup-';
 
             if (! str_starts_with($backupFile, $expectedBackupPrefix) || ! File::exists($backupFile)) {
                 session()->flash('error', 'Invalid backup file');
@@ -374,7 +379,7 @@ class FileEditor extends Component
         $this->createType = $type;
         $this->createName = '';
         $this->createContent = '';
-        $this->createDirectory = resource_path('views/frontend');
+        $this->createDirectory = $this->themePath();
         $this->availableDirectories = $this->getWritableDirectories();
         $this->showCreateModal = true;
     }
@@ -387,24 +392,15 @@ class FileEditor extends Component
 
     protected function getWritableDirectories(): array
     {
-        $basePaths = [
-            resource_path('views/frontend'),
-            resource_path('views/frontend/partials'),
-            resource_path('views/frontend/templates'),
-            resource_path('views/templates'),
-            resource_path('views/components'),
-        ];
-
         $dirs = [];
-        foreach ($basePaths as $path) {
-            if (is_dir($path)) {
-                $dirs[$path] = str_replace(base_path().'/', '', $path);
+        $themeDir = $this->themePath();
 
-                // Also add subdirectories (1 level deep)
-                $subdirs = File::directories($path);
-                foreach ($subdirs as $subdir) {
-                    $dirs[$subdir] = str_replace(base_path().'/', '', $subdir);
-                }
+        if ($this->theme !== '' && is_dir($themeDir)) {
+            $dirs[$themeDir] = str_replace(base_path().'/', '', $themeDir);
+
+            // Sub-folders of the theme (partials, layouts, components, …).
+            foreach (File::directories($themeDir) as $subdir) {
+                $dirs[$subdir] = str_replace(base_path().'/', '', $subdir);
             }
         }
 
@@ -490,11 +486,11 @@ class FileEditor extends Component
             return;
         }
 
-        // Prevent deleting core files
+        // Prevent deleting core theme files
         $coreFiles = [
-            resource_path('views/frontend/layout.blade.php'),
-            resource_path('views/frontend/partials/header.blade.php'),
-            resource_path('views/frontend/partials/footer.blade.php'),
+            $this->themePath('layout.blade.php'),
+            $this->themePath('partials/header.blade.php'),
+            $this->themePath('partials/footer.blade.php'),
         ];
 
         if (in_array($this->selectedFile, $coreFiles)) {
