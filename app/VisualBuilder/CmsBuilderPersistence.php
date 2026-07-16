@@ -23,21 +23,26 @@ class CmsBuilderPersistence implements BuilderPersistence
     /** Setting key holding the JSON array of ContentNode ids flagged as style templates. */
     private const STYLE_TEMPLATES_KEY = 'vb_style_templates';
 
-    /**
-     * ContentNode content types that expose section-based content and are
-     * therefore editable in the visual builder.
-     *
-     * @var array<int, class-string>
-     */
-    private const EDITABLE_TYPES = [
-        Home::class,
-        Page::class,
-    ];
-
     public function targets(): array
     {
+        // Any content type whose model exposes a sections() relation (the
+        // HasSections trait) is editable in the builder — Home, Page, and every
+        // section-mode template entity (Development, etc.), not a hardcoded list.
+        $sectionTypes = ContentNode::query()
+            ->whereNotNull('content_type')
+            ->whereNotNull('content_id')
+            ->distinct()
+            ->pluck('content_type')
+            ->filter(fn ($class) => is_string($class) && class_exists($class) && method_exists($class, 'sections'))
+            ->values()
+            ->all();
+
+        if (empty($sectionTypes)) {
+            return [];
+        }
+
         return ContentNode::query()
-            ->whereIn('content_type', self::EDITABLE_TYPES)
+            ->whereIn('content_type', $sectionTypes)
             ->whereNotNull('content_id')
             ->orderByRaw("CASE WHEN url_path = '/' THEN 0 ELSE 1 END")
             ->orderBy('url_path')

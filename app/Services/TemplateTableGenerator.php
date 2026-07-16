@@ -444,12 +444,13 @@ PHP;
 
 namespace App\Models;
 
+use App\Traits\HasSections;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;{$mediaImport}
 
 class {$modelClass} extends Model{$mediaImplements}
 {
-    use SoftDeletes{$mediaTrait};
+    use HasSections, SoftDeletes{$mediaTrait};
 
     protected \$table = '{$tableName}';
 
