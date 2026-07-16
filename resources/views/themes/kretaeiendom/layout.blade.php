@@ -177,5 +177,6 @@
         });
     </script>
     @endif
+    @include('partials.cookie-consent')
 </body>
 </html>
