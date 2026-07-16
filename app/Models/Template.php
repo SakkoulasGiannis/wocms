@@ -262,7 +262,7 @@ class Template extends Model
     protected function getDefaultIndexTemplateContent(): string
     {
         return <<<'BLADE'
-@extends('frontend.layout')
+@extends(app(\App\Services\ThemeManager::class)->getLayout())
 
 @section('content')
 <div class="container mx-auto px-4 py-8">
@@ -311,7 +311,7 @@ BLADE;
     protected function getDefaultTemplateContent(): string
     {
         return <<<'BLADE'
-@extends('frontend.layout')
+@extends(app(\App\Services\ThemeManager::class)->getLayout())
 
 @section('content')
 <div class="container mx-auto px-4 py-8">
