@@ -3,6 +3,7 @@
 namespace App\VisualBuilder;
 
 use App\Services\AI\AIManager;
+use App\Services\PexelsResolver;
 use Weborange\VisualBuilder\Contracts\AiGenerator;
 
 /**
@@ -11,7 +12,10 @@ use Weborange\VisualBuilder\Contracts\AiGenerator;
  */
 class CmsAiGenerator implements AiGenerator
 {
-    public function __construct(private readonly AIManager $ai) {}
+    public function __construct(
+        private readonly AIManager $ai,
+        private readonly PexelsResolver $pexels,
+    ) {}
 
     public function generate(string $prompt, ?string $currentHtml = null, ?string $styleReference = null): array
     {
@@ -31,7 +35,7 @@ class CmsAiGenerator implements AiGenerator
             return ['ok' => false, 'error' => 'The AI did not return usable HTML. Try rephrasing your request.'];
         }
 
-        return ['ok' => true, 'html' => $html];
+        return ['ok' => true, 'html' => $this->swapPlaceholderImages($html)];
     }
 
     public function fixStructure(string $html, ?string $pageTitle = null): array
@@ -41,16 +45,17 @@ class CmsAiGenerator implements AiGenerator
         }
 
         $titleRule = ($pageTitle !== null && trim($pageTitle) !== '')
-            ? "\n        - If the content has NO <h1> at all, create one using this page title: \"".trim($pageTitle)."\", placed as the first heading of the main content."
+            ? "\n        - If the content has NO <h1> at all, create one using this page title: \"".trim($pageTitle).'", placed as the first heading of the main content.'
             : '';
 
         $system = <<<SYS
         You are an SEO and accessibility expert. You are given the full HTML of a web page's content.
-        Fix ONLY the semantic heading structure and tags. Rules:
+        Fix the semantic heading structure, heading tags, and image alt text — nothing else. Rules:
         - There must be exactly ONE <h1>: the main title of the page content. If the main title currently uses the wrong tag (e.g. <h4>, <h2>, a styled <div> or <p>), convert it to <h1>.{$titleRule}
         - Headings below it must follow a correct, non-skipping order: <h1> then <h2>, then <h3> under an <h2>, etc. Never jump from <h1> straight to <h4>.
+        - For every <img>: ensure a concise, descriptive alt attribute. If alt is missing, empty, or generic (e.g. "image", "photo", "banner"), replace it with a specific description based on the surrounding text/context. Keep any already-meaningful alt as-is. NEVER change an image's src or any other attribute.
         - Keep ALL visible text exactly the same — do not rewrite, add, translate or remove any words.
-        - Keep ALL CSS classes, inline styles, attributes, ids, images, links and the overall structure intact. Change ONLY tag names / heading levels where needed for correct semantics.
+        - Keep ALL CSS classes, inline styles, ids, image src, links and the overall structure intact. Change ONLY heading tag levels and image alt text where needed.
         - Do not restyle and do not add or remove elements other than changing a tag's level.
         - Output ONLY the corrected raw HTML. No markdown fences, no explanation.
         SYS;
@@ -68,7 +73,7 @@ class CmsAiGenerator implements AiGenerator
         }
 
         $titleRule = ($pageTitle !== null && trim($pageTitle) !== '')
-            ? "\n        - If the content has no main heading, add an <h1> using this page title: \"".trim($pageTitle)."\"."
+            ? "\n        - If the content has no main heading, add an <h1> using this page title: \"".trim($pageTitle).'".'
             : '';
 
         $system = <<<SYS
@@ -81,9 +86,15 @@ class CmsAiGenerator implements AiGenerator
         - Output ONLY the rebuilt raw HTML. No markdown fences, no explanation.
         SYS;
 
-        return $this->sendAndClean(
+        $result = $this->sendAndClean(
             $system."\n\nREFERENCE TEMPLATE:\n".$this->trimReference($styleReference)."\n\nCURRENT CONTENT TO RESTYLE:\n".$html
         );
+
+        if (($result['ok'] ?? false) && isset($result['html'])) {
+            $result['html'] = $this->swapPlaceholderImages($result['html']);
+        }
+
+        return $result;
     }
 
     /**
@@ -121,6 +132,56 @@ class CmsAiGenerator implements AiGenerator
         return ['ok' => true, 'html' => $out];
     }
 
+    /**
+     * Replace every placehold.co placeholder <img> with a real Pexels photo,
+     * searched by the image's own alt text. Keeps the alt (good for SEO),
+     * swaps only the src. No key configured, no alt, or no match → the
+     * placeholder is left untouched. Never throws.
+     */
+    private function swapPlaceholderImages(string $html): string
+    {
+        if (! $this->pexels->enabled() || stripos($html, 'placehold.co') === false) {
+            return $html;
+        }
+
+        return (string) preg_replace_callback('/<img\b[^>]*>/i', function (array $m): string {
+            $tag = $m[0];
+
+            if (! preg_match('/\bsrc\s*=\s*(["\'])(https?:\/\/placehold\.co\/[^"\']*)\1/i', $tag, $src)) {
+                return $tag;
+            }
+
+            $alt = '';
+            if (preg_match('/\balt\s*=\s*(["\'])(.*?)\1/is', $tag, $altM)) {
+                $alt = trim(html_entity_decode($altM[2], ENT_QUOTES));
+            }
+            if ($alt === '') {
+                return $tag;
+            }
+
+            $orientation = 'landscape';
+            if (preg_match('/placehold\.co\/(\d+)x(\d+)/i', $src[2], $dim)) {
+                $w = (int) $dim[1];
+                $h = (int) $dim[2];
+                if ($h > $w * 1.15) {
+                    $orientation = 'portrait';
+                } elseif (abs($w - $h) <= $w * 0.15) {
+                    $orientation = 'square';
+                }
+            }
+
+            $photo = $this->pexels->resolve($alt, $orientation);
+            if (! $photo) {
+                return $tag;
+            }
+
+            $quote = $src[1];
+            $newSrc = 'src='.$quote.htmlspecialchars($photo['url'], ENT_QUOTES).$quote;
+
+            return str_replace($src[0], $newSrc, $tag);
+        }, $html);
+    }
+
     private function buildPrompt(string $prompt, ?string $currentHtml, ?string $styleReference = null): string
     {
         $system = <<<'SYS'
@@ -130,14 +191,15 @@ class CmsAiGenerator implements AiGenerator
         - Style EVERYTHING with Tailwind CSS utility classes (no <style>, no inline style, no custom CSS).
         - Make it responsive and visually polished.
         - For images use https://placehold.co/WIDTHxHEIGHT placeholders.
+        - Give EVERY <img> a concise, descriptive English alt attribute naming the subject (e.g. alt="modern kitchen interior", alt="aerial view of a Crete coastline"). The alt is used both for SEO and to fetch a matching real photo, so make it specific — never leave it empty or generic like "image".
         - Do NOT include <html>, <head>, <body>, scripts, or markdown code fences.
         - Do NOT add explanations or comments — output ONLY the HTML.
         SYS;
 
         if ($styleReference !== null && trim($styleReference) !== '') {
             $system .= "\n\nMATCH THE STYLE of the following REFERENCE page exactly: reuse the same"
-                ." fonts, font sizes, font weights, colours, spacing, button styles, container widths,"
-                ." Tailwind utility-class patterns and overall section structure. Produce NEW content for"
+                .' fonts, font sizes, font weights, colours, spacing, button styles, container widths,'
+                .' Tailwind utility-class patterns and overall section structure. Produce NEW content for'
                 ." the user's request, but make it look like it belongs to the same site as this reference."
                 ." Do NOT copy the reference's text — only its visual style and structure.\n\nREFERENCE:\n"
                 .$this->trimReference($styleReference);
