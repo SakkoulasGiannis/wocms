@@ -35,6 +35,16 @@
     @livewireStyles
     @stack('styles')
 
+    {{-- Scroll-reveal: elements with class .vb-reveal gently animate in on scroll.
+         Progressive enhancement — the .vb-reveal-on flag is only set when
+         IntersectionObserver exists, so no-JS/old browsers show everything. --}}
+    <style>
+        html.vb-reveal-on .vb-reveal{opacity:0;transform:translateY(24px);transition:opacity .7s cubic-bezier(.16,1,.3,1),transform .7s cubic-bezier(.16,1,.3,1);will-change:opacity,transform;}
+        html.vb-reveal-on .vb-reveal.vb-in{opacity:1;transform:none;}
+        @media (prefers-reduced-motion: reduce){html.vb-reveal-on .vb-reveal{opacity:1!important;transform:none!important;transition:none!important;}}
+    </style>
+    <script>if('IntersectionObserver' in window){document.documentElement.classList.add('vb-reveal-on');}</script>
+
     @if(\App\Models\Setting::get('ve_tailwind_cdn', false))
         {{-- Tailwind v4 browser CDN — renders Tailwind classes in sections site-wide --}}
         <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4" crossorigin="anonymous"></script>
@@ -97,6 +107,20 @@
         if (document.readyState !== 'loading') enableParentLinksOnDesktop();
         else document.addEventListener('DOMContentLoaded', enableParentLinksOnDesktop);
         window.addEventListener('resize', enableParentLinksOnDesktop);
+    })();
+    </script>
+
+    {{-- Scroll-reveal observer: reveal .vb-reveal elements as they enter view. --}}
+    <script>
+    (function(){
+        if(!document.documentElement.classList.contains('vb-reveal-on')){return;}
+        function init(){
+            var io=new IntersectionObserver(function(entries){
+                entries.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('vb-in'); io.unobserve(e.target); } });
+            },{rootMargin:'0px 0px -8% 0px',threshold:0.05});
+            document.querySelectorAll('.vb-reveal:not(.vb-in)').forEach(function(el){ io.observe(el); });
+        }
+        if(document.readyState!=='loading'){ init(); } else { document.addEventListener('DOMContentLoaded', init); }
     })();
     </script>
 

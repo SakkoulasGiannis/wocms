@@ -82,7 +82,8 @@ class CmsAiGenerator implements AiGenerator
         - Reuse the reference's Tailwind utility-class patterns, fonts, font sizes/weights, colours, spacing, button styles, container widths and overall SECTION STRUCTURE.
         - KEEP the current page's actual text content, headings text, links and images — only change the markup/classes/structure around them so it looks like it belongs to the same site as the reference.
         - Fix the heading hierarchy: exactly one <h1> for the main title, then correctly ordered <h2>/<h3>.{$titleRule}
-        - Style with Tailwind utility classes (no <style>, no inline style). Keep real image URLs; use https://placehold.co/WIDTHxHEIGHT only where the current content has no image.
+        - Style with Tailwind utility classes (no <style>, no inline style except transition-delay for the reveal stagger below). Keep real image URLs; use https://placehold.co/WIDTHxHEIGHT only where the current content has no image.
+        - Add the class "vb-reveal" to the main blocks (sections, headings, cards, images) so they animate into view on scroll; optionally stagger siblings with inline style="transition-delay:.1s". No <style>/<script>.
         - Output ONLY the rebuilt raw HTML. No markdown fences, no explanation.
         SYS;
 
@@ -192,6 +193,7 @@ class CmsAiGenerator implements AiGenerator
         - Make it responsive and visually polished.
         - For images use https://placehold.co/WIDTHxHEIGHT placeholders.
         - Give EVERY <img> a concise, descriptive English alt attribute naming the subject (e.g. alt="modern kitchen interior", alt="aerial view of a Crete coastline"). The alt is used both for SEO and to fetch a matching real photo, so make it specific — never leave it empty or generic like "image".
+        - Add the class "vb-reveal" to the main blocks you output — each section's content wrapper, headings, feature/pricing cards, images and key callouts — so they gently animate into view on scroll. For a row of sibling cards, stagger them with an increasing inline style="transition-delay:.1s" (then .2s, .3s…). Use ONLY the class plus transition-delay; never add other animation CSS, keyframes, <style> or <script>.
         - Do NOT include <html>, <head>, <body>, scripts, or markdown code fences.
         - Do NOT add explanations or comments — output ONLY the HTML.
         SYS;
