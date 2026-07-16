@@ -234,7 +234,11 @@
                     $relatedRecords = [];
 
                     if (!empty($settings['model'])) {
-                        $modelClass = "App\\Models\\" . $settings['model'];
+                        // Accept a fully-qualified class (e.g. a module model like
+                        // Modules\ImageMaps\Models\ImageMap) as-is; otherwise assume App\Models.
+                        $modelClass = str_contains($settings['model'], '\\')
+                            ? $settings['model']
+                            : "App\\Models\\" . $settings['model'];
                         if (class_exists($modelClass)) {
                             $query = $modelClass::query();
 
