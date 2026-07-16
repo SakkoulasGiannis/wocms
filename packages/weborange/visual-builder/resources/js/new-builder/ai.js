@@ -38,11 +38,11 @@
         }
 
         // ── Element-scoped AI ──────────────────────────────────────────────
-        // While a target element is "attached", Generate edits ONLY that element
-        // (sends its HTML, replaces just it) instead of the whole page.
-        var attachedId = null;
-        var attachedLabel = '';
+        // When an element is selected in the builder, Generate edits ONLY that
+        // element by default (sends just its HTML, replaces just it). A toggle
+        // lets you switch to editing the whole page instead.
         var lastSelection = null; // {id,label} of the node currently selected in the builder
+        var wholePageMode = false; // when an element is selected: edit only it unless this is on
 
         function nb() { return rootEl.__nb; }
 
@@ -55,14 +55,14 @@
         function renderTarget() {
             var box = el('[data-ai-target]');
             if (!box) { return; }
-            if (attachedId) {
-                box.className = 'text-[11px] rounded-md border border-violet-300 bg-violet-100 text-violet-800 px-2 py-1.5 leading-snug flex items-center gap-1.5';
-                box.innerHTML = '<span>🎯 Editing <b>' + escapeHtml(attachedLabel || 'element') + '</b> only</span>'
-                    + '<button type="button" data-ai-detach class="ml-auto text-violet-500 hover:text-violet-700" title="Edit the whole page instead">✕</button>';
-            } else if (lastSelection) {
+            if (lastSelection && !wholePageMode) {
+                box.className = 'text-[11px] rounded-md border border-violet-300 bg-violet-100 text-violet-900 px-2 py-1.5 leading-snug flex items-center gap-1.5';
+                box.innerHTML = '<span>🎯 Θα αλλάξει <b>ΜΟΝΟ</b> το επιλεγμένο: <b>' + escapeHtml(lastSelection.label) + '</b></span>'
+                    + '<button type="button" data-ai-scope-page class="ml-auto whitespace-nowrap text-violet-600 hover:text-violet-800 underline" title="Άλλαξε όλη τη σελίδα">όλη η σελίδα</button>';
+            } else if (lastSelection && wholePageMode) {
                 box.className = 'text-[11px] rounded-md border border-gray-200 bg-gray-50 text-gray-600 px-2 py-1.5 leading-snug flex items-center gap-1.5';
-                box.innerHTML = '<span>Selected: <b>' + escapeHtml(lastSelection.label) + '</b></span>'
-                    + '<button type="button" data-ai-attach class="ml-auto text-violet-600 hover:text-violet-800 font-medium" title="Make the AI edit only this element">Edit only this →</button>';
+                box.innerHTML = '<span>Θα αλλάξει <b>όλη</b> η σελίδα</span>'
+                    + '<button type="button" data-ai-scope-element class="ml-auto whitespace-nowrap text-violet-600 hover:text-violet-800 underline" title="Μόνο το επιλεγμένο">μόνο το επιλεγμένο</button>';
             } else {
                 box.className = 'hidden';
                 box.innerHTML = '';
@@ -72,6 +72,7 @@
         if (nb() && typeof nb().onSelectionChange === 'function') {
             nb().onSelectionChange(function (info) {
                 lastSelection = info;
+                wholePageMode = false; // a fresh selection defaults to editing just that element
                 renderTarget();
             });
         }
@@ -81,14 +82,15 @@
             var prompt = promptEl ? promptEl.value.trim() : '';
             if (!prompt) { setResult('Type what you want first.', 'err'); return; }
 
-            // Element-scoped mode: an element is attached → edit only that element.
-            var scoped = !!attachedId;
+            // Element-scoped mode: a node is selected and "whole page" is off →
+            // edit ONLY that element.
+            var scoped = !!(lastSelection && !wholePageMode);
+            var targetId = scoped ? lastSelection.id : null;
             var scopedHtml = '';
             if (scoped) {
-                scopedHtml = (nb() && nb().getNodeHtml) ? (nb().getNodeHtml(attachedId) || '') : '';
+                scopedHtml = (nb() && nb().getNodeHtml) ? (nb().getNodeHtml(targetId) || '') : '';
                 if (!scopedHtml) {
-                    attachedId = null; renderTarget();
-                    setResult('The targeted element is gone — switched to editing the whole page. Try again.', 'err');
+                    setResult('Το επιλεγμένο στοιχείο δεν είναι πλέον διαθέσιμο — διάλεξέ το ξανά.', 'err');
                     return;
                 }
             }
@@ -125,9 +127,8 @@
                 if (j.ok && j.html) {
                     var done;
                     if (scoped) {
-                        var newId = (nb() && nb().replaceNodeHtml) ? nb().replaceNodeHtml(attachedId, j.html) : null;
+                        var newId = (nb() && nb().replaceNodeHtml) ? nb().replaceNodeHtml(targetId, j.html) : null;
                         done = !!newId;
-                        if (done) { attachedId = newId; }
                         renderTarget();
                     } else {
                         done = loadResultHtml(j.html, replaceResult);
@@ -230,14 +231,14 @@
         }
 
         rootEl.addEventListener('click', function (e) {
-            if (e.target.closest('[data-ai-attach]')) {
+            if (e.target.closest('[data-ai-scope-page]')) {
                 e.preventDefault();
-                if (lastSelection) { attachedId = lastSelection.id; attachedLabel = lastSelection.label; renderTarget(); }
+                wholePageMode = true; renderTarget();
                 return;
             }
-            if (e.target.closest('[data-ai-detach]')) {
+            if (e.target.closest('[data-ai-scope-element]')) {
                 e.preventDefault();
-                attachedId = null; attachedLabel = ''; renderTarget();
+                wholePageMode = false; renderTarget();
                 return;
             }
             var gen = e.target.closest('[data-ai-generate]');
